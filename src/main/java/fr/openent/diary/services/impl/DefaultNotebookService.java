@@ -280,13 +280,13 @@ public class DefaultNotebookService extends DBService implements NotebookService
 
         // start date case
         if (start_at != null) {
-            query += "AND notebook.date >= ? ";
+            query += "AND notebook.date >= ?::date ";
             params.add(start_at);
         }
 
         // end date case
         if (end_at != null) {
-            query += "AND notebook.date <= ? ";
+            query += "AND notebook.date <= ?::date ";
             params.add(end_at);
         }
 
@@ -744,13 +744,13 @@ public class DefaultNotebookService extends DBService implements NotebookService
 
         // start date case
         if (start_at != null) {
-            query += "AND notebook.date >= ? ";
+            query += "AND notebook.date >= ?::date ";
             params.add(start_at);
         }
 
         // end date case
         if (end_at != null) {
-            query += "AND notebook.date <= ? ";
+            query += "AND notebook.date <= ?::date ";
             params.add(end_at);
         }
 
