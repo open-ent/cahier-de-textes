@@ -99,6 +99,10 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
 
             this.getHomeworks(structureId, startDate, endDate, (teacherId != null) ? null : user.getUserId(),
                     listAudienceId, listTeacherId, subjectId, false, handler);
+        } else {
+            // Profils non gérés (Personnel, Relative, Guest...) : pas de devoirs "own",
+            // mais on doit toujours répondre pour ne pas laisser la requête en attente.
+            handler.handle(new Either.Right<>(new JsonArray()));
         }
     }
 
