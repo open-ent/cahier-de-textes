@@ -558,7 +558,9 @@ public class SessionServiceImpl extends DBService implements SessionService {
                 "room, color, description, annotation, is_published, is_empty, course_id, owner_id, " +
                 "date, start_time, end_time, created, modified) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
-                "?, to_timestamp(?, 'hh24:mi:ss'), to_timestamp(?, 'hh24:mi:ss'), NOW(), NOW()) RETURNING id";
+                // PG16 ne caste plus implicitement varchar -> date : le paramètre date doit être converti
+                // explicitement (cf. UPDATE session et INSERT homework qui utilisent déjà to_date).
+                "to_date(?,'YYYY-MM-DD'), to_timestamp(?, 'hh24:mi:ss'), to_timestamp(?, 'hh24:mi:ss'), NOW(), NOW()) RETURNING id";
 
         values.add(session.getString("subject_id", ""));
 
