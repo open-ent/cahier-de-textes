@@ -51,6 +51,17 @@ export let main = ng.controller('MainController',
                     $scope.$apply(fn);
                 }
             };
+            // Les contrôleurs de route (séance, travail, progression, liste…) appellent
+            // $scope.safeApply() en comptant l'hériter de MainController. Or leurs scopes
+            // n'héritent pas de $rootScope (scopes de route isolés par le routing entcore)
+            // → "$scope.safeApply is not a function" casse notamment la sélection de
+            // matière (séance/travail). On installe donc safeApply sur le PROTOTYPE de
+            // Scope : tous les scopes (isolés compris) en héritent.
+            $rootScope.safeApply = $scope.safeApply;
+            const scopeProto = Object.getPrototypeOf($rootScope);
+            if (scopeProto && !scopeProto.safeApply) {
+                scopeProto.safeApply = $scope.safeApply;
+            }
 
             $scope.initializeStructure = async (): Promise<void> => {
                 $scope.structures = new Structures();
