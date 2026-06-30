@@ -78,6 +78,7 @@
                     <div class="row margin-bottom-md" ng-show="display.sessionSelect && ((isSessionFuture() && homework.session) || !homework.id || homework.editable)">
                         <label>
                             <input type="radio"
+                                   name="homework-attach-type"
                                    ng-click="attachToSession(); syncWorkloadDay();"
                                    ng-checked="homework.attachedToSession"
                                    value="true">
@@ -85,6 +86,7 @@
                         </label><br>
                         <label>
                             <input type="radio"
+                                   name="homework-attach-type"
                                    ng-click="attachToDate(); syncWorkloadDay();"
                                    ng-checked="homework.attachedToDate"
                                    value="false">
