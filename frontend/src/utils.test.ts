@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { addDays, formatDate, sortKey, ymd } from './utils';
+import { addDays, formatDate, mondayOf, sortKey, weekLabel, ymd } from './utils';
 
 describe('ymd', () => {
   it('formate en YYYY-MM-DD', () => {
@@ -26,5 +26,19 @@ describe('sortKey', () => {
   it('ordonne chronologiquement (absent en dernier)', () => {
     expect(sortKey('2026-01-01') < sortKey('2026-12-31')).toBe(true);
     expect(sortKey(undefined)).toBe('9999-99-99');
+  });
+});
+
+describe('mondayOf', () => {
+  it('renvoie le lundi de la semaine', () => {
+    expect(ymd(mondayOf(new Date(2026, 8, 16)))).toBe('2026-09-14'); // mercredi -> lundi
+    expect(ymd(mondayOf(new Date(2026, 8, 14)))).toBe('2026-09-14'); // lundi -> lundi
+    expect(ymd(mondayOf(new Date(2026, 8, 20)))).toBe('2026-09-14'); // dimanche -> lundi précédent
+  });
+});
+
+describe('weekLabel', () => {
+  it('formate la plage lundi→vendredi', () => {
+    expect(weekLabel(new Date(2026, 8, 14))).toBe('du 14/09 au 18/09');
   });
 });

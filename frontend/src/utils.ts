@@ -14,6 +14,20 @@ export function addDays(d: Date, days: number): Date {
   return r;
 }
 
+/** Lundi (00:00) de la semaine contenant `d` (semaine ISO, lundi premier jour). */
+export function mondayOf(d: Date): Date {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dow = (r.getDay() + 6) % 7; // 0 = lundi … 6 = dimanche
+  return addDays(r, -dow);
+}
+
+/** Intitulé « du jj/mm au jj/mm » d'une semaine à partir de son lundi. */
+export function weekLabel(monday: Date): string {
+  const friday = addDays(monday, 4);
+  const fr = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+  return `du ${fr(monday)} au ${fr(friday)}`;
+}
+
 /** Formate une date « YYYY-MM-DD » en « jj/mm/aaaa » (locale FR). */
 export function formatDate(s?: string): string {
   if (!s) return '';

@@ -14,6 +14,14 @@ export interface HomeworkType {
   structure_id: string;
 }
 
+/** Créneau horaire du référentiel (pour la vue calendrier). */
+export interface TimeSlot {
+  id: string;
+  name: string;
+  startHour: string;
+  endHour: string;
+}
+
 /** Un devoir (côté liste « own »). Dates « YYYY-MM-DD ». */
 export interface Homework {
   id: number;
@@ -84,6 +92,12 @@ export const deleteHomeworkType = async (id: number, structureId: string): Promi
   if (!res.ok && res.status !== 204) throw new Error(String(res.status));
 };
 
+/** Créneaux horaires (pour la vue calendrier), triés par heure de début. */
+export const getTimeSlots = async (structureId: string): Promise<TimeSlot[]> =>
+  json<TimeSlot[]>(await fetch(`/edt/time-slots?structureId=${structureId}`, base))
+    .then((arr) => [...arr].sort((a, b) => (a.startHour || '').localeCompare(b.startHour || '')))
+    .catch(() => []);
+
 // ── Devoirs ────────────────────────────────────────────────────────────────────
 export const getOwnHomeworks = async (start: string, end: string, structureId: string): Promise<Homework[]> =>
   json<Homework[]>(await fetch(`/diary/homeworks/own/${start}/${end}/${structureId}`, base));
@@ -102,6 +116,7 @@ export const api = {
   getHomeworkTypes,
   createHomeworkType,
   deleteHomeworkType,
+  getTimeSlots,
   getOwnHomeworks,
   createHomework,
   deleteHomework,

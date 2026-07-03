@@ -4,14 +4,19 @@ import { FormEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { api } from '../api';
-import { addDays, formatDate, sortKey, stripHtml, ymd } from '../utils';
+import { addDays, formatDate, mondayOf, sortKey, stripHtml, weekLabel, ymd } from '../utils';
 
-/** Écran devoirs : référentiel (matières/classes/types) + liste des devoirs + création. */
+const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+
+/** Écran devoirs : vue calendrier/liste des devoirs + création + gestion des types. */
 export function Homeworks() {
   const { t } = useTranslation(['diary', 'common']);
   const { user, init } = useEdificeClient();
   const qc = useQueryClient();
   const structureId = user?.structures?.[0] ?? '';
+
+  const [view, setView] = useState<'calendar' | 'list'>('calendar');
+  const [monday, setMonday] = useState(() => mondayOf(new Date()));
 
   // Fenêtre large autour d'aujourd'hui pour lister les devoirs.
   const start = ymd(addDays(new Date(), -30));
@@ -19,6 +24,7 @@ export function Homeworks() {
 
   const subjectsQuery = useQuery({ queryKey: ['diary', 'subjects', structureId], queryFn: () => api.getSubjects(structureId), enabled: !!structureId });
   const classesQuery = useQuery({ queryKey: ['diary', 'classes', structureId], queryFn: () => api.getClasses(structureId), enabled: !!structureId });
+  const slotsQuery = useQuery({ queryKey: ['diary', 'timeslots', structureId], queryFn: () => api.getTimeSlots(structureId), enabled: !!structureId });
   const typesQuery = useQuery({ queryKey: ['diary', 'types', structureId], queryFn: () => api.getHomeworkTypes(structureId), enabled: !!structureId });
   const homeworksKey = ['diary', 'homeworks', structureId, start, end];
   const homeworksQuery = useQuery({ queryKey: homeworksKey, queryFn: () => api.getOwnHomeworks(start, end, structureId), enabled: !!structureId });
@@ -84,6 +90,19 @@ export function Homeworks() {
   };
 
   const homeworks = [...(homeworksQuery.data ?? [])].sort((a, b) => sortKey(a.due_date).localeCompare(sortKey(b.due_date)));
+
+  // Jours ouvrés de la semaine affichée + devoirs indexés par jour (due_date).
+  const weekDays = JOURS.map((label, i) => ({ label, date: addDays(monday, i), key: ymd(addDays(monday, i)) }));
+  const byDay = useMemo(() => {
+    const m = new Map<string, typeof homeworks>();
+    for (const h of homeworks) {
+      const k = (h.due_date || '').slice(0, 10);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(h);
+    }
+    return m;
+  }, [homeworks]);
+  const slots = slotsQuery.data ?? [];
 
   if (init && !structureId) {
     return (
@@ -178,47 +197,105 @@ export function Homeworks() {
         )}
       </section>
 
-      {/* Liste des devoirs */}
-      <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.homeworks', { defaultValue: 'Devoirs à venir' })}</h2>
+      {/* Barre d'affichage : calendrier / liste + navigation semaine */}
+      <div className="d-flex gap-16 flex-wrap align-items-center justify-content-between mb-12">
+        <div className="btn-group" role="group" aria-label={t('diary.view', { defaultValue: 'Mode d\'affichage' })}>
+          <button type="button" className={`btn btn-${view === 'calendar' ? 'primary' : 'secondary'}`} onClick={() => setView('calendar')}>
+            {t('diary.view.calendar', { defaultValue: 'Calendaire' })}
+          </button>
+          <button type="button" className={`btn btn-${view === 'list' ? 'primary' : 'secondary'}`} onClick={() => setView('list')}>
+            {t('diary.view.list', { defaultValue: 'Liste' })}
+          </button>
+        </div>
+        {view === 'calendar' && (
+          <div className="d-flex gap-8 align-items-center">
+            <button type="button" className="btn btn-secondary" onClick={() => setMonday((m) => addDays(m, -7))}>{t('diary.week.prev', { defaultValue: '← Semaine précédente' })}</button>
+            <span className="text-muted" style={{ minWidth: 150, textAlign: 'center' }}>{weekLabel(monday)}</span>
+            <button type="button" className="btn btn-secondary" onClick={() => setMonday((m) => addDays(m, 7))}>{t('diary.week.next', { defaultValue: 'Semaine suivante →' })}</button>
+          </div>
+        )}
+      </div>
+
       {homeworksQuery.isLoading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
-      {!homeworksQuery.isLoading && homeworks.length === 0 && (
-        <p className="text-muted">{t('diary.homeworks.empty', { defaultValue: 'Aucun devoir sur la période.' })}</p>
-      )}
-      {homeworks.length > 0 && (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{t('diary.due', { defaultValue: 'À rendre le' })}</th>
-              <th>{t('diary.subject', { defaultValue: 'Matière' })}</th>
-              <th>{t('diary.class', { defaultValue: 'Classe' })}</th>
-              <th>{t('diary.type', { defaultValue: 'Type' })}</th>
-              <th>{t('diary.description', { defaultValue: 'Description' })}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {homeworks.map((h) => (
-              <tr key={h.id}>
-                <td>{formatDate(h.due_date)}</td>
-                <td>{subjectName.get(h.subject_id) ?? h.subject_id}</td>
-                <td>{className.get(h.audience_id) ?? h.audience_id}</td>
-                <td>{h.type_id ? typeLabel.get(h.type_id) ?? '' : ''}</td>
-                <td>{stripHtml(h.description)}</td>
-                <td className="text-end">
-                  <button
-                    type="button"
-                    className="btn btn-link p-0 text-danger"
-                    onClick={() => {
-                      if (window.confirm(t('diary.homework.confirm.delete', { defaultValue: 'Supprimer ce devoir ?' }))) deleteMut.mutate(h.id);
-                    }}
-                  >
-                    {t('diary.delete', { defaultValue: 'Supprimer' })}
-                  </button>
-                </td>
+
+      {/* Vue CALENDRIER : « Travail à faire » (devoirs par jour) + créneaux horaires */}
+      {view === 'calendar' && (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="table" style={{ tableLayout: 'fixed', minWidth: 820 }}>
+            <thead>
+              <tr>
+                <th style={{ width: 90 }} />
+                {weekDays.map((d) => <th key={d.key} className="text-center">{d.label}<br /><span className="text-muted" style={{ fontSize: 12 }}>{formatDate(d.key)}</span></th>)}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row" className="text-muted" style={{ fontWeight: 400 }}>{t('diary.todo', { defaultValue: 'Travail à faire' })}</th>
+                {weekDays.map((d) => (
+                  <td key={d.key} style={{ verticalAlign: 'top', background: '#fff7ec' }}>
+                    {(byDay.get(d.key) ?? []).map((h) => (
+                      <div key={h.id} title={stripHtml(h.description)} style={{ background: '#f6a623', color: '#fff', borderRadius: 3, padding: '3px 6px', marginBottom: 4, fontSize: 12 }}>
+                        <div style={{ fontWeight: 600 }}>{subjectName.get(h.subject_id) ?? h.subject_id}</div>
+                        <div>{className.get(h.audience_id) ?? ''}</div>
+                      </div>
+                    ))}
+                  </td>
+                ))}
+              </tr>
+              {slots.map((s) => (
+                <tr key={s.id}>
+                  <th scope="row" className="text-muted" style={{ fontWeight: 400, whiteSpace: 'nowrap' }}>{s.name}</th>
+                  {weekDays.map((d) => <td key={d.key} />)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Vue LISTE */}
+      {view === 'list' && (
+        <>
+          {!homeworksQuery.isLoading && homeworks.length === 0 && (
+            <p className="text-muted">{t('diary.homeworks.empty', { defaultValue: 'Aucun devoir sur la période.' })}</p>
+          )}
+          {homeworks.length > 0 && (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t('diary.due', { defaultValue: 'À rendre le' })}</th>
+                  <th>{t('diary.subject', { defaultValue: 'Matière' })}</th>
+                  <th>{t('diary.class', { defaultValue: 'Classe' })}</th>
+                  <th>{t('diary.type', { defaultValue: 'Type' })}</th>
+                  <th>{t('diary.description', { defaultValue: 'Description' })}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {homeworks.map((h) => (
+                  <tr key={h.id}>
+                    <td>{formatDate(h.due_date)}</td>
+                    <td>{subjectName.get(h.subject_id) ?? h.subject_id}</td>
+                    <td>{className.get(h.audience_id) ?? h.audience_id}</td>
+                    <td>{h.type_id ? typeLabel.get(h.type_id) ?? '' : ''}</td>
+                    <td>{stripHtml(h.description)}</td>
+                    <td className="text-end">
+                      <button
+                        type="button"
+                        className="btn btn-link p-0 text-danger"
+                        onClick={() => {
+                          if (window.confirm(t('diary.homework.confirm.delete', { defaultValue: 'Supprimer ce devoir ?' }))) deleteMut.mutate(h.id);
+                        }}
+                      >
+                        {t('diary.delete', { defaultValue: 'Supprimer' })}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
       )}
     </div>
   );
