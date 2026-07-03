@@ -13,6 +13,7 @@
         "integration-mode" : "HTTP",
         "app-registry.port" : 8012,
         "mode" : "${mode}",
+        "frontend-ui" : "angular",
 		"sql": true,
         "exports" : {
             "template-path" : "public/template/pdf/"

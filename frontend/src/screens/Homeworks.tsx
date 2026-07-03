@@ -1,0 +1,182 @@
+import { useEdificeClient } from '@open-ent/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { FormEvent, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { api } from '../api';
+import { addDays, formatDate, sortKey, stripHtml, ymd } from '../utils';
+
+/** Écran devoirs : référentiel (matières/classes/types) + liste des devoirs + création. */
+export function Homeworks() {
+  const { t } = useTranslation(['diary', 'common']);
+  const { user, init } = useEdificeClient();
+  const qc = useQueryClient();
+  const structureId = user?.structures?.[0] ?? '';
+
+  // Fenêtre large autour d'aujourd'hui pour lister les devoirs.
+  const start = ymd(addDays(new Date(), -30));
+  const end = ymd(addDays(new Date(), 180));
+
+  const subjectsQuery = useQuery({ queryKey: ['diary', 'subjects', structureId], queryFn: () => api.getSubjects(structureId), enabled: !!structureId });
+  const classesQuery = useQuery({ queryKey: ['diary', 'classes', structureId], queryFn: () => api.getClasses(structureId), enabled: !!structureId });
+  const typesQuery = useQuery({ queryKey: ['diary', 'types', structureId], queryFn: () => api.getHomeworkTypes(structureId), enabled: !!structureId });
+  const homeworksKey = ['diary', 'homeworks', structureId, start, end];
+  const homeworksQuery = useQuery({ queryKey: homeworksKey, queryFn: () => api.getOwnHomeworks(start, end, structureId), enabled: !!structureId });
+  const invalidate = () => qc.invalidateQueries({ queryKey: homeworksKey });
+
+  const subjectName = useMemo(() => new Map((subjectsQuery.data ?? []).map((s) => [s.id, s.name])), [subjectsQuery.data]);
+  const className = useMemo(() => new Map((classesQuery.data ?? []).map((c) => [c.id, c.name])), [classesQuery.data]);
+  const typeLabel = useMemo(() => new Map((typesQuery.data ?? []).map((t2) => [t2.id, t2.label])), [typesQuery.data]);
+
+  const subjects = subjectsQuery.data ?? [];
+  const classes = classesQuery.data ?? [];
+  const types = typesQuery.data ?? [];
+
+  const [subjectId, setSubjectId] = useState('');
+  const [audienceId, setAudienceId] = useState('');
+  const [typeId, setTypeId] = useState<number | ''>('');
+  const [dueDate, setDueDate] = useState('');
+  const [description, setDescription] = useState('');
+  const [estimatedTime, setEstimatedTime] = useState(30);
+  const [formError, setFormError] = useState('');
+
+  const createMut = useMutation({
+    mutationFn: () =>
+      api.createHomework({
+        subject_id: subjectId,
+        structure_id: structureId,
+        audience_id: audienceId,
+        type_id: Number(typeId),
+        due_date: dueDate,
+        description: description.trim(),
+        color: '#4bafd5',
+        estimatedTime,
+        is_published: true,
+        session_id: null,
+      }),
+    onSuccess: () => {
+      setDescription('');
+      setDueDate('');
+      setFormError('');
+      invalidate();
+    },
+    onError: () => setFormError(t('diary.homework.error', { defaultValue: "L'enregistrement a échoué." })),
+  });
+  const deleteMut = useMutation({ mutationFn: (id: number) => api.deleteHomework(id), onSuccess: invalidate });
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!subjectId || !audienceId || !typeId || !dueDate || !description.trim()) {
+      setFormError(t('diary.homework.incomplete', { defaultValue: 'Renseignez la matière, la classe, le type, la date et la description.' }));
+      return;
+    }
+    setFormError('');
+    createMut.mutate();
+  };
+
+  const homeworks = [...(homeworksQuery.data ?? [])].sort((a, b) => sortKey(a.due_date).localeCompare(sortKey(b.due_date)));
+
+  if (init && !structureId) {
+    return (
+      <div>
+        <h1>{t('diary.title', { defaultValue: 'Cahier de textes' })}</h1>
+        <div className="alert alert-info" role="alert">
+          {t('diary.no.structure', { defaultValue: 'Aucun établissement associé à votre compte.' })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1 className="mb-16">{t('diary.title', { defaultValue: 'Cahier de textes' })}</h1>
+
+      {/* Formulaire de création de devoir */}
+      <form className="card p-16 mb-16" onSubmit={onSubmit}>
+        <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.homework.new', { defaultValue: 'Nouveau devoir' })}</h2>
+        <div className="d-flex gap-16 flex-wrap mb-8">
+          <div>
+            <label htmlFor="hw-subject" className="form-label">{t('diary.subject', { defaultValue: 'Matière' })}</label>
+            <select id="hw-subject" className="form-select" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+              <option value="">—</option>
+              {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="hw-class" className="form-label">{t('diary.class', { defaultValue: 'Classe' })}</label>
+            <select id="hw-class" className="form-select" value={audienceId} onChange={(e) => setAudienceId(e.target.value)}>
+              <option value="">—</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="hw-type" className="form-label">{t('diary.type', { defaultValue: 'Type' })}</label>
+            <select id="hw-type" className="form-select" value={typeId} onChange={(e) => setTypeId(e.target.value ? Number(e.target.value) : '')}>
+              <option value="">—</option>
+              {types.map((ty) => <option key={ty.id} value={ty.id}>{ty.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="hw-due" className="form-label">{t('diary.due', { defaultValue: 'À rendre le' })}</label>
+            <input id="hw-due" type="date" className="form-control" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          </div>
+          <div style={{ maxWidth: 130 }}>
+            <label htmlFor="hw-time" className="form-label">{t('diary.esttime', { defaultValue: 'Durée (min)' })}</label>
+            <input id="hw-time" type="number" min={0} className="form-control" value={estimatedTime} onChange={(e) => setEstimatedTime(Math.max(0, Number(e.target.value) || 0))} />
+          </div>
+        </div>
+        <div className="mb-8">
+          <label htmlFor="hw-desc" className="form-label">{t('diary.description', { defaultValue: 'Description' })}</label>
+          <textarea id="hw-desc" className="form-control" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        {formError && <div className="alert alert-warning" role="alert">{formError}</div>}
+        <button type="submit" className="btn btn-primary" disabled={createMut.isPending}>{t('diary.homework.add', { defaultValue: 'Ajouter le devoir' })}</button>
+      </form>
+
+      {/* Liste des devoirs */}
+      <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.homeworks', { defaultValue: 'Devoirs à venir' })}</h2>
+      {homeworksQuery.isLoading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
+      {!homeworksQuery.isLoading && homeworks.length === 0 && (
+        <p className="text-muted">{t('diary.homeworks.empty', { defaultValue: 'Aucun devoir sur la période.' })}</p>
+      )}
+      {homeworks.length > 0 && (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>{t('diary.due', { defaultValue: 'À rendre le' })}</th>
+              <th>{t('diary.subject', { defaultValue: 'Matière' })}</th>
+              <th>{t('diary.class', { defaultValue: 'Classe' })}</th>
+              <th>{t('diary.type', { defaultValue: 'Type' })}</th>
+              <th>{t('diary.description', { defaultValue: 'Description' })}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {homeworks.map((h) => (
+              <tr key={h.id}>
+                <td>{formatDate(h.due_date)}</td>
+                <td>{subjectName.get(h.subject_id) ?? h.subject_id}</td>
+                <td>{className.get(h.audience_id) ?? h.audience_id}</td>
+                <td>{h.type_id ? typeLabel.get(h.type_id) ?? '' : ''}</td>
+                <td>{stripHtml(h.description)}</td>
+                <td className="text-end">
+                  <button
+                    type="button"
+                    className="btn btn-link p-0 text-danger"
+                    onClick={() => {
+                      if (window.confirm(t('diary.homework.confirm.delete', { defaultValue: 'Supprimer ce devoir ?' }))) deleteMut.mutate(h.id);
+                    }}
+                  >
+                    {t('diary.delete', { defaultValue: 'Supprimer' })}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+export default Homeworks;
