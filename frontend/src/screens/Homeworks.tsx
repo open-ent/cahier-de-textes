@@ -64,6 +64,15 @@ export function Homeworks() {
   });
   const deleteMut = useMutation({ mutationFn: (id: number) => api.deleteHomework(id), onSuccess: invalidate });
 
+  // Gestion des types de devoir (incrément 2)
+  const [newType, setNewType] = useState('');
+  const invalidateTypes = () => qc.invalidateQueries({ queryKey: ['diary', 'types', structureId] });
+  const createTypeMut = useMutation({
+    mutationFn: () => api.createHomeworkType(structureId, newType.trim()),
+    onSuccess: () => { setNewType(''); invalidateTypes(); },
+  });
+  const deleteTypeMut = useMutation({ mutationFn: (id: number) => api.deleteHomeworkType(id, structureId), onSuccess: invalidateTypes });
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!subjectId || !audienceId || !typeId || !dueDate || !description.trim()) {
@@ -132,6 +141,42 @@ export function Homeworks() {
         {formError && <div className="alert alert-warning" role="alert">{formError}</div>}
         <button type="submit" className="btn btn-primary" disabled={createMut.isPending}>{t('diary.homework.add', { defaultValue: 'Ajouter le devoir' })}</button>
       </form>
+
+      {/* Gestion des types de devoir */}
+      <section className="card p-16 mb-16" style={{ maxWidth: 520 }}>
+        <h2 style={{ fontSize: 18 }} className="mb-12">
+          {t('diary.types', { defaultValue: 'Types de devoir' })}{' '}
+          <span className="text-muted" style={{ fontSize: 14 }}>({types.length})</span>
+        </h2>
+        <form
+          className="d-flex gap-8 align-items-end mb-8"
+          onSubmit={(e) => { e.preventDefault(); if (newType.trim()) createTypeMut.mutate(); }}
+        >
+          <div className="flex-grow-1">
+            <label htmlFor="hw-newtype" className="form-label">{t('diary.type.new', { defaultValue: 'Nouveau type' })}</label>
+            <input id="hw-newtype" className="form-control" value={newType} onChange={(e) => setNewType(e.target.value)} />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={createTypeMut.isPending || !newType.trim()}>
+            {t('diary.type.add', { defaultValue: 'Ajouter le type' })}
+          </button>
+        </form>
+        {types.length > 0 && (
+          <ul className="list-unstyled mb-0">
+            {types.map((ty) => (
+              <li key={ty.id} className="d-flex justify-content-between align-items-center py-4 border-bottom">
+                <span>{ty.label}</span>
+                <button
+                  type="button"
+                  className="btn btn-link p-0 text-danger"
+                  onClick={() => { if (window.confirm(t('diary.type.delete.confirm', { defaultValue: 'Supprimer ce type ?' }))) deleteTypeMut.mutate(ty.id); }}
+                >
+                  {t('diary.delete', { defaultValue: 'Supprimer' })}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {/* Liste des devoirs */}
       <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.homeworks', { defaultValue: 'Devoirs à venir' })}</h2>

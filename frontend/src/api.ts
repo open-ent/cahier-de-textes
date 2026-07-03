@@ -72,6 +72,18 @@ export const getClasses = async (structureId: string): Promise<Klass[]> =>
 export const getHomeworkTypes = async (structureId: string): Promise<HomeworkType[]> =>
   json<HomeworkType[]>(await fetch(`/diary/homework-types/${structureId}`, base));
 
+/** Crée un type de devoir (POST /diary/homework-type). */
+export const createHomeworkType = async (structureId: string, label: string): Promise<{ id: number }> =>
+  json<{ id: number }>(
+    await fetch('/diary/homework-type', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify({ structure_id: structureId, label }) }),
+  );
+
+/** Supprime un type de devoir (DELETE /diary/homework-type/:id/:idStructure). */
+export const deleteHomeworkType = async (id: number, structureId: string): Promise<void> => {
+  const res = await fetch(`/diary/homework-type/${id}/${structureId}`, { ...base, method: 'DELETE', headers: xsrfHeader() });
+  if (!res.ok && res.status !== 204) throw new Error(String(res.status));
+};
+
 // ── Devoirs ────────────────────────────────────────────────────────────────────
 export const getOwnHomeworks = async (start: string, end: string, structureId: string): Promise<Homework[]> =>
   json<Homework[]>(await fetch(`/diary/homeworks/own/${start}/${end}/${structureId}`, base));
@@ -88,6 +100,8 @@ export const api = {
   getSubjects,
   getClasses,
   getHomeworkTypes,
+  createHomeworkType,
+  deleteHomeworkType,
   getOwnHomeworks,
   createHomework,
   deleteHomework,
