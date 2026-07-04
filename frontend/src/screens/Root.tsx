@@ -27,6 +27,7 @@ export function Root() {
             <nav className="btn-group mb-16" aria-label="Navigation cahier de textes">
               {tab('/', 'Devoirs', true)}
               {tab('/seances', 'Séances')}
+              {tab('/progressions', 'Progressions')}
             </nav>
             <Outlet />
           </div>

@@ -1,6 +1,25 @@
 import { describe, expect, it } from 'vitest';
 
+import { flattenProgressions } from './api';
 import { addDays, formatDate, hhmm, mondayOf, sortKey, stripHtml, weekLabel, ymd } from './utils';
+
+describe('flattenProgressions', () => {
+  it('parse la chaîne JSON imbriquée et attache le dossier', () => {
+    const folders = [
+      { title: null, progressions: JSON.stringify([{ id: 1, class: '2PROCRM', title: 'Séq 1', description: 'obj', subject_label: 'ACO', modified: '2026-07-04T09:01:23' }]) },
+      { title: 'Trimestre 2', progressions: JSON.stringify([{ id: 2, class: '1G', title: 'Séq 2', description: '', subject_label: 'MATH' }]) },
+    ];
+    const out = flattenProgressions(folders);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ id: 1, title: 'Séq 1', className: '2PROCRM', subjectLabel: 'ACO', folder: '' });
+    expect(out[1]).toMatchObject({ id: 2, folder: 'Trimestre 2' });
+  });
+  it('tolère une chaîne invalide ou vide', () => {
+    expect(flattenProgressions([{ title: 'x', progressions: 'pas du json' }])).toEqual([]);
+    expect(flattenProgressions([{ title: 'x', progressions: null }])).toEqual([]);
+    expect(flattenProgressions([])).toEqual([]);
+  });
+});
 
 describe('hhmm', () => {
   it('réduit HH:mm:ss à HH:mm', () => {

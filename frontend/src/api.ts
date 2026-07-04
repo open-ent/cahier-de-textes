@@ -163,6 +163,67 @@ export const unpublishSession = async (id: number): Promise<void> => {
   if (!res.ok) throw new Error(String(res.status));
 };
 
+// ── Progressions (séquences pédagogiques) ────────────────────────────────────────
+/** Une progression (séquence) aplatie, avec le dossier parent résolu. */
+export interface Progression {
+  id: number;
+  title: string;
+  description: string;
+  className: string;
+  subjectLabel: string;
+  folder: string;
+  modified?: string;
+}
+
+/** Corps de création d'une progression (POST /diary/progression/create). */
+export interface ProgressionInput {
+  title: string;
+  description: string;
+  owner_id: string;
+  subjectLabel?: string;
+  class?: string;
+  progression_homework?: unknown[];
+}
+
+/**
+ * Aplati la réponse « dossiers » de /diary/progressions/:ownerId. Chaque dossier porte un
+ * champ `progressions` qui est une **chaîne JSON** (piège backend) à parser.
+ */
+export function flattenProgressions(folders: Array<{ title?: string | null; progressions?: string | null }>): Progression[] {
+  const out: Progression[] = [];
+  for (const folder of folders ?? []) {
+    let list: Array<Record<string, unknown>> = [];
+    try {
+      list = folder.progressions ? JSON.parse(folder.progressions) : [];
+    } catch {
+      list = [];
+    }
+    for (const p of list) {
+      if (!p || p.id == null) continue;
+      out.push({
+        id: Number(p.id),
+        title: String(p.title ?? ''),
+        description: String(p.description ?? ''),
+        className: String(p.class ?? ''),
+        subjectLabel: String(p.subject_label ?? ''),
+        folder: folder.title ?? '',
+        modified: (p.modified as string) ?? undefined,
+      });
+    }
+  }
+  return out;
+}
+
+/** Progressions de l'utilisateur (GET /diary/progressions/:ownerId), aplaties. */
+export const getProgressions = async (ownerId: string): Promise<Progression[]> =>
+  json<Array<{ title?: string | null; progressions?: string | null }>>(await fetch(`/diary/progressions/${ownerId}`, base))
+    .then((folders) => flattenProgressions(folders ?? []))
+    .catch(() => []);
+
+/** Crée une progression (POST /diary/progression/create). */
+export const createProgression = async (body: ProgressionInput): Promise<{ id: number }> =>
+  json<{ id: number }>(await fetch('/diary/progression/create', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
+
 export const api = {
   getSubjects,
   getClasses,
@@ -177,4 +238,6 @@ export const api = {
   createSession,
   publishSession,
   unpublishSession,
+  getProgressions,
+  createProgression,
 };
