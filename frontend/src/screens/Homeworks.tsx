@@ -28,6 +28,10 @@ export function Homeworks() {
   const typesQuery = useQuery({ queryKey: ['diary', 'types', structureId], queryFn: () => api.getHomeworkTypes(structureId), enabled: !!structureId });
   const homeworksKey = ['diary', 'homeworks', structureId, start, end];
   const homeworksQuery = useQuery({ queryKey: homeworksKey, queryFn: () => api.getOwnHomeworks(start, end, structureId), enabled: !!structureId });
+  // Séances de la semaine affichée (la grille suit `monday`, pas la fenêtre des devoirs).
+  const weekStart = ymd(monday);
+  const weekEnd = ymd(addDays(monday, 6));
+  const sessionsQuery = useQuery({ queryKey: ['diary', 'sessions', structureId, weekStart, weekEnd], queryFn: () => api.getOwnSessions(weekStart, weekEnd, structureId), enabled: !!structureId });
   const invalidate = () => qc.invalidateQueries({ queryKey: homeworksKey });
 
   const subjectName = useMemo(() => new Map((subjectsQuery.data ?? []).map((s) => [s.id, s.name])), [subjectsQuery.data]);
@@ -103,6 +107,27 @@ export function Homeworks() {
     return m;
   }, [homeworks]);
   const slots = slotsQuery.data ?? [];
+
+  // Séances indexées par (créneau, jour) : une séance est rangée dans le créneau dont
+  // l'intervalle horaire contient son heure de début (parité Angular : séances dans la grille).
+  const sessions = sessionsQuery.data ?? [];
+  const sessionsByCell = useMemo(() => {
+    const toMin = (s?: string) => {
+      const m = /^(\d{1,2}):(\d{2})/.exec(s ?? '');
+      return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
+    };
+    const m = new Map<string, typeof sessions>();
+    for (const s of sessions) {
+      const day = (s.date || '').slice(0, 10);
+      const startMin = toMin(s.start_time);
+      const slot = slots.find((sl) => toMin(sl.startHour) <= startMin && startMin < toMin(sl.endHour));
+      if (!slot) continue;
+      const k = `${slot.id}|${day}`;
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(s);
+    }
+    return m;
+  }, [sessions, slots]);
 
   if (init && !structureId) {
     return (
@@ -245,7 +270,16 @@ export function Homeworks() {
               {slots.map((s) => (
                 <tr key={s.id}>
                   <th scope="row" className="text-muted" style={{ fontWeight: 400, whiteSpace: 'nowrap' }}>{s.name}</th>
-                  {weekDays.map((d) => <td key={d.key} />)}
+                  {weekDays.map((d) => (
+                    <td key={d.key} style={{ verticalAlign: 'top' }}>
+                      {(sessionsByCell.get(`${s.id}|${d.key}`) ?? []).map((se) => (
+                        <div key={se.id} title={stripHtml(se.description ?? '')} style={{ background: se.color || '#4bafd5', color: '#fff', borderRadius: 3, padding: '3px 6px', marginBottom: 4, fontSize: 12 }}>
+                          <div style={{ fontWeight: 600 }}>{se.title || subjectName.get(se.subject_id) || ''}</div>
+                          <div>{className.get(se.audience_id) ?? ''}</div>
+                        </div>
+                      ))}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
