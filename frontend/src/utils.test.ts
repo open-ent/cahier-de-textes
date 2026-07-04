@@ -1,6 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
-import { addDays, formatDate, mondayOf, sortKey, weekLabel, ymd } from './utils';
+import { addDays, formatDate, hhmm, mondayOf, sortKey, stripHtml, weekLabel, ymd } from './utils';
+
+describe('hhmm', () => {
+  it('réduit HH:mm:ss à HH:mm', () => {
+    expect(hhmm('09:00:00')).toBe('09:00');
+    expect(hhmm('14:30')).toBe('14:30');
+    expect(hhmm(undefined)).toBe('');
+  });
+});
+
+describe('formatDate (séance)', () => {
+  it('gère une date SQL avec fuseau', () => {
+    expect(formatDate('2025-10-14 00:00:00.000000+0200')).toBe('14/10/2025');
+  });
+});
+
+describe('stripHtml (contenu séance)', () => {
+  it('retire les balises', () => {
+    expect(stripHtml('<p>Découverte des <b>filières</b></p>')).toBe('Découverte des filières');
+  });
+});
 
 describe('ymd', () => {
   it('formate en YYYY-MM-DD', () => {

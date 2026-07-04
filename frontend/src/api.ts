@@ -110,6 +110,59 @@ export const deleteHomework = async (id: number): Promise<void> => {
   if (!res.ok && res.status !== 204) throw new Error(String(res.status));
 };
 
+// ── Séances (sessions du cahier de textes) ───────────────────────────────────────
+/** Une séance (leçon) du cahier de textes. Date « YYYY-MM-DD HH:mm:ss± ». */
+export interface Session {
+  id: number;
+  subject_id: string;
+  structure_id: string;
+  audience_id: string;
+  teacher_id?: string;
+  title: string;
+  room?: string;
+  color?: string;
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  description?: string;
+  annotation?: string;
+  is_published?: boolean;
+}
+
+/** Corps de POST /diary/session (cf. jsonschema/session.json, tous requis). */
+export interface SessionInput {
+  title: string;
+  subject_id: string;
+  structure_id: string;
+  audience_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  description: string;
+  color: string;
+  course_id: string;
+}
+
+/** Séances de l'enseignant courant sur une période (GET /diary/sessions/own/:start/:end/:structureId). */
+export const getOwnSessions = async (start: string, end: string, structureId: string): Promise<Session[]> =>
+  json<Session[]>(await fetch(`/diary/sessions/own/${start}/${end}/${structureId}`, base)).then((a) => a ?? []).catch(() => []);
+
+/** Crée une séance (POST /diary/session). */
+export const createSession = async (body: SessionInput): Promise<{ id: number }> =>
+  json<{ id: number }>(await fetch('/diary/session', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
+
+/** Publie une séance (visible des élèves) — POST /diary/session/publish/:id. */
+export const publishSession = async (id: number): Promise<void> => {
+  const res = await fetch(`/diary/session/publish/${id}`, { ...base, method: 'POST', headers: mutHeaders(), body: '{}' });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
+/** Dépublie une séance — POST /diary/session/unpublish/:id. */
+export const unpublishSession = async (id: number): Promise<void> => {
+  const res = await fetch(`/diary/session/unpublish/${id}`, { ...base, method: 'POST', headers: mutHeaders(), body: '{}' });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
 export const api = {
   getSubjects,
   getClasses,
@@ -120,4 +173,8 @@ export const api = {
   getOwnHomeworks,
   createHomework,
   deleteHomework,
+  getOwnSessions,
+  createSession,
+  publishSession,
+  unpublishSession,
 };

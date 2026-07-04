@@ -44,6 +44,11 @@ export function sortKey(s?: string): string {
   return s ?? '9999-99-99';
 }
 
+/** Réduit une heure « HH:mm:ss » à « HH:mm » (créneau d'une séance). */
+export function hhmm(t?: string): string {
+  return t ? t.slice(0, 5) : '';
+}
+
 /** Retire les balises HTML d'une description (certains devoirs ont un contenu HTML). */
 export function stripHtml(s?: string): string {
   if (!s) return '';
