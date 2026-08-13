@@ -317,5 +317,6 @@
   "visa.vise.diary": "Tag diaries",
   "diary.resources.label": "Resources",
   "diary.resources.add.workspace": "Add a document from the workspace",
-  "diary.resources.attach": "Add"
+  "diary.resources.attach": "Attach selected documents",
+  "diary.resources.picker.hint": "Select one or more documents below, then click “Attach selected documents”."
 }

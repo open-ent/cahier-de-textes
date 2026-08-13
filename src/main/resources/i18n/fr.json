@@ -317,5 +317,6 @@
   "visa.vise.diary": "Viser les cahiers de textes",
   "diary.resources.label": "Ressources",
   "diary.resources.add.workspace": "Ajouter un document de l'espace documentaire",
-  "diary.resources.attach": "Ajouter"
+  "diary.resources.attach": "Joindre les documents sélectionnés",
+  "diary.resources.picker.hint": "Sélectionnez un ou plusieurs documents ci-dessous, puis cliquez sur « Joindre les documents sélectionnés »."
 }

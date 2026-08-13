@@ -193,6 +193,7 @@
         <!-- Picker : documents de l'espace documentaire -->
         <lightbox show="display.homeworkResourcePicker" on-close="display.homeworkResourcePicker = false">
             <h2><i18n>diary.resources.add.workspace</i18n></h2>
+            <p class="info"><i18n>diary.resources.picker.hint</i18n></p>
             <media-library ng-if="display.homeworkResourcePicker"
                            visibility="'protected'" multiple="true"
                            ng-model="documents" file-format="'any'"></media-library>
