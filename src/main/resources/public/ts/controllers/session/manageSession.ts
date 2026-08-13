@@ -78,10 +78,12 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
             $scope.mediacentreQuery = '';
             $scope.mediacentreResources = [];
             $scope.mediacentreLoading = false;
+            $scope.mediacentreSearched = false;
 
             $scope.openSessionMediacentrePicker = function (): void {
                 $scope.mediacentreQuery = '';
                 $scope.mediacentreResources = [];
+                $scope.mediacentreSearched = false;
                 $scope.display.sessionMediacentrePicker = true;
             };
 
@@ -107,6 +109,7 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
                 } catch (e) {
                     $scope.mediacentreResources = [];
                 }
+                $scope.mediacentreSearched = true;
                 $scope.mediacentreLoading = false;
                 $scope.safeApply();
             };

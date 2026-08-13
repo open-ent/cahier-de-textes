@@ -80,10 +80,12 @@ export let manageHomeworkCtrl = ng.controller('manageHomeworkCtrl',
             $scope.mediacentreQuery = '';
             $scope.mediacentreResources = [];
             $scope.mediacentreLoading = false;
+            $scope.mediacentreSearched = false;
 
             $scope.openHomeworkMediacentrePicker = function (): void {
                 $scope.mediacentreQuery = '';
                 $scope.mediacentreResources = [];
+                $scope.mediacentreSearched = false;
                 $scope.display.homeworkMediacentrePicker = true;
             };
 
@@ -109,6 +111,7 @@ export let manageHomeworkCtrl = ng.controller('manageHomeworkCtrl',
                 } catch (e) {
                     $scope.mediacentreResources = [];
                 }
+                $scope.mediacentreSearched = true;
                 $scope.mediacentreLoading = false;
                 $scope.safeApply();
             };

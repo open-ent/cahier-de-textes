@@ -223,8 +223,11 @@
                 <button type="button" ng-click="searchMediacentre()"><i18n>diary.resources.mediacentre.search</i18n></button>
             </div>
             <p ng-if="mediacentreLoading"><i18n>diary.resources.mediacentre.loading</i18n></p>
-            <p ng-if="!mediacentreLoading && mediacentreResources.length === 0" class="info">
+            <p ng-if="!mediacentreLoading && !mediacentreSearched && mediacentreResources.length === 0" class="info">
                 <i18n>diary.resources.mediacentre.empty</i18n>
+            </p>
+            <p ng-if="!mediacentreLoading && mediacentreSearched && mediacentreResources.length === 0" class="info">
+                <i18n>diary.resources.mediacentre.noresult</i18n>
             </p>
             <ul class="mediacentre-results">
                 <li ng-repeat="res in mediacentreResources" class="pointer diary-resource-item"
