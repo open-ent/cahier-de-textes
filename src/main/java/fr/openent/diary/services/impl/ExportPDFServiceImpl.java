@@ -332,7 +332,10 @@ public class ExportPDFServiceImpl implements ExportPDFService {
             log.error("Can not generate token, pdf create without token.", e);
         }
 
-        String nodePdfGeneratorUrl = pdfGeneratorURL;
+        // Le service node-pdf-generator expose l'endpoint sur /generate/pdf (cf. NodePdfClient
+        // entcore). pdfGeneratorURL (= PDF_URL) est l'URL de base : sans ce suffixe, le POST tombe
+        // sur "/" -> 404 Not Found (page Express) -> visa non enregistré / impression KO.
+        String nodePdfGeneratorUrl = pdfGeneratorURL.replaceAll("/+$", "") + "/generate/pdf";
         webServiceNodePdfGeneratorPost(Buffer.buffer(bytes).toString(),
                 token, nodePdfGeneratorUrl, asyncResultHandler);
 
