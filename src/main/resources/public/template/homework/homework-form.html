@@ -218,9 +218,9 @@
             <h2><i18n>diary.resources.add.mediacentre</i18n></h2>
             <div class="row">
                 <input type="text" class="eight" ng-model="mediacentreQuery"
-                       ng-keydown="$event.keyCode === 13 && searchMediacentre()"
+                       ng-keydown="$event.keyCode === 13 && searchMediacentre(mediacentreQuery)"
                        i18n-placeholder="diary.resources.mediacentre.search.placeholder"/>
-                <button type="button" ng-click="searchMediacentre()"><i18n>diary.resources.mediacentre.search</i18n></button>
+                <button type="button" ng-click="searchMediacentre(mediacentreQuery)"><i18n>diary.resources.mediacentre.search</i18n></button>
             </div>
             <p ng-if="mediacentreLoading"><i18n>diary.resources.mediacentre.loading</i18n></p>
             <p ng-if="!mediacentreLoading && !mediacentreSearched && mediacentreResources.length === 0" class="info">

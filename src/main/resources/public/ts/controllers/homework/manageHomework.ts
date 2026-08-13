@@ -89,8 +89,9 @@ export let manageHomeworkCtrl = ng.controller('manageHomeworkCtrl',
                 $scope.display.homeworkMediacentrePicker = true;
             };
 
-            $scope.searchMediacentre = async function (): Promise<void> {
-                const q: string = ($scope.mediacentreQuery || '').trim();
+            $scope.searchMediacentre = async function (queryArg?: string): Promise<void> {
+                // queryArg = valeur du champ (scope enfant du <lightbox>) ; fallback scope parent.
+                const q: string = ((queryArg != null ? queryArg : $scope.mediacentreQuery) || '').trim();
                 if (!q) { return; }
                 $scope.mediacentreLoading = true;
                 $scope.mediacentreResources = [];
