@@ -35,7 +35,7 @@
   "diary.error.date.is.not.valid": "L'heure de fin doit être supérieure de 15 minutes à l'heure de début",
   "diary.filter.none": "Oups... il semblerait qu'aucun filtre ne soit sélectionné",
   "diary.notAvailable": "Il n'y a pas de cahier de textes disponible pour le moment",
-  "diary.search.group": "Rechercher une classe",
+  "diary.search.group": "Rechercher un groupe ou une classe",
   "diary.search.teacher": "Rechercher un enseignant",
   "diary.title": "Cahier de textes",
   "done": "Terminé",
@@ -318,5 +318,9 @@
   "diary.resources.label": "Ressources",
   "diary.resources.add.workspace": "Ajouter un document de l'espace documentaire",
   "diary.resources.attach": "Joindre les documents sélectionnés",
-  "diary.resources.picker.hint": "Sélectionnez un ou plusieurs documents ci-dessous, puis cliquez sur « Joindre les documents sélectionnés »."
+  "diary.resources.picker.hint": "Sélectionnez un ou plusieurs documents ci-dessous, puis cliquez sur « Joindre les documents sélectionnés ».",
+  "diary.homework.audience.required.hint": "Sélectionnez une matière et un groupe / une classe pour afficher le formulaire du travail à faire.",
+  "diary.session.audience.required.hint": "Sélectionnez une matière et un groupe / une classe pour afficher le formulaire de la séance.",
+  "diary.audience.class": "Classe",
+  "diary.audience.group": "Groupe"
 }

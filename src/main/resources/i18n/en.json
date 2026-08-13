@@ -35,7 +35,7 @@
   "diary.error.date.is.not.valid": "The session must be longer than 15 mn.",
   "diary.filter.none": "Oops... no filter are selected",
   "diary.notAvailable": "There is no diary available for now",
-  "diary.search.group": "Search class",
+  "diary.search.group": "Search for a group or a class",
   "diary.search.teacher": "Search teacher",
   "diary.title": "Diary",
   "done": "Done",
@@ -318,5 +318,9 @@
   "diary.resources.label": "Resources",
   "diary.resources.add.workspace": "Add a document from the workspace",
   "diary.resources.attach": "Attach selected documents",
-  "diary.resources.picker.hint": "Select one or more documents below, then click “Attach selected documents”."
+  "diary.resources.picker.hint": "Select one or more documents below, then click “Attach selected documents”.",
+  "diary.homework.audience.required.hint": "Select a subject and a group / class to display the homework form.",
+  "diary.session.audience.required.hint": "Select a subject and a group / class to display the session form.",
+  "diary.audience.class": "Class",
+  "diary.audience.group": "Group"
 }

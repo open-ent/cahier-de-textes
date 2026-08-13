@@ -1,3 +1,4 @@
+import {idiom as lang} from 'entcore';
 import {AutoCompleteUtils} from "./auto-complete";
 import {SearchItem, SearchService} from "../../services";
 
@@ -57,7 +58,15 @@ export class GroupsSearch extends AutoCompleteUtils {
     public async searchGroups(valueInput: string) {
         try {
             this.groups = await this.searchService.searchGroup(this.structureId, valueInput);
-            this.groups.map((group: SearchItem) => group.toString = () => group.name);
+            // Affichage plus lisible : préfixe "Classe"/"Groupe" devant le nom (ex. « Groupe 501 »).
+            this.groups.map((group: SearchItem) => group.toString = () => {
+                if (!group.name) return group.name;
+                const t: string = (group.type || '').toString().toUpperCase();
+                const prefix: string = (t === 'CLASS')
+                    ? lang.translate('diary.audience.class')
+                    : lang.translate('diary.audience.group');
+                return prefix + ' ' + group.name;
+            });
         } catch (err) {
             this.groups = [];
             throw err;

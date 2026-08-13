@@ -50,6 +50,11 @@
         </div>
     </div>
 
+    <!-- Consigne : la sélection matière + groupe/classe est obligatoire pour afficher le formulaire -->
+    <div class="message info diary-audience-required" ng-if="!session.opened">
+        <i18n>diary.session.audience.required.hint</i18n>
+    </div>
+
     <fieldset class="row cursorDefault card remove-margin padding-md border-width-fieldset"
               ng-disabled="isSelectSubjectAndAudienceSession && !(session.courseId && session.audience)">
         <h2 class="cdt-title-not-clickable">

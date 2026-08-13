@@ -20,7 +20,7 @@
                                     data-ng-change="selectSearchAudience"
                                     data-on-search="searchAudience"
                                     data-options="groupsSearch.groups"
-                                    data-placeholder="printer.audience"
+                                    data-placeholder="diary.search.group"
                                     data-search="groupsSearch.group">
                 </async-autocomplete>
                 <div class="search-input-ul" ng-show="homework.audience">
@@ -41,6 +41,11 @@
             </span>
         </div>
     </div>
+    <!-- Consigne : la sélection matière + groupe/classe est obligatoire pour afficher le formulaire -->
+    <div class="message info diary-audience-required" ng-if="!isInsideSessionForm && !homework.opened">
+        <i18n>diary.homework.audience.required.hint</i18n>
+    </div>
+
     <fieldset class="row cursorDefault card remove-margin padding-md border-widht-fieldset"
               ng-disabled="isSelectSubjectAndAudienceHomework">
         <h2 class="cdt-title-not-clickable">
