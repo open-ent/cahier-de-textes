@@ -1,3 +1,4 @@
+import {idiom as lang} from 'entcore';
 import {AutoCompleteUtils} from "./auto-complete";
 import {SearchItem, SearchService} from "../../services";
 
@@ -56,11 +57,17 @@ export class GroupsSearch extends AutoCompleteUtils {
 
     public async searchGroups(valueInput: string) {
         try {
-            this.groups = await this.searchService.searchGroup(this.structureId, valueInput);
-            // Affichage = nom réel du groupe/classe (ex. « 501 »). La recherche serveur porte
-            // sur ce nom : préfixer l'affichage (« Groupe 501 ») induisait à taper le préfixe
-            // -> plus aucun résultat. On garde donc le nom brut, cohérent avec la saisie.
-            this.groups.map((group: SearchItem) => group.toString = () => group.name);
+            // La recherche serveur porte sur le NOM brut du groupe (« 501 »). On tolère que
+            // l'utilisateur tape le libellé affiché (« Élèves du groupe 501 », « groupe 501 »…)
+            // en retirant un éventuel préfixe de libellé avant d'interroger.
+            const stripped: string = (valueInput || '')
+                .replace(/^\s*(élèves|eleves)\s+(du\s+groupe|de\s+la\s+classe|du)\s+/i, '')
+                .replace(/^\s*(groupe|classe)\s+/i, '')
+                .trim();
+            this.groups = await this.searchService.searchGroup(this.structureId, stripped || (valueInput || ''));
+            // Affichage lisible calqué sur la barre de partage entcore : « Élèves du groupe 501 ».
+            this.groups.map((group: SearchItem) => group.toString = () =>
+                group.name ? (lang.translate('diary.audience.group.label') + ' ' + group.name) : group.name);
         } catch (err) {
             this.groups = [];
             throw err;

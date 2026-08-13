@@ -327,5 +327,6 @@
   "diary.resources.mediacentre.search": "Rechercher",
   "diary.resources.mediacentre.search.placeholder": "Rechercher une ressource du médiacentre",
   "diary.resources.mediacentre.loading": "Recherche en cours…",
-  "diary.resources.mediacentre.empty": "Saisissez un terme puis lancez la recherche. (Le médiacentre dépend de la configuration GAR de la région : les résultats peuvent être vides tant que le connecteur n'est pas activé.)"
+  "diary.resources.mediacentre.empty": "Saisissez un terme puis lancez la recherche. (Le médiacentre dépend de la configuration GAR de la région : les résultats peuvent être vides tant que le connecteur n'est pas activé.)",
+  "diary.audience.group.label": "Élèves du groupe"
 }

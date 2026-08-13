@@ -327,5 +327,6 @@
   "diary.resources.mediacentre.search": "Search",
   "diary.resources.mediacentre.search.placeholder": "Search for a media centre resource",
   "diary.resources.mediacentre.loading": "Searching…",
-  "diary.resources.mediacentre.empty": "Type a term then search. (The media centre depends on the region's GAR configuration: results may be empty until the connector is enabled.)"
+  "diary.resources.mediacentre.empty": "Type a term then search. (The media centre depends on the region's GAR configuration: results may be empty until the connector is enabled.)",
+  "diary.audience.group.label": "Students of group"
 }
