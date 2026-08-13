@@ -46,9 +46,11 @@
       </div>
       <div
         class="cell twelve main-header-result-search"
+        style="position: static; top: auto; margin-top: 4px; z-index: 1;"
         ng-show="autocomplete.teachersSelected[0] && autocomplete.teachersSelected[0].displayName !== ''"
       >
-        <ul class="cell twelve search-input-ul">
+        <ul class="cell twelve search-input-ul"
+            style="display: inline-flex; align-items: center; width: auto; margin: 0; padding: 3px 10px; background: #fff; border: 1px solid #ccc; border-radius: 4px; list-style: none;">
           <li>
             [[autocomplete.teachersSelected[0].displayName]]
             <i
