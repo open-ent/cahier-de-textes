@@ -322,5 +322,10 @@
   "diary.homework.audience.required.hint": "Sélectionnez une matière et un groupe / une classe pour afficher le formulaire du travail à faire.",
   "diary.session.audience.required.hint": "Sélectionnez une matière et un groupe / une classe pour afficher le formulaire de la séance.",
   "diary.audience.class": "Classe",
-  "diary.audience.group": "Groupe"
+  "diary.audience.group": "Groupe",
+  "diary.resources.add.mediacentre": "Ajouter une ressource du médiacentre",
+  "diary.resources.mediacentre.search": "Rechercher",
+  "diary.resources.mediacentre.search.placeholder": "Rechercher une ressource du médiacentre",
+  "diary.resources.mediacentre.loading": "Recherche en cours…",
+  "diary.resources.mediacentre.empty": "Saisissez un terme puis lancez la recherche. (Le médiacentre dépend de la configuration GAR de la région : les résultats peuvent être vides tant que le connecteur n'est pas activé.)"
 }

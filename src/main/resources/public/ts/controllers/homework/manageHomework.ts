@@ -1,4 +1,5 @@
 import {idiom as lang, model, moment, ng} from 'entcore';
+import http from 'axios';
 import {Audience, Courses, Session, Sessions, SessionTypes, Subject, Subjects, Toast} from '../../model';
 import {Homework, HomeworkTypes, WorkloadDay, Course} from '../../model';
 import {DateUtils} from '../../utils/dateUtils';
@@ -67,6 +68,66 @@ export let manageHomeworkCtrl = ng.controller('manageHomeworkCtrl',
 
             $scope.removeHomeworkResource = function (index: number): void {
                 if ($scope.homework.resources) { $scope.homework.resources.splice(index, 1); }
+            };
+
+            // --- Ressources attachées : ressources du médiacentre (recherche) ---
+            const MEDIACENTRE_SOURCES: string[] = [
+                'fr.openent.mediacentre.source.GAR',
+                'fr.openent.mediacentre.source.Signet',
+                'fr.openent.mediacentre.source.Moodle',
+                'fr.openent.mediacentre.source.PMB'
+            ];
+            $scope.mediacentreQuery = '';
+            $scope.mediacentreResources = [];
+            $scope.mediacentreLoading = false;
+
+            $scope.openHomeworkMediacentrePicker = function (): void {
+                $scope.mediacentreQuery = '';
+                $scope.mediacentreResources = [];
+                $scope.display.homeworkMediacentrePicker = true;
+            };
+
+            $scope.searchMediacentre = async function (): Promise<void> {
+                const q: string = ($scope.mediacentreQuery || '').trim();
+                if (!q) { return; }
+                $scope.mediacentreLoading = true;
+                $scope.mediacentreResources = [];
+                $scope.safeApply();
+                const jsondata: string = JSON.stringify({
+                    state: 'PLAIN_TEXT', event: 'search',
+                    sources: MEDIACENTRE_SOURCES, data: {query: q}
+                });
+                try {
+                    const {data}: any = await http.get('/mediacentre/search?jsondata=' + encodeURIComponent(jsondata));
+                    const frames: any[] = Array.isArray(data) ? data : [];
+                    const resources: any[] = [];
+                    frames.forEach((f: any) => {
+                        const list: any[] = (f && f.data && Array.isArray(f.data.resources)) ? f.data.resources : [];
+                        list.forEach((r: any) => resources.push(r));
+                    });
+                    $scope.mediacentreResources = resources;
+                } catch (e) {
+                    $scope.mediacentreResources = [];
+                }
+                $scope.mediacentreLoading = false;
+                $scope.safeApply();
+            };
+
+            $scope.addHomeworkMediacentreResource = function (res: any): void {
+                if (!$scope.homework.resources) { $scope.homework.resources = []; }
+                const id: string = (res.id != null) ? String(res.id) : (res.link || res.title);
+                const already: boolean = $scope.homework.resources
+                    .some((r: any) => r.type === 'mediacentre' && String(r.id) === String(id));
+                if (id && !already) {
+                    $scope.homework.resources.push({
+                        type: 'mediacentre', id: id,
+                        name: res.title || res.link || id,
+                        url: res.link || res.url || '',
+                        image: res.image || ''
+                    });
+                }
+                $scope.display.homeworkMediacentrePicker = false;
+                $scope.safeApply();
             };
             $scope.sessions = new Sessions($scope.structure);
             $scope.courses = new Courses($scope.structure);

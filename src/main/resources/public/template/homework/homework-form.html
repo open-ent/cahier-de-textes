@@ -184,6 +184,9 @@
             <button type="button" class="add-resource" ng-click="openHomeworkResourcePicker()">
                 <i18n>diary.resources.add.workspace</i18n>
             </button>
+            <button type="button" class="add-resource" ng-click="openHomeworkMediacentrePicker()">
+                <i18n>diary.resources.add.mediacentre</i18n>
+            </button>
         </div>
 
         <div class="row" ng-if="isInsideSessionForm">
@@ -207,6 +210,33 @@
                     <i18n>diary.resources.attach</i18n>
                 </button>
                 <button type="button" class="cancel right-magnet" ng-click="display.homeworkResourcePicker = false">
+                    <i18n>utils.cancel</i18n>
+                </button>
+            </div>
+        </lightbox>
+
+        <!-- Picker : ressources du médiacentre (recherche) -->
+        <lightbox show="display.homeworkMediacentrePicker" on-close="display.homeworkMediacentrePicker = false">
+            <h2><i18n>diary.resources.add.mediacentre</i18n></h2>
+            <div class="row">
+                <input type="text" class="eight" ng-model="mediacentreQuery"
+                       ng-keydown="$event.keyCode === 13 && searchMediacentre()"
+                       i18n-placeholder="diary.resources.mediacentre.search.placeholder"/>
+                <button type="button" ng-click="searchMediacentre()"><i18n>diary.resources.mediacentre.search</i18n></button>
+            </div>
+            <p ng-if="mediacentreLoading"><i18n>diary.resources.mediacentre.loading</i18n></p>
+            <p ng-if="!mediacentreLoading && mediacentreResources.length === 0" class="info">
+                <i18n>diary.resources.mediacentre.empty</i18n>
+            </p>
+            <ul class="mediacentre-results">
+                <li ng-repeat="res in mediacentreResources" class="pointer diary-resource-item"
+                    ng-click="addHomeworkMediacentreResource(res)">
+                    <img ng-if="res.image" ng-src="[[res.image]]" class="mediacentre-thumb" width="40"/>
+                    <span>[[res.title]]</span>
+                </li>
+            </ul>
+            <div class="row">
+                <button type="button" class="cancel right-magnet" ng-click="display.homeworkMediacentrePicker = false">
                     <i18n>utils.cancel</i18n>
                 </button>
             </div>

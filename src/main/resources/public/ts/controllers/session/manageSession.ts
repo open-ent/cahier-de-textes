@@ -13,7 +13,7 @@ import {SearchService, SubjectService} from '../../services';
 import {Moment} from 'moment';
 import {FORMAT} from '../../core/const/dateFormat';
 import {GroupsSearch} from '../../utils/autocomplete/groupsSearch';
-import {AxiosResponse} from 'axios';
+import http, {AxiosResponse} from 'axios';
 import {EXCEPTIONAL} from '../../core/const/exceptional-subject';
 
 export let manageSessionCtrl = ng.controller('manageSessionCtrl',
@@ -66,6 +66,66 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
             };
             $scope.removeSessionResource = function (index: number): void {
                 if ($scope.session.resources) { $scope.session.resources.splice(index, 1); }
+            };
+
+            // --- Ressources attachées : ressources du médiacentre (recherche) ---
+            const MEDIACENTRE_SOURCES: string[] = [
+                'fr.openent.mediacentre.source.GAR',
+                'fr.openent.mediacentre.source.Signet',
+                'fr.openent.mediacentre.source.Moodle',
+                'fr.openent.mediacentre.source.PMB'
+            ];
+            $scope.mediacentreQuery = '';
+            $scope.mediacentreResources = [];
+            $scope.mediacentreLoading = false;
+
+            $scope.openSessionMediacentrePicker = function (): void {
+                $scope.mediacentreQuery = '';
+                $scope.mediacentreResources = [];
+                $scope.display.sessionMediacentrePicker = true;
+            };
+
+            $scope.searchMediacentre = async function (): Promise<void> {
+                const q: string = ($scope.mediacentreQuery || '').trim();
+                if (!q) { return; }
+                $scope.mediacentreLoading = true;
+                $scope.mediacentreResources = [];
+                $scope.safeApply();
+                const jsondata: string = JSON.stringify({
+                    state: 'PLAIN_TEXT', event: 'search',
+                    sources: MEDIACENTRE_SOURCES, data: {query: q}
+                });
+                try {
+                    const {data}: any = await http.get('/mediacentre/search?jsondata=' + encodeURIComponent(jsondata));
+                    const frames: any[] = Array.isArray(data) ? data : [];
+                    const resources: any[] = [];
+                    frames.forEach((f: any) => {
+                        const list: any[] = (f && f.data && Array.isArray(f.data.resources)) ? f.data.resources : [];
+                        list.forEach((r: any) => resources.push(r));
+                    });
+                    $scope.mediacentreResources = resources;
+                } catch (e) {
+                    $scope.mediacentreResources = [];
+                }
+                $scope.mediacentreLoading = false;
+                $scope.safeApply();
+            };
+
+            $scope.addSessionMediacentreResource = function (res: any): void {
+                if (!$scope.session.resources) { $scope.session.resources = []; }
+                const id: string = (res.id != null) ? String(res.id) : (res.link || res.title);
+                const already: boolean = $scope.session.resources
+                    .some((r: any) => r.type === 'mediacentre' && String(r.id) === String(id));
+                if (id && !already) {
+                    $scope.session.resources.push({
+                        type: 'mediacentre', id: id,
+                        name: res.title || res.link || id,
+                        url: res.link || res.url || '',
+                        image: res.image || ''
+                    });
+                }
+                $scope.display.sessionMediacentrePicker = false;
+                $scope.safeApply();
             };
 
             $scope.sessionGetter = new Sessions($scope.structure);
