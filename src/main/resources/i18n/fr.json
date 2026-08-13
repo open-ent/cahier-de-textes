@@ -318,7 +318,7 @@
   "diary.resources.label": "Ressources",
   "diary.resources.add.workspace": "Ajouter un document de l'espace documentaire",
   "diary.resources.attach": "Joindre les documents sélectionnés",
-  "diary.resources.picker.hint": "Sélectionnez un ou plusieurs documents ci-dessous, puis cliquez sur « Joindre les documents sélectionnés ».",
+  "diary.resources.picker.hint": "Sélectionnez un ou plusieurs documents ci-dessous, puis cliquez sur « Ajouter ».",
   "diary.homework.audience.required.hint": "Sélectionnez une matière et un groupe / une classe pour afficher le formulaire du travail à faire.",
   "diary.session.audience.required.hint": "Sélectionnez une matière et un groupe / une classe pour afficher le formulaire de la séance.",
   "diary.audience.class": "Classe",

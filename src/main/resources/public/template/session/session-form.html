@@ -191,11 +191,9 @@
             <p class="info"><i18n>diary.resources.picker.hint</i18n></p>
             <media-library ng-if="display.sessionResourcePicker"
                            visibility="'protected'" multiple="true"
-                           ng-model="documents" file-format="'any'"></media-library>
+                           ng-model="documents" file-format="'any'"
+                           ng-change="addSessionWorkspaceResources()"></media-library>
             <div class="row">
-                <button type="button" class="right-magnet" ng-click="addSessionWorkspaceResources()">
-                    <i18n>diary.resources.attach</i18n>
-                </button>
                 <button type="button" class="cancel right-magnet" ng-click="display.sessionResourcePicker = false">
                     <i18n>utils.cancel</i18n>
                 </button>

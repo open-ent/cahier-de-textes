@@ -318,7 +318,7 @@
   "diary.resources.label": "Resources",
   "diary.resources.add.workspace": "Add a document from the workspace",
   "diary.resources.attach": "Attach selected documents",
-  "diary.resources.picker.hint": "Select one or more documents below, then click “Attach selected documents”.",
+  "diary.resources.picker.hint": "Select one or more documents below, then click “Add”.",
   "diary.homework.audience.required.hint": "Select a subject and a group / class to display the homework form.",
   "diary.session.audience.required.hint": "Select a subject and a group / class to display the session form.",
   "diary.audience.class": "Class",
