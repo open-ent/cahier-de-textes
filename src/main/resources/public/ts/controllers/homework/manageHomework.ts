@@ -26,6 +26,48 @@ export let manageHomeworkCtrl = ng.controller('manageHomeworkCtrl',
             if ($scope.structure.audiences.all.length === 1) {
                 $scope.homework.audience = $scope.structure.audiences.all[0];
             }
+            if (!$scope.homework.resources) { $scope.homework.resources = []; }
+
+            // --- Ressources attachées : documents de l'espace documentaire ---
+            $scope.openHomeworkResourcePicker = function (): void {
+                $scope.documents = [];
+                $scope.display.homeworkResourcePicker = true;
+            };
+
+            $scope.addHomeworkWorkspaceResources = function (): void {
+                // La media-library expose les documents sélectionnés sur son propre scope
+                // (cf. pattern du module calendar). On prend la dernière instance dans le DOM
+                // (la nôtre), pour ne pas capter celles éventuelles de l'éditeur.
+                const mlEls: any = document.getElementsByTagName('media-library');
+                let docs: any[] = [];
+                if (mlEls && mlEls.length) {
+                    const mlScope: any = (window as any).angular.element(mlEls[mlEls.length - 1]).scope();
+                    docs = (mlScope && mlScope.documents) ? mlScope.documents : ($scope.documents || []);
+                } else {
+                    docs = $scope.documents || [];
+                }
+                if (!$scope.homework.resources) { $scope.homework.resources = []; }
+                docs.forEach((doc: any) => {
+                    const id: string = doc._id || doc.id;
+                    const already: boolean = $scope.homework.resources
+                        .some((r: any) => r.type === 'workspace' && r.id === id);
+                    if (id && !already) {
+                        $scope.homework.resources.push({
+                            type: 'workspace',
+                            id: id,
+                            name: doc.name || doc.title || id,
+                            url: '/workspace/document/' + id
+                        });
+                    }
+                });
+                $scope.documents = [];
+                $scope.display.homeworkResourcePicker = false;
+                safeApply($scope);
+            };
+
+            $scope.removeHomeworkResource = function (index: number): void {
+                if ($scope.homework.resources) { $scope.homework.resources.splice(index, 1); }
+            };
             $scope.sessions = new Sessions($scope.structure);
             $scope.courses = new Courses($scope.structure);
             $scope.subjects = new Subjects();

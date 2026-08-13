@@ -314,5 +314,8 @@
   "visa.manage.pdfName": "Cahier(s) de textes",
   "visa.manage.title": "Visas du cahier de textes",
   "visa.manage.viser": "Viser",
-  "visa.vise.diary": "Viser les cahiers de textes"
+  "visa.vise.diary": "Viser les cahiers de textes",
+  "diary.resources.label": "Ressources",
+  "diary.resources.add.workspace": "Ajouter un document de l'espace documentaire",
+  "diary.resources.attach": "Ajouter"
 }

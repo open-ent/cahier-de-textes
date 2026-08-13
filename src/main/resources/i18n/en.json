@@ -314,5 +314,8 @@
   "visa.manage.pdfName": "Diary",
   "visa.manage.title": "Diary tags",
   "visa.manage.viser": "Tag",
-  "visa.vise.diary": "Tag diaries"
+  "visa.vise.diary": "Tag diaries",
+  "diary.resources.label": "Resources",
+  "diary.resources.add.workspace": "Add a document from the workspace",
+  "diary.resources.attach": "Add"
 }

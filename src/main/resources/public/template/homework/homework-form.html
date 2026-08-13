@@ -165,6 +165,22 @@
             <editor editor-resize ng-model="homework.description"></editor>
         </div>
 
+        <!-- Ressources attachées (espace documentaire ; médiacentre / Éléa à venir) -->
+        <div class="row diary-resources">
+            <label class="block"><i18n>diary.resources.label</i18n></label>
+            <ul ng-if="homework.resources.length">
+                <li ng-repeat="res in homework.resources track by $index" class="diary-resource-item">
+                    <i class="diary-resource-icon" ng-class="'resource-' + res.type"></i>
+                    <a ng-href="[[res.url]]" target="_blank" ng-if="res.url">[[res.name]]</a>
+                    <span ng-if="!res.url">[[res.name]]</span>
+                    <i class="close" ng-click="removeHomeworkResource($index)" title="[[lang.translate('utils.delete')]]"></i>
+                </li>
+            </ul>
+            <button type="button" class="add-resource" ng-click="openHomeworkResourcePicker()">
+                <i18n>diary.resources.add.workspace</i18n>
+            </button>
+        </div>
+
         <div class="row" ng-if="isInsideSessionForm">
             <button class="cancel float-none display-inline-block" type="button" ng-click="cancelCreation()">
                 <i18n>utils.cancel</i18n>
@@ -173,5 +189,21 @@
                 <i18n>utils.delete</i18n>
             </button>
         </div>
+
+        <!-- Picker : documents de l'espace documentaire -->
+        <lightbox show="display.homeworkResourcePicker" on-close="display.homeworkResourcePicker = false">
+            <h2><i18n>diary.resources.add.workspace</i18n></h2>
+            <media-library ng-if="display.homeworkResourcePicker"
+                           visibility="'protected'" multiple="true"
+                           ng-model="documents" file-format="'any'"></media-library>
+            <div class="row">
+                <button type="button" class="right-magnet" ng-click="addHomeworkWorkspaceResources()">
+                    <i18n>diary.resources.attach</i18n>
+                </button>
+                <button type="button" class="cancel right-magnet" ng-click="display.homeworkResourcePicker = false">
+                    <i18n>utils.cancel</i18n>
+                </button>
+            </div>
+        </lightbox>
     </div>
 </div>
