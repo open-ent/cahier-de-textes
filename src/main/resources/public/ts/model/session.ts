@@ -33,6 +33,8 @@ export class Session {
     homeworks: Homework[] = [];
     from_homeworks: Homework[] = [];
     room: string = '';
+    // Ressources attachées (espace doc / médiacentre / Éléa) : [{type, id, name, url}]
+    resources: any[] = [];
     courseId: string = null;
     isPublished: boolean = true;
     visas: Visa[] = [];
@@ -92,6 +94,8 @@ export class Session {
             homeworks: data.homeworks ? Homeworks.formatSqlDataToModel(data.homeworks) : [],
             from_homeworks: data.from_homeworks ? Homeworks.formatSqlDataToModel(data.from_homeworks) : [],
             visas: data.visas && data.visas !== '[null]' ? JSON.parse(data.visas) : [],
+            resources: Array.isArray(data.resources) ? data.resources
+                : (data.resources && typeof data.resources === 'string' ? JSON.parse(data.resources) : []),
             courseId: data.course_id ? data.course_id : null,
             modified: data.modified,
             created: data.created,
@@ -119,6 +123,7 @@ export class Session {
             audience_id: this.audience.id,
             room: (this.room) ? this.room : '',
             course_id: this.courseId,
+            resources: this.resources || [],
             is_empty: this.is_empty
         };
     }

@@ -29,6 +29,45 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
             $scope.isReadOnly = modeIsReadOnly();
             $scope.isInsideDiary = $attrs.insideDiary;
             $scope.session = $rootScope.session ? $rootScope.session : new Session($scope.structure);
+            if (!$scope.session.resources) { $scope.session.resources = []; }
+            $scope.display = $scope.display || {};
+
+            // --- Ressources attachées : documents de l'espace documentaire ---
+            $scope.openSessionResourcePicker = function (): void {
+                $scope.documents = [];
+                $scope.display.sessionResourcePicker = true;
+            };
+            $scope.addSessionWorkspaceResources = function (): void {
+                const mlEls: any = document.getElementsByTagName('media-library');
+                let docs: any[] = [];
+                if (mlEls && mlEls.length) {
+                    const mlScope: any = (window as any).angular.element(mlEls[mlEls.length - 1]).scope();
+                    docs = (mlScope && mlScope.documents) ? mlScope.documents : ($scope.documents || []);
+                } else {
+                    docs = $scope.documents || [];
+                }
+                if (!$scope.session.resources) { $scope.session.resources = []; }
+                docs.forEach((doc: any) => {
+                    const id: string = doc._id || doc.id;
+                    const already: boolean = $scope.session.resources
+                        .some((r: any) => r.type === 'workspace' && r.id === id);
+                    if (id && !already) {
+                        $scope.session.resources.push({
+                            type: 'workspace',
+                            id: id,
+                            name: doc.name || doc.title || id,
+                            url: '/workspace/document/' + id
+                        });
+                    }
+                });
+                $scope.documents = [];
+                $scope.display.sessionResourcePicker = false;
+                $scope.safeApply();
+            };
+            $scope.removeSessionResource = function (index: number): void {
+                if ($scope.session.resources) { $scope.session.resources.splice(index, 1); }
+            };
+
             $scope.sessionGetter = new Sessions($scope.structure);
             $scope.courses = new Courses($scope.structure);
             $scope.subjects = new Subjects();

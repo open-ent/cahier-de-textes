@@ -517,6 +517,10 @@ public class SessionServiceImpl extends DBService implements SessionService {
         if (session.getString("type") != null) {
             session.put("type", new JsonObject(session.getString("type")));
         }
+        // resources (JSONB) renvoyé en texte -> tableau JSON pour le front
+        if (session.getString("resources") != null) {
+            session.put("resources", new JsonArray(session.getString("resources")));
+        }
         session.put("homeworks", new JsonArray(session.getString("homeworks")));
         if (session.getJsonArray("homeworks").contains(null)) {
             session.put("homeworks", new JsonArray());
@@ -532,6 +536,10 @@ public class SessionServiceImpl extends DBService implements SessionService {
     private void cleanSession(JsonObject session) {
         if (session.getString("type") != null) {
             session.put("type", new JsonObject(session.getString("type")));
+        }
+        // resources (JSONB) renvoyé en texte -> tableau JSON pour le front
+        if (session.getString("resources") != null) {
+            session.put("resources", new JsonArray(session.getString("resources")));
         }
         session.put("homeworks", new JsonArray(session.getString("homeworks")));
         if (session.getJsonArray("homeworks").contains(null)) {
@@ -556,11 +564,11 @@ public class SessionServiceImpl extends DBService implements SessionService {
         JsonArray values = new JsonArray();
         String query = "INSERT INTO diary.session (subject_id, type_id, exceptional_label, structure_id, teacher_id, audience_id, title, " +
                 "room, color, description, annotation, is_published, is_empty, course_id, owner_id, " +
-                "date, start_time, end_time, created, modified) " +
+                "date, start_time, end_time, resources, created, modified) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
                 // PG16 ne caste plus implicitement varchar -> date : le paramètre date doit être converti
                 // explicitement (cf. UPDATE session et INSERT homework qui utilisent déjà to_date).
-                "to_date(?,'YYYY-MM-DD'), to_timestamp(?, 'hh24:mi:ss'), to_timestamp(?, 'hh24:mi:ss'), NOW(), NOW()) RETURNING id";
+                "to_date(?,'YYYY-MM-DD'), to_timestamp(?, 'hh24:mi:ss'), to_timestamp(?, 'hh24:mi:ss'), ?::jsonb, NOW(), NOW()) RETURNING id";
 
         values.add(session.getString("subject_id", ""));
 
@@ -620,6 +628,8 @@ public class SessionServiceImpl extends DBService implements SessionService {
         values.add(date);
         values.add(startTime);
         values.add(endTime);
+        // resources : documents de l'espace documentaire (médiacentre / Éléa à venir)
+        values.add(session.getJsonArray("resources") != null ? session.getJsonArray("resources").encode() : "[]");
 
         sql.prepared(query, values, SqlResult.validUniqueResultHandler(handler));
 
@@ -632,7 +642,7 @@ public class SessionServiceImpl extends DBService implements SessionService {
         String query = "UPDATE diary.session" +
                 " SET subject_id = ?, type_id = ?, exceptional_label = ?, structure_id = ?, audience_id = ?, title = ?, " +
                 " room = ?, color = ?, description = ?, annotation = ?, is_published = ?, is_empty = ?, course_id = ?, " +
-                " date = to_date(?,'YYYY-MM-DD'), start_time = to_timestamp(?, 'hh24:mi:ss'), end_time = to_timestamp(?, 'hh24:mi:ss'), modified = NOW()" +
+                " date = to_date(?,'YYYY-MM-DD'), start_time = to_timestamp(?, 'hh24:mi:ss'), end_time = to_timestamp(?, 'hh24:mi:ss'), resources = ?::jsonb, modified = NOW()" +
                 " WHERE id = ?;";
 
         values.add(session.getString("subject_id"));
@@ -662,6 +672,7 @@ public class SessionServiceImpl extends DBService implements SessionService {
         values.add(session.getString("date"));
         values.add(session.getString("start_time"));
         values.add(session.getString("end_time"));
+        values.add(session.getJsonArray("resources") != null ? session.getJsonArray("resources").encode() : "[]");
 
         values.add(sessionId);
 

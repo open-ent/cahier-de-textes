@@ -161,6 +161,39 @@
             <editor ng-model="session.description"></editor>
         </div>
 
+        <!-- Ressources attachées (espace documentaire ; médiacentre / Éléa à venir) -->
+        <div class="row diary-resources">
+            <label class="block"><i18n>diary.resources.label</i18n></label>
+            <ul ng-if="session.resources.length">
+                <li ng-repeat="res in session.resources track by $index" class="diary-resource-item">
+                    <i class="diary-resource-icon" ng-class="'resource-' + res.type"></i>
+                    <a ng-href="[[res.url]]" target="_blank" ng-if="res.url">[[res.name]]</a>
+                    <span ng-if="!res.url">[[res.name]]</span>
+                    <i class="close" ng-click="removeSessionResource($index)" title="[[lang.translate('utils.delete')]]"></i>
+                </li>
+            </ul>
+            <button type="button" class="add-resource" ng-click="openSessionResourcePicker()">
+                <i18n>diary.resources.add.workspace</i18n>
+            </button>
+        </div>
+
+        <!-- Picker : documents de l'espace documentaire -->
+        <lightbox show="display.sessionResourcePicker" on-close="display.sessionResourcePicker = false">
+            <h2><i18n>diary.resources.add.workspace</i18n></h2>
+            <p class="info"><i18n>diary.resources.picker.hint</i18n></p>
+            <media-library ng-if="display.sessionResourcePicker"
+                           visibility="'protected'" multiple="true"
+                           ng-model="documents" file-format="'any'"></media-library>
+            <div class="row">
+                <button type="button" class="right-magnet" ng-click="addSessionWorkspaceResources()">
+                    <i18n>diary.resources.attach</i18n>
+                </button>
+                <button type="button" class="cancel right-magnet" ng-click="display.sessionResourcePicker = false">
+                    <i18n>utils.cancel</i18n>
+                </button>
+            </div>
+        </lightbox>
+
 
         <!--DISPLAY ATTACHED HOMEWORKS AND CHILD HOMEWORKS-->
         <div class="margin-bottom-md">
