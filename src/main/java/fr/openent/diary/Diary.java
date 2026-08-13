@@ -58,12 +58,15 @@ public class Diary extends BaseServer {
         final DiaryService diaryService = new DiaryServiceImpl();
 
         final NotifyServiceImpl notifyService = new NotifyServiceImpl(timeline,eb,getPathPrefix(config));
+
+        // Doit être initialisé AVANT VisaServiceImpl : son constructeur crée ExportPDFServiceImpl
+        // qui capture NodePdfHelper.pdfFactory() dans un champ final. Sinon pdfFactory reste null
+        // -> génération PDF du visa sans token -> POST node-pdf-generator 404 -> visa non enregistré.
+        NodePdfHelper.getInstance().init(vertx, config);
+
         final VisaServiceImpl visaService = new VisaServiceImpl(storage, eb, vertx, config);
 
         EventStore eventStore = EventStoreFactory.getFactory().getEventStore(Diary.class.getSimpleName());
-
-
-        NodePdfHelper.getInstance().init(vertx, config);
 
         addController(new DiaryController(diaryService, eventStore));
 
