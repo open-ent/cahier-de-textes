@@ -259,6 +259,10 @@ export let main = ng.controller('MainController',
                     if (!$scope.structureInitialized) await $scope.initializeStructure();
                     template.open('main', 'progression/progressions');
                 },
+                consultProgression: async () => {
+                    if (!$scope.structureInitialized) await $scope.initializeStructure();
+                    template.open('main', 'progression/consult-progression');
+                },
                 manageProgression: async () => {
 
                 },

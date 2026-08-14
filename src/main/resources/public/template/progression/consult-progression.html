@@ -1,0 +1,73 @@
+<div ng-controller="consultProgressionCtrl">
+    <!-- header -->
+    <div id="crumbs" class="flex-row-cdt row__12">
+        <app-title class="flex-col col__6 zero-mobile">
+            <div class="title-area-simple">
+                <h1><i18n>progressions</i18n></h1>
+            </div>
+        </app-title>
+    </div>
+
+    <div class="cell twelve padding-md">
+        <!-- Sélection de l'enseignant -->
+        <label class="block margin-bottom-md"><i18n>diary.consult.progression.select.teacher</i18n></label>
+        <div class="search-input" style="max-width: 460px;">
+            <async-autocomplete
+                data-ng-disabled="false"
+                data-ng-model="teacherQuery"
+                data-ng-change="selectUser"
+                data-on-search="searchUser"
+                data-options="teacherOptions"
+                data-placeholder="diary.consult.progression.search.teacher"
+                data-search="teacherQuery">
+            </async-autocomplete>
+        </div>
+
+        <!-- Enseignant sélectionné -->
+        <p ng-if="selectedTeacher" class="margin-top-md margin-bottom-md">
+            <i class="icon progression"></i>&nbsp;<b>[[selectedTeacher.displayName]]</b>
+        </p>
+
+        <!-- Avant sélection -->
+        <div class="message info" ng-if="!selectedTeacher">
+            <i18n>diary.consult.progression.hint</i18n>
+        </div>
+
+        <!-- Chargement -->
+        <p ng-if="loading"><i18n>diary.consult.progression.loading</i18n></p>
+
+        <!-- Aucune progression -->
+        <div class="message info" ng-if="selectedTeacher && !loading && folders.length === 0">
+            <i18n>diary.consult.progression.empty</i18n>
+        </div>
+
+        <!-- Dossiers (lecture seule) -->
+        <div ng-repeat="folder in folders" class="card padding-md margin-bottom-md">
+            <h3 class="folder-title">
+                <i class="icon diary-folder"></i>&nbsp;[[folder.title]]
+            </h3>
+
+            <div class="flex-table" ng-if="folder.sessions.length > 0">
+                <!-- entête -->
+                <div class="flex-row-cdt flex-head row__12" role="rowgroup">
+                    <div class="flex-col col__5" role="cell"><i18n>title</i18n></div>
+                    <div class="flex-col col__2 text-center" role="cell"><i18n>progression.level</i18n></div>
+                    <div class="flex-col col__3 text-center" role="cell"><i18n>subject</i18n></div>
+                    <div class="flex-col col__2 text-center" role="cell"><i18n>homeworks.attached</i18n></div>
+                </div>
+                <!-- séances -->
+                <div ng-repeat="session in folder.sessions" class="flex-row-cdt row__12" role="rowgroup">
+                    <div class="flex-col col__5" role="cell">[[session.title]]</div>
+                    <div class="flex-col col__2 text-center" role="cell">[[session.class]]</div>
+                    <div class="flex-col col__3 text-center" role="cell">[[session.subjectLabel]]</div>
+                    <div class="flex-col col__2 text-center" role="cell">[[session.homeworksCount]]</div>
+                </div>
+            </div>
+
+            <!-- dossier vide -->
+            <p ng-if="folder.sessions.length === 0" class="margin-top-md">
+                <i18n>diary.consult.progression.folder.empty</i18n>
+            </p>
+        </div>
+    </div>
+</div>

@@ -331,5 +331,12 @@
   "diary.audience.group.label": "Élèves du groupe",
   "diary.resources.mediacentre.noresult": "Aucun résultat pour cette recherche.",
   "diary.visa.by": "par",
-  "diary.search.group.display": "Saisir le nom du groupe ou de la classe dont afficher le cahier de textes"
+  "diary.search.group.display": "Saisir le nom du groupe ou de la classe dont afficher le cahier de textes",
+  "diary.consult.progression.select.teacher": "Enseignant",
+  "diary.consult.progression.search.teacher": "Saisir le nom de l'enseignant dont consulter les progressions",
+  "diary.consult.progression.hint": "Sélectionnez un enseignant pour consulter ses progressions.",
+  "diary.consult.progression.loading": "Chargement des progressions…",
+  "diary.consult.progression.empty": "Cet enseignant n'a aucune progression.",
+  "diary.consult.progression.folder.empty": "Aucune séance dans ce dossier.",
+  "diary.consult.progression.folder.none": "Séances sans dossier"
 }

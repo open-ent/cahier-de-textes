@@ -331,5 +331,12 @@
   "diary.audience.group.label": "Students of group",
   "diary.resources.mediacentre.noresult": "No result for this search.",
   "diary.visa.by": "by",
-  "diary.search.group.display": "Enter the group or class whose diary to display"
+  "diary.search.group.display": "Enter the group or class whose diary to display",
+  "diary.consult.progression.select.teacher": "Teacher",
+  "diary.consult.progression.search.teacher": "Enter the name of the teacher whose progressions to consult",
+  "diary.consult.progression.hint": "Select a teacher to consult their progressions.",
+  "diary.consult.progression.loading": "Loading progressions…",
+  "diary.consult.progression.empty": "This teacher has no progression.",
+  "diary.consult.progression.folder.empty": "No session in this folder.",
+  "diary.consult.progression.folder.none": "Sessions without folder"
 }
