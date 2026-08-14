@@ -32,6 +32,10 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
             if (!$scope.session.resources) { $scope.session.resources = []; }
             $scope.display = $scope.display || {};
 
+            // Libellé lisible d'une audience (« Élèves du groupe 501 »). Renvoie une CHAÎNE stable.
+            $scope.audienceLabel = (audience): string =>
+                (audience && audience.name) ? (lang.translate('diary.audience.group.label') + ' ' + audience.name) : '';
+
             // --- Ressources attachées : documents de l'espace documentaire ---
             $scope.openSessionResourcePicker = function (): void {
                 $scope.documents = [];

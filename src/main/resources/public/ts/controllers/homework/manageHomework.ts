@@ -29,6 +29,11 @@ export let manageHomeworkCtrl = ng.controller('manageHomeworkCtrl',
             }
             if (!$scope.homework.resources) { $scope.homework.resources = []; }
 
+            // Libellé lisible d'une audience (« Élèves du groupe 501 »). Renvoie une CHAÎNE
+            // (stable) -> pas de risque de boucle de digest si utilisé en binding.
+            $scope.audienceLabel = (audience): string =>
+                (audience && audience.name) ? (lang.translate('diary.audience.group.label') + ' ' + audience.name) : '';
+
             // --- Ressources attachées : documents de l'espace documentaire ---
             $scope.openHomeworkResourcePicker = function (): void {
                 $scope.documents = [];

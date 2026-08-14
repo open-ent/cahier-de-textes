@@ -24,7 +24,7 @@
                                     data-search="groupsSearch.group">
                 </async-autocomplete>
                 <div class="search-input-ul" ng-show="homework.audience">
-                    <span>[[homework.audience.name]]</span>&nbsp;
+                    <span>[[audienceLabel(homework.audience)]]</span>&nbsp;
                     <i class="close" ng-click="removeSearchAudience()"></i>
                 </div>
             </div>
@@ -37,7 +37,7 @@
             </span>
             <!--CLASS/GROUP NAME CARD-->
             <span class="card session-form-card" ng-if="homework.audience.name">
-                [[homework.audience.name]]
+                [[audienceLabel(homework.audience)]]
             </span>
         </div>
     </div>
