@@ -399,19 +399,29 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             }
         };
 
+        const EMPTY_VISAS: Array<any> = [];
         // Tous les visas d'un notebook. Le backend renvoie une chaîne texte
         // « date~~owner§§date~~owner » (string_agg) qu'on découpe côté front.
+        // MÉMOÏSATION OBLIGATOIRE : cette fonction est appelée dans ng-repeat/ng-if ;
+        // si elle renvoie un NOUVEAU tableau à chaque digest, AngularJS boucle
+        // ($rootScope:infdig) et casse tout le rendu. On parse une fois et on met en
+        // cache sur l'objet notebook -> même référence renvoyée à chaque cycle.
         $scope.getNotebookVisas = (notebook): Array<any> => {
-            if (!notebook || !notebook.visas_detail) return [];
-            return String(notebook.visas_detail)
-                .split('§§')
-                .filter((s: string) => !!s && s.length > 0)
-                .map((part: string) => {
-                    const idx: number = part.indexOf('~~');
-                    return idx >= 0
-                        ? { date: part.substring(0, idx), owner: part.substring(idx + 2) }
-                        : { date: part, owner: '' };
-                });
+            if (!notebook) return EMPTY_VISAS;
+            if (notebook.__visasList === undefined) {
+                const raw: string = notebook.visas_detail;
+                notebook.__visasList = raw
+                    ? String(raw).split('§§')
+                        .filter((s: string) => !!s && s.length > 0)
+                        .map((part: string) => {
+                            const idx: number = part.indexOf('~~');
+                            return idx >= 0
+                                ? { date: part.substring(0, idx), owner: part.substring(idx + 2) }
+                                : { date: part, owner: '' };
+                        })
+                    : [];
+            }
+            return notebook.__visasList;
         };
 
         // « Visé le [date] par [nom du viseur] » (date déjà formatée DD/MM/YYYY côté SQL)
