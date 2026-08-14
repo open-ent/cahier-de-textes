@@ -337,6 +337,7 @@
   "diary.consult.progression.hint": "Sélectionnez un enseignant pour consulter ses progressions.",
   "diary.consult.progression.loading": "Chargement des progressions…",
   "diary.consult.progression.empty": "Cet enseignant n'a aucune progression.",
+  "diary.consult.progression.error": "Impossible de charger les progressions de cet enseignant (droits insuffisants ou service indisponible).",
   "diary.consult.progression.folder.empty": "Aucune séance dans ce dossier.",
   "diary.consult.progression.folder.none": "Séances sans dossier"
 }

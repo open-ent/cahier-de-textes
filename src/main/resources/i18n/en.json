@@ -337,6 +337,7 @@
   "diary.consult.progression.hint": "Select a teacher to consult their progressions.",
   "diary.consult.progression.loading": "Loading progressions…",
   "diary.consult.progression.empty": "This teacher has no progression.",
+  "diary.consult.progression.error": "Unable to load this teacher's progressions (insufficient rights or service unavailable).",
   "diary.consult.progression.folder.empty": "No session in this folder.",
   "diary.consult.progression.folder.none": "Sessions without folder"
 }

@@ -20,6 +20,7 @@ export let consultProgressionCtrl = ng.controller('consultProgressionCtrl',
         $scope.folders = [];
         $scope.selectedTeacher = null;
         $scope.loading = false;
+        $scope.loadError = false;
 
         // Modèle de la barre de recherche (directive async-autocomplete)
         $scope.teacherQuery = '';
@@ -57,13 +58,17 @@ export let consultProgressionCtrl = ng.controller('consultProgressionCtrl',
 
         const loadProgressions = async (ownerId: string): Promise<void> => {
             $scope.loading = true;
+            $scope.loadError = false;
             $scope.folders = [];
             apply();
             try {
                 const {data} = await http.get('/diary/progressions/' + ownerId);
                 $scope.folders = buildFolders(data);
             } catch (err) {
+                // On distingue une vraie erreur (401/500/réseau) d'un enseignant réellement sans
+                // progression : sans ce flag, les deux afficheraient « aucune progression » (faux négatif).
                 $scope.folders = [];
+                $scope.loadError = true;
             }
             $scope.loading = false;
             apply();

@@ -36,8 +36,13 @@
         <!-- Chargement -->
         <p ng-if="loading"><i18n>diary.consult.progression.loading</i18n></p>
 
-        <!-- Aucune progression -->
-        <div class="message info" ng-if="selectedTeacher && !loading && folders.length === 0">
+        <!-- Erreur de chargement (droit manquant, backend indisponible…) -->
+        <div class="message warning" ng-if="selectedTeacher && !loading && loadError">
+            <i18n>diary.consult.progression.error</i18n>
+        </div>
+
+        <!-- Aucune progression (chargement réussi, mais rien) -->
+        <div class="message info" ng-if="selectedTeacher && !loading && !loadError && folders.length === 0">
             <i18n>diary.consult.progression.empty</i18n>
         </div>
 
