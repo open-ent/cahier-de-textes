@@ -26,9 +26,10 @@
       </span>
     </h1>
 
-    <!-- teacher search bar -->
+    <!-- teacher search bar (masquée pour les élèves et parents) -->
     <div
       workflow="diary.diarySearch"
+      ng-if="!isAChildOrAParent"
       class="cell padding-left-xlg margin-right-lg"
       ng-class="isCounselorUser() ? 'four' : 'three'"
     >
@@ -62,9 +63,10 @@
       </div>
     </div>
 
-    <!-- Classes/groups search bar -->
+    <!-- Classes/groups search bar (masquée pour les élèves et parents) -->
     <div
       workflow="diary.diarySearch"
+      ng-if="!isAChildOrAParent"
       class="cell padding-left-xlg"
       ng-class="isCounselorUser() ? 'four' : 'three'"
     >
