@@ -330,5 +330,6 @@
   "diary.resources.mediacentre.empty": "Saisissez un terme puis lancez la recherche.",
   "diary.audience.group.label": "Élèves du groupe",
   "diary.resources.mediacentre.noresult": "Aucun résultat pour cette recherche.",
-  "diary.visa.by": "par"
+  "diary.visa.by": "par",
+  "diary.search.group.display": "Saisir le nom du groupe ou de la classe dont afficher le cahier de textes"
 }

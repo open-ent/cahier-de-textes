@@ -330,5 +330,6 @@
   "diary.resources.mediacentre.empty": "Type a term then search.",
   "diary.audience.group.label": "Students of group",
   "diary.resources.mediacentre.noresult": "No result for this search.",
-  "diary.visa.by": "by"
+  "diary.visa.by": "by",
+  "diary.search.group.display": "Enter the group or class whose diary to display"
 }
