@@ -349,7 +349,7 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             let visas: Array<Visa> = [];
             fetchedVisas.forEach((fetchedVisa: IVisa) => {
                 let visa: Visa = new Visa($scope.structure);
-                visa.buildVisaData(fetchedVisa, getTeacherInfoForVisa(fetchedVisa.created, mainSelectedNotebooks[0]));
+                visa.buildVisaData(fetchedVisa, getTeacherInfoForVisa(fetchedVisa, mainSelectedNotebooks[0]));
                 visas.push(visa);
             });
 
@@ -358,9 +358,14 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             $scope.safeApply();
         };
 
-        const getTeacherInfoForVisa = (created_at: string, notebookContent: INotebook): string => {
-            return DateUtils.formatDate(created_at, FORMAT.displayDate) +
-                " - " + notebookContent.audience.name + " - " + notebookContent.teacher.displayName;
+        // Libellé d'un visa dans la popup « Visas du cahier de textes » :
+        // « date - classe - viseur ». Le viseur est celui qui a réellement visé (owner_name),
+        // pas l'enseignant propriétaire du cahier ; repli sur l'enseignant pour les anciens
+        // visas sans owner_name (créés avant l'ajout de la colonne).
+        const getTeacherInfoForVisa = (visa: IVisa, notebookContent: INotebook): string => {
+            const viseur: string = visa.owner_name ? visa.owner_name : notebookContent.teacher.displayName;
+            return DateUtils.formatDate(visa.created, FORMAT.displayDate) +
+                " - " + notebookContent.audience.name + " - " + viseur;
         };
 
         $scope.getVisasFromSelectedNotebooks = (): Array<Visa> => {
@@ -368,7 +373,7 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             $scope.getSelectedNotebooks().forEach((mainNotebook: INotebook) => {
                 mainNotebook.notebookSessionsContents.forEach((notebookContent: INotebook) => {
                     // check if has visa + prevent duplicate data
-                    if (notebookContent.visas.id !== null && (!visas.some((visa: Visa) => visa.id === notebookContent.visas.id))) {
+                    if (notebookContent.visas && notebookContent.visas.id !== null && (!visas.some((visa: Visa) => visa.id === notebookContent.visas.id))) {
                         let visa: Visa = new Visa($scope.structure);
                         visas.push(visa);
                     }

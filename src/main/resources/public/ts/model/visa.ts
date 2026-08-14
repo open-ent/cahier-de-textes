@@ -12,6 +12,7 @@ export interface IVisa {
     modified?: string;
     nb_sessions?: number;
     owner_id?: string;
+    owner_name?: string;
     owner_type?: string;
     pdf_details?: string;
     structure_id?: string;

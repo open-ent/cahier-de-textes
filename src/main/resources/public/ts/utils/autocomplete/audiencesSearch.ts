@@ -1,3 +1,4 @@
+import {idiom as lang} from 'entcore';
 import {AutoCompleteUtils} from "./auto-complete";
 import {groupService, SearchItem, SearchService} from "../../services";
 import {Audience} from "../../model";
@@ -69,7 +70,9 @@ export class AudiencesSearch extends AutoCompleteUtils {
     public async searchAudiences(valueInput: string): Promise<void> {
         try {
             this.searchItems = await this.searchService.searchGroup(this.structureId, valueInput);
-            this.searchItems.forEach((group: SearchItem) => group.toString = () => group.name);
+            // Affichage lisible calqué sur les formulaires : « Élèves du groupe 501 » (dropdown + puce sélectionnée).
+            this.searchItems.forEach((group: SearchItem) => group.toString = () =>
+                group.name ? (lang.translate('diary.audience.group.label') + ' ' + group.name) : group.name);
         } catch (err) {
             this.searchItems = [];
             throw err;
