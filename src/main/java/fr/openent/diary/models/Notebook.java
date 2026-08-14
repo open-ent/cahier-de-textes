@@ -29,6 +29,7 @@ public class Notebook {
     private String type;
     private String visa;
     private Visa visas;
+    private String visasDetail;
 
     public Notebook(JsonObject notebook) {
         this.notebook_id = notebook.getString("notebook_id", null);
@@ -47,6 +48,7 @@ public class Notebook {
         this.estimatedTime = notebook.getLong("estimatedtime", 0L);
         this.session_id = notebook.getLong("session_id", null);
         this.visa = notebook.getString("visa", null);
+        this.visasDetail = notebook.getString("visas_detail", null);
         this.type = notebook.getString("type", null);
 
         JsonObject oSubject = notebook.getJsonObject("subject");
@@ -90,6 +92,7 @@ public class Notebook {
                 .put("estimatedtime", this.estimatedTime)
                 .put("session_id", this.session_id)
                 .put("visa", this.visa)
+                .put("visas_detail", this.visasDetail)
                 .put("type", this.type)
                 .put("visas", this.visas.toJSON());
     }
