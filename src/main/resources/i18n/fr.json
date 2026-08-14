@@ -36,7 +36,7 @@
   "diary.filter.none": "Oups... il semblerait qu'aucun filtre ne soit sélectionné",
   "diary.notAvailable": "Il n'y a pas de cahier de textes disponible pour le moment",
   "diary.search.group": "Rechercher un groupe ou une classe",
-  "diary.search.teacher": "Rechercher un enseignant",
+  "diary.search.teacher": "Saisir le nom de l'enseignant dont afficher le cahier de textes",
   "diary.title": "Cahier de textes",
   "done": "Terminé",
   "draft": "Brouillon",
