@@ -354,8 +354,16 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             });
 
             $scope.visas_pdfChoice = visas;
-            $scope.visaPdfDownloadBox = true;
+            // Réouverture fiable : on force une transition false -> true pour que le $watch('show')
+            // de la directive lightbox se redéclenche à CHAQUE ouverture. Sinon, si la valeur est
+            // restée à true après une fermeture qui n'a pas repassé par le bouton X (ex : clic sur un
+            // PDF), un re-clic la remet à true = aucun changement = pas de réouverture (« marche une fois »).
+            $scope.visaPdfDownloadBox = false;
             $scope.safeApply();
+            $timeout(() => {
+                $scope.visaPdfDownloadBox = true;
+                $scope.safeApply();
+            });
         };
 
         // Libellé d'un visa dans la popup « Visas du cahier de textes » :
@@ -384,7 +392,10 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
 
         $scope.closeVisaPdfDownloadBox = (): void => {
             $scope.visas_pdfChoice = [];
-            $scope.visaPdfDownloadBox = null;
+            // false (pas null) pour rester cohérent avec ce que la directive lightbox écrit elle-même
+            // (e.show = false) et garder le binding two-way propre pour la prochaine ouverture.
+            $scope.visaPdfDownloadBox = false;
+            $scope.safeApply();
         };
 
         $scope.wantCreateVisa = (): void => {
