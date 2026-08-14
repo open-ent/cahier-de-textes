@@ -65,6 +65,7 @@ public class VisaServiceImpl implements VisaService {
             final JsonObject visa = visas.getJsonObject(i);
 
             visa.put("owner_id", user.getUserId());
+            visa.put("owner_name", user.getUsername());
             visa.put("created", currentTime);
             visa.put("modified", currentTime);
 
@@ -107,12 +108,12 @@ public class VisaServiceImpl implements VisaService {
     private JsonObject get_VisaSession_Statement(JsonObject visa) {
         StringBuilder query = new StringBuilder();
         JsonArray values = new JsonArray();
-        query.append("INSERT INTO diary.visa (comment, structure_id, teacher_id, nb_sessions, pdf_details, owner_id, created, modified) ");
+        query.append("INSERT INTO diary.visa (comment, structure_id, teacher_id, nb_sessions, pdf_details, owner_id, owner_name, created, modified) ");
         query.append("VALUES ");
 
         JsonArray sessionIds = visa.getJsonArray("sessionIds");
         JsonArray homeworkIds = visa.getJsonArray("homeworkIds");
-        query.append("(?, ?, ?, ?, ?, ?, ?, ?);");
+        query.append("(?, ?, ?, ?, ?, ?, ?, ?, ?);");
         String comment = visa.getString("comment");
         values.add(comment == null || comment.isEmpty() ? "" : comment);
         values.add(visa.getString("structure_id"));
@@ -120,6 +121,7 @@ public class VisaServiceImpl implements VisaService {
         values.add(visa.getJsonArray("sessionIds").size());
         values.add(visa.getString("pdf_details"));
         values.add(visa.getString("owner_id"));
+        values.add(visa.getString("owner_name"));
         values.add(visa.getString("created"));
         values.add(visa.getString("modified"));
 

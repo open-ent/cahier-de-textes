@@ -399,6 +399,27 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             }
         };
 
+        // Tous les visas d'un notebook (le backend renvoie un tableau JSON [{created, owner}]).
+        $scope.getNotebookVisas = (notebook): Array<any> => {
+            if (!notebook || !notebook.visas) return [];
+            let arr: any = notebook.visas;
+            if (typeof arr === 'string') {
+                try { arr = JSON.parse(arr); } catch (e) { arr = []; }
+            }
+            return Array.isArray(arr) ? arr : [];
+        };
+
+        // « Visé le [date] par [nom du viseur] »
+        $scope.formatVisa = (visa): string => {
+            if (!visa || !visa.created) return '';
+            let label: string = lang.translate("sessions.admin.visa.sate.on")
+                + DateUtils.formatDate(visa.created, FORMAT.displayDate);
+            if (visa.owner) {
+                label += ' ' + lang.translate("diary.visa.by") + ' ' + visa.owner;
+            }
+            return label;
+        };
+
         $scope.printPdf = async (): Promise<void> => {
             $scope.printPdf.loading = true;
             let mainNotebooks: Array<INotebook> = getSelectedMainNotebooks();

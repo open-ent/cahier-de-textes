@@ -329,5 +329,6 @@
   "diary.resources.mediacentre.loading": "Recherche en cours…",
   "diary.resources.mediacentre.empty": "Saisissez un terme puis lancez la recherche.",
   "diary.audience.group.label": "Élèves du groupe",
-  "diary.resources.mediacentre.noresult": "Aucun résultat pour cette recherche."
+  "diary.resources.mediacentre.noresult": "Aucun résultat pour cette recherche.",
+  "diary.visa.by": "par"
 }
