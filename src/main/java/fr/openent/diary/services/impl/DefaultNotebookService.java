@@ -259,7 +259,12 @@ public class DefaultNotebookService extends DBService implements NotebookService
         return "SELECT concat(notebook.subject_id, '$', " +
                 "notebook.teacher_id, '$', notebook.audience_id) as notebook_id, notebook.subject_id, " +
                 "notebook.teacher_id, notebook.audience_id, notebook.exceptional_label, count(distinct notebook.id) as sessions, MAX(notebook.modified) as modified, " +
-                ((isVisa == null || isVisa) ? "MAX(visa.created)" : "null") + " as visa" + " FROM " + Diary.DIARY_SCHEMA + ".notebook ";
+                ((isVisa == null || isVisa) ? "MAX(visa.created)" : "null") + " as visa, " +
+                // Tous les viseurs (date~~nom, séparés par §§), en texte via string_agg (agrégat simple, sûr).
+                ((isVisa == null || isVisa)
+                    ? "string_agg(DISTINCT to_char(visa.created,'DD/MM/YYYY') || '~~' || coalesce(visa.owner_name,''), '§§') FILTER (WHERE visa.id IS NOT NULL)"
+                    : "null") + " as visas_detail" +
+                " FROM " + Diary.DIARY_SCHEMA + ".notebook ";
     }
 
     private String getFilterSelectQueryNotebook(String structure_id, Boolean isVisa, String start_at,

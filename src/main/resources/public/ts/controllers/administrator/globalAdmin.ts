@@ -399,21 +399,25 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             }
         };
 
-        // Tous les visas d'un notebook (le backend renvoie un tableau JSON [{created, owner}]).
+        // Tous les visas d'un notebook. Le backend renvoie une chaîne texte
+        // « date~~owner§§date~~owner » (string_agg) qu'on découpe côté front.
         $scope.getNotebookVisas = (notebook): Array<any> => {
-            if (!notebook || !notebook.visas) return [];
-            let arr: any = notebook.visas;
-            if (typeof arr === 'string') {
-                try { arr = JSON.parse(arr); } catch (e) { arr = []; }
-            }
-            return Array.isArray(arr) ? arr : [];
+            if (!notebook || !notebook.visas_detail) return [];
+            return String(notebook.visas_detail)
+                .split('§§')
+                .filter((s: string) => !!s && s.length > 0)
+                .map((part: string) => {
+                    const idx: number = part.indexOf('~~');
+                    return idx >= 0
+                        ? { date: part.substring(0, idx), owner: part.substring(idx + 2) }
+                        : { date: part, owner: '' };
+                });
         };
 
-        // « Visé le [date] par [nom du viseur] »
+        // « Visé le [date] par [nom du viseur] » (date déjà formatée DD/MM/YYYY côté SQL)
         $scope.formatVisa = (visa): string => {
-            if (!visa || !visa.created) return '';
-            let label: string = lang.translate("sessions.admin.visa.sate.on")
-                + DateUtils.formatDate(visa.created, FORMAT.displayDate);
+            if (!visa || !visa.date) return '';
+            let label: string = lang.translate("sessions.admin.visa.sate.on") + visa.date;
             if (visa.owner) {
                 label += ' ' + lang.translate("diary.visa.by") + ' ' + visa.owner;
             }

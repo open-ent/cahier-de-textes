@@ -85,9 +85,10 @@
                         [[notebook.sessions]]
                     </div>
 
-                    <!-- last visa -->
+                    <!-- visas : tous les viseurs, « Visé le [date] par [nom] » -->
                     <div class="flex-col col__2" role="cell">
-                        <span>[[getVisasInfo(notebook.visa)]]</span>
+                        <span ng-if="getNotebookVisas(notebook).length === 0"><i18n>sessions.admin.Visa.sateKo</i18n></span>
+                        <div ng-repeat="v in getNotebookVisas(notebook)">[[formatVisa(v)]]</div>
                     </div>
                 </div>
             </div>
