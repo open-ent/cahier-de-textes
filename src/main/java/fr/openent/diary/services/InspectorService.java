@@ -15,4 +15,16 @@ public interface InspectorService {
     void deleteInspector(String inspectorId, Handler<Either<String, JsonArray>> handler);
 
     void getInspectorHabilitations(String inspectorId, String structureId, UserInfos user, Handler<Either<String, JsonArray>> handler);
+
+    /**
+     * Établissements sur lesquels un inspecteur détient au moins une habilitation, avec leur nom.
+     *
+     * Le périmètre d'un inspecteur est défini par ses habilitations, et non par ses rattachements
+     * de session : sans cette énumération, une interface ne peut lui proposer que les
+     * établissements auxquels il est rattaché — soit, le plus souvent, son seul service académique.
+     *
+     * @param inspectorId identifiant de l'inspecteur
+     * @param handler     tableau d'objets {@code {id, name}}, vide si aucune habilitation
+     */
+    void getInspectorStructures(String inspectorId, Handler<Either<String, JsonArray>> handler);
 }

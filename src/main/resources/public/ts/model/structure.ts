@@ -1,4 +1,5 @@
 import {model} from 'entcore';
+import http from 'axios';
 import {
     Audience,
     Audiences, Course,
@@ -128,11 +129,38 @@ export class Structures {
         this.all = structures;
     }
 
-    sync() {
+    /**
+     * Établissements proposés à l'utilisateur.
+     *
+     * Aux rattachements de session s'ajoutent ceux où il détient une **habilitation
+     * d'inspection**. Le périmètre d'un inspecteur est défini par ses habilitations, alors qu'il
+     * n'est le plus souvent rattaché qu'à son service académique : sans cet ajout, la vue
+     * d'inspection resterait vide pour lui, puisqu'elle travaille sur la structure courante.
+     */
+    async sync(): Promise<void> {
         for (let i = 0; i < model.me.structures.length; i++) {
             this.all.push(new Structure(model.me.structures[i], model.me.structureNames[i]));
         }
-        return;
+        await this.addInspectionStructures();
+    }
+
+    /**
+     * Ajoute les établissements habilités, sans doublon avec les rattachements.
+     *
+     * L'appel n'est pas conditionné à un workflow : la route renvoie un tableau vide pour qui n'a
+     * aucune habilitation, et dépendre de l'ordre de chargement des `Behaviours` priverait
+     * silencieusement un inspecteur de son périmètre.
+     */
+    private async addInspectionStructures(): Promise<void> {
+        try {
+            const {data} = await http.get('/diary/inspector/structures');
+            (Array.isArray(data) ? data : [])
+                .filter((s: any) => s && s.id && !this.get(s.id))
+                .forEach((s: any) => this.all.push(new Structure(s.id, s.name || s.id)));
+        } catch (e) {
+            // Un périmètre d'inspection indisponible ne doit pas empêcher l'application de
+            // s'ouvrir sur les rattachements de l'utilisateur.
+        }
     }
 
     /**

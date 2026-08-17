@@ -52,6 +52,22 @@ public class InspectorController extends ControllerHelper {
         });
     }
 
+    @Get("/inspector/structures")
+    @ApiDoc("Get the structures where the connected user holds an inspection habilitation")
+    @SecuredAction(value = "", type = ActionType.AUTHENTICATED)
+    public void getOwnInspectorStructures(final HttpServerRequest request) {
+        UserUtils.getUserInfos(eb, request, user -> {
+            if (user == null) {
+                unauthorized(request);
+                return;
+            }
+            // L'inspecteur est celui de la session : aucune identité n'est lue depuis l'URL, sans
+            // quoi tout compte authentifié pourrait consulter le périmètre d'inspection d'autrui.
+            inspectorService.getInspectorStructures(user.getUserId(),
+                    DefaultResponseHandler.arrayResponseHandler(request));
+        });
+    }
+
     @Delete("/inspector/:id")
     @SecuredAction(value = "", type = ActionType.AUTHENTICATED)
     public void deleteInspector(final HttpServerRequest request) {
