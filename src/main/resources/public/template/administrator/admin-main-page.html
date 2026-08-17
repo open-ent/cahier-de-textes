@@ -15,13 +15,25 @@
             <!-- module title name -->
             <i18n>diary.title</i18n>
 
-            <!-- name structure -->
+            <!--
+              name structure — libellé simple quand l'utilisateur n'a qu'un établissement
+              consultable, sélecteur dès qu'il en a plusieurs. Un inspecteur est habilité sur des
+              établissements auxquels il n'est pas rattaché : sans ce sélecteur, il resterait sur
+              son rectorat de rattachement, qui n'a ni classe ni enseignant.
+            -->
             <span
-              ng-if="isCounselorUser()"
+              ng-if="isCounselorUser() && consultableStructures.length <= 1"
               class="structure-title admin-main ellipsis-multiline-two"
             >
               [[structure.name]]
             </span>
+            <select
+              ng-if="isCounselorUser() && consultableStructures.length > 1"
+              class="structure-title admin-main"
+              data-ng-model="structureSelection"
+              data-ng-change="changeStructure(structureSelection)"
+              ng-options="s.name for s in consultableStructures track by s.id"
+            ></select>
           </h1>
         </div>
       </app-title>

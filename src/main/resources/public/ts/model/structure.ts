@@ -1,5 +1,5 @@
 import {model} from 'entcore';
-import http from 'axios';
+import {structureService} from '../services';
 import {
     Audience,
     Audiences, Course,
@@ -138,29 +138,13 @@ export class Structures {
      * d'inspection resterait vide pour lui, puisqu'elle travaille sur la structure courante.
      */
     async sync(): Promise<void> {
-        for (let i = 0; i < model.me.structures.length; i++) {
-            this.all.push(new Structure(model.me.structures[i], model.me.structureNames[i]));
-        }
-        await this.addInspectionStructures();
-    }
-
-    /**
-     * Ajoute les établissements habilités, sans doublon avec les rattachements.
-     *
-     * L'appel n'est pas conditionné à un workflow : la route renvoie un tableau vide pour qui n'a
-     * aucune habilitation, et dépendre de l'ordre de chargement des `Behaviours` priverait
-     * silencieusement un inspecteur de son périmètre.
-     */
-    private async addInspectionStructures(): Promise<void> {
-        try {
-            const {data} = await http.get('/diary/inspector/structures');
-            (Array.isArray(data) ? data : [])
-                .filter((s: any) => s && s.id && !this.get(s.id))
-                .forEach((s: any) => this.all.push(new Structure(s.id, s.name || s.id)));
-        } catch (e) {
-            // Un périmètre d'inspection indisponible ne doit pas empêcher l'application de
-            // s'ouvrir sur les rattachements de l'utilisateur.
-        }
+        // Les habilitations sont chargées AVANT de bâtir la liste : c'est `getUserStructure()` qui
+        // fusionne rattachements et établissements habilités, afin que ce modèle et le sélecteur
+        // d'établissement (directive `selectStructure`) partagent la même source.
+        await structureService.syncInspectionStructures();
+        structureService.getUserStructure()
+            .filter((s: Structure) => !this.get(s.id))
+            .forEach((s: Structure) => this.all.push(s));
     }
 
     /**

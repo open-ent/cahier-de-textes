@@ -11,6 +11,10 @@ import {IVisaService} from "../../services";
 import {IViescolaireService} from "../../services";
 import {Groups} from "../../model/group";
 import {AudiencesSearch} from "../../utils/autocomplete/audiencesSearch";
+import {structureService} from "../../services";
+import {PreferencesUtils} from "../../utils/preference/preferences";
+
+declare let window: any;
 
 export let globalAdminCtrl = ng.controller('globalAdminCtrl',
     ['$scope', '$timeout', '$routeParams', '$location', 'SearchService', 'NotebookService', 'VisaService', 'ViescolaireService',
@@ -545,6 +549,28 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
 
         $scope.back = () => {
             window.history.back();
+        };
+
+        /*
+         * Établissements consultables : rattachements de session ET établissements où
+         * l'utilisateur détient une habilitation d'inspection (cf. StructureService).
+         *
+         * La vue d'inspection ne travaille que sur un établissement à la fois, et le sélecteur de
+         * la barre latérale est réservé aux élèves et parents. Sans ce sélecteur, un inspecteur
+         * resterait bloqué sur son rattachement — le rectorat, qui n'a ni classe ni enseignant.
+         */
+        $scope.consultableStructures = structureService.getUserStructure();
+        $scope.structureSelection = $scope.consultableStructures
+            .find((s) => $scope.structure && s.id === $scope.structure.id);
+
+        $scope.changeStructure = async (selected): Promise<void> => {
+            if (!selected || !selected.id || selected.id === $scope.structure.id) return;
+            window.structure = {id: selected.id, name: selected.name};
+            await PreferencesUtils.updateStructure(window.structure);
+            // Recalcule $scope.structure sur le scope parent, puis relance la vue : même
+            // enchaînement que la directive selectStructure.
+            await $scope.initializeStructure();
+            $scope.$emit(UPDATE_STRUCTURE_EVENTS.UPDATE);
         };
 
         // We use this condition to prevent $scope.init to be called twice with $scope.$on to handle multiple structure
