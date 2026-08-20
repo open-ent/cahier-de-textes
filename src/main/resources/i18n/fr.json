@@ -292,6 +292,8 @@
   "utils.personnels": "Personnels",
   "utils.publish": "Publier",
   "utils.room": "Salle",
+  "diary.utils.rbs.resource": "Ressource RBS",
+  "diary.utils.rbs.resource.choose": "Choisir une ressource…",
   "utils.save": "Enregistrer",
   "utils.see": "voir",
   "utils.start.time": "Heure de début",

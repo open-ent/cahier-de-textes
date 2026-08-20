@@ -35,6 +35,11 @@ export class Session {
     room: string = '';
     // Ressources attachées (espace doc / médiacentre / Éléa) : [{type, id, name, url}]
     resources: any[] = [];
+    // Ressources RBS (réservation de ressources) liées, en plus du texte libre `room` ci-dessus.
+    // Éditable seulement pour une séance créée directement (sans cours EDT) — recopié en lecture
+    // seule depuis course.rbsResourceIds pour une séance dérivée d'un cours EDT (voir
+    // setFromCourse/setFromCourseAndProgression), la réservation existant déjà côté EDT.
+    rbsResourceIds: number[] = [];
     courseId: string = null;
     isPublished: boolean = true;
     visas: Visa[] = [];
@@ -96,6 +101,7 @@ export class Session {
             visas: data.visas && data.visas !== '[null]' ? JSON.parse(data.visas) : [],
             resources: Array.isArray(data.resources) ? data.resources
                 : (data.resources && typeof data.resources === 'string' ? JSON.parse(data.resources) : []),
+            rbsResourceIds: Array.isArray(data.rbsResourceIds) ? data.rbsResourceIds : [],
             courseId: data.course_id ? data.course_id : null,
             modified: data.modified,
             created: data.created,
@@ -124,6 +130,7 @@ export class Session {
             room: (this.room) ? this.room : '',
             course_id: this.courseId,
             resources: this.resources || [],
+            rbsResourceIds: this.rbsResourceIds || [],
             is_empty: this.is_empty
         };
     }
@@ -185,6 +192,8 @@ export class Session {
         this.courseId = course._id;
         this.teacher = course.teachers[0];
         this.room = (course.rooms && course.rooms.length > 0) ? course.rooms[0] : '';
+        // Lecture seule : la réservation RBS existe déjà côté EDT, jamais recréée par diary.
+        this.rbsResourceIds = course.rbsResourceIds || [];
         this.subject = course.subject;
         if (course.exceptionnal) {
             this.subject.id = EXCEPTIONAL.subjectId;
@@ -252,6 +261,7 @@ export class Session {
         this.courseId = course._id;
         this.teacher = (course.teachers && course.teachers.length > 0) ? course.teachers[0] : null;
         this.room = (course.rooms && course.rooms.length > 0) ? course.rooms[0] : '';
+        this.rbsResourceIds = course.rbsResourceIds || [];
         this.date = this.startTime = course.startMoment.toDate();
         this.endTime = course.endMoment.toDate();
         this.audience = course.audiences.all[0];

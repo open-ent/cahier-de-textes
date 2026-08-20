@@ -5,6 +5,7 @@ import fr.openent.diary.security.WorkflowUtils;
 import fr.openent.diary.security.workflow.*;
 import fr.openent.diary.services.ExportPDFService;
 import fr.openent.diary.services.SessionService;
+import fr.openent.diary.services.impl.DiaryRbsBridgeService;
 import fr.openent.diary.services.impl.ExportPDFServiceImpl;
 import fr.wseduc.rs.Delete;
 import fr.wseduc.rs.Get;
@@ -14,6 +15,7 @@ import fr.wseduc.security.ActionType;
 import fr.wseduc.security.SecuredAction;
 import fr.wseduc.webutils.request.RequestUtils;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonArray;
 import org.entcore.common.controller.ControllerHelper;
 import org.entcore.common.events.EventStore;
 import org.entcore.common.http.filter.ResourceFilter;
@@ -124,7 +126,16 @@ public class SessionController extends ControllerHelper {
     @ResourceFilter(SessionManage.class)
     public void createSession(final HttpServerRequest request) {
         UserUtils.getUserInfos(eb, request, user -> RequestUtils.bodyToJson(request, pathPrefix + "session", session -> {
-            sessionService.createSession(session, user, DefaultResponseHandler.defaultResponseHandler(request));
+            sessionService.createSession(session, user, result -> {
+                DefaultResponseHandler.defaultResponseHandler(request).handle(result);
+                // Uniquement pour une séance créée directement (course_id absent) — une séance
+                // dérivée d'un cours EDT ne crée jamais sa propre réservation RBS (déjà créée
+                // côté EDT), voir DiaryRbsBridgeService#createBookings.
+                if (result.isRight() && user != null) {
+                    long sessionId = result.right().getValue().getLong("id");
+                    DiaryRbsBridgeService.createBookings(eb, session, sessionId, user.getUserId());
+                }
+            });
         }));
     }
 
@@ -133,10 +144,25 @@ public class SessionController extends ControllerHelper {
     @Trace(value = Actions.UPDATE_SESSION)
     @ResourceFilter(SessionManage.class)
     public void updateSession(final HttpServerRequest request) {
-        RequestUtils.bodyToJson(request, pathPrefix + "session", session -> {
+        UserUtils.getUserInfos(eb, request, user -> RequestUtils.bodyToJson(request, pathPrefix + "session", session -> {
             long sessionId = Long.parseLong(request.getParam("id"));
-            sessionService.updateSession(sessionId, session, DefaultResponseHandler.defaultResponseHandler(request));
-        });
+            // Récupère les anciennes rbs_booking_ids AVANT mise à jour : stratégie simple "tout
+            // supprimer / tout recréer" (même choix que RbsBridgeService côté EDT), pas de diff fin.
+            sessionService.getSession(sessionId, oldSessionResult -> {
+                JsonArray oldBookingIds = oldSessionResult.isRight()
+                        ? oldSessionResult.right().getValue().getJsonArray("rbs_booking_ids")
+                        : null;
+
+                sessionService.updateSession(sessionId, session, result -> {
+                    DefaultResponseHandler.defaultResponseHandler(request).handle(result);
+                    if (result.isRight() && user != null) {
+                        if (oldBookingIds != null && !oldBookingIds.isEmpty())
+                            DiaryRbsBridgeService.deleteBookings(eb, oldBookingIds, user.getUserId());
+                        DiaryRbsBridgeService.createBookings(eb, session, sessionId, user.getUserId());
+                    }
+                });
+            });
+        }));
     }
 
     @Delete("/session/:id")
@@ -145,7 +171,28 @@ public class SessionController extends ControllerHelper {
     @ResourceFilter(SessionManage.class)
     public void deleteSession(final HttpServerRequest request) {
         long sessionId = Long.parseLong(request.getParam("id"));
-        sessionService.deleteSession(sessionId, DefaultResponseHandler.defaultResponseHandler(request));
+        UserUtils.getUserInfos(eb, request, user ->
+            sessionService.getSession(sessionId, oldSessionResult -> {
+                JsonArray bookingIds = oldSessionResult.isRight()
+                        ? oldSessionResult.right().getValue().getJsonArray("rbs_booking_ids")
+                        : null;
+
+                sessionService.deleteSession(sessionId, result -> {
+                    DefaultResponseHandler.defaultResponseHandler(request).handle(result);
+                    if (result.isRight() && user != null && bookingIds != null && !bookingIds.isEmpty())
+                        DiaryRbsBridgeService.deleteBookings(eb, bookingIds, user.getUserId());
+                });
+            })
+        );
+    }
+
+    @Get("/structures/:id/rbs/resources")
+    @SecuredAction(value = "", type = ActionType.AUTHENTICATED)
+    public void getRbsResources(final HttpServerRequest request) {
+        String structureId = request.getParam("id");
+        DiaryRbsBridgeService.listResourcesForStructure(eb, structureId)
+                .onSuccess(res -> renderJson(request, res))
+                .onFailure(err -> renderError(request));
     }
 
     @Post("/session/publish/:id")

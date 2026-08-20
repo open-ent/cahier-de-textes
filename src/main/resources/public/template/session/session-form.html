@@ -85,6 +85,30 @@
                 <input type="text" class="twelve twelve-mobile" maxlength="50" ng-model="session.room"/>
             </label>
             <div class="one"></div>
+            <!--RBS RESOURCE — coexiste avec le texte libre ci-dessus, ne le remplace pas.
+                Éditable seulement si la séance n'est pas dérivée d'un cours EDT (la réservation
+                existe déjà côté EDT sinon, jamais recréée par diary) -->
+            <label class="two cell horizontal-spacing twelve-mobile" ng-if="rbsResources.length > 0 || session.rbsResourceIds.length > 0">
+                <div class="twelve">
+                    <i18n>diary.utils.rbs.resource</i18n>
+                </div>
+                <div ng-if="!session.courseId">
+                    <select ng-model="selectedRbsResourceId" ng-change="addSessionRbsResource()"
+                            ng-options="r.id as (r.typeName ? r.name + ' (' + r.typeName + ')' : r.name) for r in rbsResources">
+                        <option value="" selected><i18n>diary.utils.rbs.resource.choose</i18n></option>
+                    </select>
+                    <ul ng-if="session.rbsResourceIds.length">
+                        <li ng-repeat="rid in session.rbsResourceIds track by rid" class="diary-resource-item">
+                            [[rbsResourceLabel(rid)]]
+                            <i class="close" ng-click="removeSessionRbsResource(rid)" title="[[lang.translate('utils.delete')]]"></i>
+                        </li>
+                    </ul>
+                </div>
+                <ul ng-if="session.courseId && session.rbsResourceIds.length">
+                    <li ng-repeat="rid in session.rbsResourceIds track by rid">[[rbsResourceLabel(rid)]]</li>
+                </ul>
+            </label>
+            <div class="one"></div>
             <!--TYPE-->
             <label class="two cell horizontal-spacing twelve-mobile">
                 <div class="twelve">

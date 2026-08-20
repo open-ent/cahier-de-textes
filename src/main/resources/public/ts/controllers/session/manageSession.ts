@@ -32,6 +32,56 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
             if (!$scope.session.resources) { $scope.session.resources = []; }
             $scope.display = $scope.display || {};
 
+            // --- Ressource RBS (réservation de ressources) — coexiste avec le texte libre
+            // `room`, éditable seulement pour une séance créée directement (sans cours EDT).
+            // Relais serveur (/diary/structures/:id/rbs/resources), pas d'appel direct à l'API
+            // RBS : visible à n'importe quel enseignant même sans droit RBS individuel.
+            if (!$scope.session.rbsResourceIds) { $scope.session.rbsResourceIds = []; }
+            $scope.rbsResources = [];
+            $scope.selectedRbsResourceId = null;
+
+            $scope.loadRbsResources = async function (): Promise<void> {
+                $scope.rbsResources = [];
+                if (!$scope.structure || !$scope.structure.id) { return; }
+                try {
+                    const {data}: any = await http.get(`/diary/structures/${$scope.structure.id}/rbs/resources`);
+                    const types: any[] = (data && data.types) || [];
+                    const resources: any[] = (data && data.resources) || [];
+                    const typeNameById: any = {};
+                    types.forEach((t: any) => { typeNameById[t.id] = t.name; });
+                    $scope.rbsResources = resources.map((r: any) => ({
+                        id: r.id,
+                        name: r.name,
+                        typeName: typeNameById[r.type_id] || ''
+                    }));
+                } catch (e) {
+                    $scope.rbsResources = [];
+                }
+                $scope.safeApply();
+            };
+            $scope.loadRbsResources();
+
+            $scope.rbsResourceLabel = function (id: number): string {
+                const found: any = $scope.rbsResources.find((r: any) => r.id === id);
+                if (!found) { return String(id); }
+                return found.typeName ? `${found.name} (${found.typeName})` : found.name;
+            };
+
+            $scope.addSessionRbsResource = function (): void {
+                const id: number = $scope.selectedRbsResourceId;
+                if (id === null || id === undefined) { return; }
+                if (!$scope.session.rbsResourceIds) { $scope.session.rbsResourceIds = []; }
+                if ($scope.session.rbsResourceIds.indexOf(id) === -1) {
+                    $scope.session.rbsResourceIds.push(id);
+                }
+                $scope.selectedRbsResourceId = null;
+            };
+
+            $scope.removeSessionRbsResource = function (id: number): void {
+                if (!$scope.session.rbsResourceIds) { return; }
+                $scope.session.rbsResourceIds = $scope.session.rbsResourceIds.filter((rid: number) => rid !== id);
+            };
+
             // Libellé lisible d'une audience (« Élèves du groupe 501 »). Renvoie une CHAÎNE stable.
             $scope.audienceLabel = (audience): string =>
                 (audience && audience.name) ? (lang.translate('diary.audience.group.label') + ' ' + audience.name) : '';

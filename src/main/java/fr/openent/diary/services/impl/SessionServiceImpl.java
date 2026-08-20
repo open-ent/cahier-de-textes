@@ -521,6 +521,7 @@ public class SessionServiceImpl extends DBService implements SessionService {
         if (session.getString("resources") != null) {
             session.put("resources", new JsonArray(session.getString("resources")));
         }
+        cleanRbsResourceIds(session);
         session.put("homeworks", new JsonArray(session.getString("homeworks")));
         if (session.getJsonArray("homeworks").contains(null)) {
             session.put("homeworks", new JsonArray());
@@ -541,9 +542,26 @@ public class SessionServiceImpl extends DBService implements SessionService {
         if (session.getString("resources") != null) {
             session.put("resources", new JsonArray(session.getString("resources")));
         }
+        cleanRbsResourceIds(session);
         session.put("homeworks", new JsonArray(session.getString("homeworks")));
         if (session.getJsonArray("homeworks").contains(null)) {
             session.put("homeworks", new JsonArray());
+        }
+    }
+
+    // rbs_resource_ids (JSONB, colonne snake_case) renvoyé en texte -> rbsResourceIds (tableau
+    // JSON, clé camelCase attendue côté front, cohérente avec le schéma session.json).
+    // rbs_booking_ids reste en snake_case et n'est pas renommé : détail d'implémentation interne
+    // (géré par DiaryRbsBridgeService, relu par SessionController avant suppression/mise à jour),
+    // le front n'a pas besoin de s'en servir mais ce n'est pas sensible à exposer.
+    private void cleanRbsResourceIds(JsonObject session) {
+        String rawResourceIds = session.getString("rbs_resource_ids");
+        session.remove("rbs_resource_ids");
+        session.put("rbsResourceIds", rawResourceIds != null ? new JsonArray(rawResourceIds) : new JsonArray());
+
+        String rawBookingIds = session.getString("rbs_booking_ids");
+        if (rawBookingIds != null) {
+            session.put("rbs_booking_ids", new JsonArray(rawBookingIds));
         }
     }
 
@@ -564,11 +582,13 @@ public class SessionServiceImpl extends DBService implements SessionService {
         JsonArray values = new JsonArray();
         String query = "INSERT INTO diary.session (subject_id, type_id, exceptional_label, structure_id, teacher_id, audience_id, title, " +
                 "room, color, description, annotation, is_published, is_empty, course_id, owner_id, " +
-                "date, start_time, end_time, resources, created, modified) " +
+                "date, start_time, end_time, resources, rbs_resource_ids, rbs_booking_ids, created, modified) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
                 // PG16 ne caste plus implicitement varchar -> date : le paramètre date doit être converti
                 // explicitement (cf. UPDATE session et INSERT homework qui utilisent déjà to_date).
-                "to_date(?,'YYYY-MM-DD'), to_timestamp(?, 'hh24:mi:ss'), to_timestamp(?, 'hh24:mi:ss'), ?::jsonb, NOW(), NOW()) RETURNING id";
+                // rbs_booking_ids : jamais connu à la création (dépend de la réponse async RBS),
+                // rempli après coup par DiaryRbsBridgeService.
+                "to_date(?,'YYYY-MM-DD'), to_timestamp(?, 'hh24:mi:ss'), to_timestamp(?, 'hh24:mi:ss'), ?::jsonb, ?::jsonb, '[]'::jsonb, NOW(), NOW()) RETURNING id";
 
         values.add(session.getString("subject_id", ""));
 
@@ -630,6 +650,8 @@ public class SessionServiceImpl extends DBService implements SessionService {
         values.add(endTime);
         // resources : documents de l'espace documentaire (médiacentre / Éléa à venir)
         values.add(session.getJsonArray("resources") != null ? session.getJsonArray("resources").encode() : "[]");
+        // rbsResourceIds : ressources RBS liées (coexistence avec le texte libre `room` ci-dessus)
+        values.add(session.getJsonArray("rbsResourceIds") != null ? session.getJsonArray("rbsResourceIds").encode() : "[]");
 
         sql.prepared(query, values, SqlResult.validUniqueResultHandler(handler));
 
@@ -642,7 +664,7 @@ public class SessionServiceImpl extends DBService implements SessionService {
         String query = "UPDATE diary.session" +
                 " SET subject_id = ?, type_id = ?, exceptional_label = ?, structure_id = ?, audience_id = ?, title = ?, " +
                 " room = ?, color = ?, description = ?, annotation = ?, is_published = ?, is_empty = ?, course_id = ?, " +
-                " date = to_date(?,'YYYY-MM-DD'), start_time = to_timestamp(?, 'hh24:mi:ss'), end_time = to_timestamp(?, 'hh24:mi:ss'), resources = ?::jsonb, modified = NOW()" +
+                " date = to_date(?,'YYYY-MM-DD'), start_time = to_timestamp(?, 'hh24:mi:ss'), end_time = to_timestamp(?, 'hh24:mi:ss'), resources = ?::jsonb, rbs_resource_ids = ?::jsonb, modified = NOW()" +
                 " WHERE id = ?;";
 
         values.add(session.getString("subject_id"));
@@ -673,6 +695,7 @@ public class SessionServiceImpl extends DBService implements SessionService {
         values.add(session.getString("start_time"));
         values.add(session.getString("end_time"));
         values.add(session.getJsonArray("resources") != null ? session.getJsonArray("resources").encode() : "[]");
+        values.add(session.getJsonArray("rbsResourceIds") != null ? session.getJsonArray("rbsResourceIds").encode() : "[]");
 
         values.add(sessionId);
 
