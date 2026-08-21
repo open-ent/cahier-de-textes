@@ -292,6 +292,7 @@
   "utils.personnels": "Staff",
   "utils.publish": "Publish",
   "utils.room": "Room",
+  "diary.utils.room.readonly": "This field is no longer editable — use the RBS resource next to it, or an import for existing rooms.",
   "diary.utils.rbs.resource": "RBS resource",
   "diary.utils.rbs.resource.choose": "Choose a resource…",
   "utils.save": "Save",
