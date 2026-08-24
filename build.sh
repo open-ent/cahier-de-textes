@@ -57,13 +57,18 @@ buildNode () {
           docker compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "npm install && npm update entcore && node_modules/gulp/bin/gulp.js build"
       esac
   else
-      echo "[buildNode] Use entcore tag $BRANCH_NAME"
+      # $BRANCH_NAME est la version DU MODULE cahier-de-textes (ex. 4.1.7-patched-dev), pas une
+      # version d'entcore publiée — npm install entcore@$BRANCH_NAME échoue toujours (404) sur ce
+      # module. package.json pin déjà la bonne version d'entcore ; s'aligner sur la CI
+      # (build-and-publish.yml, job Build Frontend) qui fait juste npm install --legacy-peer-deps,
+      # sans réécrire entcore.
+      echo "[buildNode] Use entcore version from package.json ($BRANCH_NAME)"
       case `uname -s` in
         MINGW*)
-          docker compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "npm install --no-bin-links && npm rm --no-save entcore && npm install --no-save entcore@$BRANCH_NAME && node_modules/gulp/bin/gulp.js build"
+          docker compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "npm install --no-bin-links --legacy-peer-deps && node_modules/gulp/bin/gulp.js build"
           ;;
         *)
-          docker compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "npm install && npm rm --no-save entcore && npm install --no-save entcore@$BRANCH_NAME && node_modules/gulp/bin/gulp.js build"
+          docker compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "npm install --legacy-peer-deps && node_modules/gulp/bin/gulp.js build"
       esac
   fi
 }

@@ -94,7 +94,7 @@
                     <i18n>diary.utils.rbs.resource</i18n>
                 </div>
                 <div ng-if="!session.courseId">
-                    <select ng-model="selectedRbsResourceId" ng-change="addSessionRbsResource()"
+                    <select ng-model="rbsPicker.selectedId" ng-change="addSessionRbsResource()"
                             ng-options="r.id as (r.typeName ? r.name + ' (' + r.typeName + ')' : r.name) for r in rbsResources">
                         <option value="" selected><i18n>diary.utils.rbs.resource.choose</i18n></option>
                     </select>

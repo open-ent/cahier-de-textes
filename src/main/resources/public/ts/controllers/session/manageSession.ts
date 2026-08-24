@@ -38,7 +38,12 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
             // RBS : visible à n'importe quel enseignant même sans droit RBS individuel.
             if (!$scope.session.rbsResourceIds) { $scope.session.rbsResourceIds = []; }
             $scope.rbsResources = [];
-            $scope.selectedRbsResourceId = null;
+            // Objet (et non une primitive) : le bloc contenant le <select> est sous ng-if, qui
+            // crée un scope enfant — un ng-model sur une primitive sans point s'y lierait à une
+            // propriété locale à ce scope enfant, jamais vue par addSessionRbsResource() (défini
+            // sur le scope parent). Un objet se lit par référence à travers la chaîne de
+            // prototypes : la mutation reste visible partout.
+            $scope.rbsPicker = { selectedId: null };
 
             $scope.loadRbsResources = async function (): Promise<void> {
                 $scope.rbsResources = [];
@@ -68,13 +73,13 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
             };
 
             $scope.addSessionRbsResource = function (): void {
-                const id: number = $scope.selectedRbsResourceId;
+                const id: number = $scope.rbsPicker.selectedId;
                 if (id === null || id === undefined) { return; }
                 if (!$scope.session.rbsResourceIds) { $scope.session.rbsResourceIds = []; }
                 if ($scope.session.rbsResourceIds.indexOf(id) === -1) {
                     $scope.session.rbsResourceIds.push(id);
                 }
-                $scope.selectedRbsResourceId = null;
+                $scope.rbsPicker.selectedId = null;
             };
 
             $scope.removeSessionRbsResource = function (id: number): void {
