@@ -7,6 +7,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import fr.openent.diary.services.InspectorService;
 import org.entcore.common.sql.Sql;
 import org.entcore.common.user.UserInfos;
 import org.junit.Before;
@@ -30,7 +31,7 @@ public class VisaServiceImplTest {
         vertx = Vertx.vertx();
         vertx = Mockito.spy(vertx);
         Sql.getInstance().init(vertx.eventBus(), "fr.openent.diary");
-        this.visaService = new VisaServiceImpl(null, vertx.eventBus(), vertx, new JsonObject("{\"exports\": {\"template-path\": \"\"}}"));
+        this.visaService = new VisaServiceImpl(null, vertx.eventBus(), vertx, new JsonObject("{\"exports\": {\"template-path\": \"\"}}"), Mockito.mock(InspectorService.class));
         this.visaService = Mockito.spy(this.visaService);
     }
 

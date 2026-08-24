@@ -64,7 +64,8 @@ public class Diary extends BaseServer {
         // -> génération PDF du visa sans token -> POST node-pdf-generator 404 -> visa non enregistré.
         NodePdfHelper.getInstance().init(vertx, config);
 
-        final VisaServiceImpl visaService = new VisaServiceImpl(storage, eb, vertx, config);
+        final InspectorServiceImpl inspectorService = new InspectorServiceImpl();
+        final VisaServiceImpl visaService = new VisaServiceImpl(storage, eb, vertx, config, inspectorService);
 
         EventStore eventStore = EventStoreFactory.getFactory().getEventStore(Diary.class.getSimpleName());
 
@@ -78,7 +79,7 @@ public class Diary extends BaseServer {
         addController(new SessionController(new SessionServiceImpl(eb, eventStore)));
         addController(new HomeworkController(new HomeworkServiceImpl("diary", eb, eventStore)));
         addController(new SessionsHomeworkController(new DefaultSessionsHomeworkService(eb, eventStore)));
-        addController(new InspectorController(new InspectorServiceImpl()));
+        addController(new InspectorController(inspectorService));
         addController(new ProgressionController(new ProgessionServiceImpl("diary")));
         addController(new SearchController(eb));
         addController(new SubjectController(new DefaultSubjectService(eb)));

@@ -2,6 +2,7 @@ package fr.openent.diary.services.impl;
 
 import fr.openent.diary.Diary;
 import fr.openent.diary.services.ExportPDFService;
+import fr.openent.diary.services.InspectorService;
 import fr.openent.diary.services.VisaService;
 import fr.wseduc.webutils.Either;
 import io.vertx.core.Handler;
@@ -24,15 +25,18 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class VisaServiceImpl implements VisaService {
 
     private static final Logger log = LoggerFactory.getLogger(VisaServiceImpl.class);
     private final ExportPDFService exportPDFService;
+    private final InspectorService inspectorService;
     private int indexAsync = 0;
 
-    public VisaServiceImpl(Storage storage, EventBus eb, Vertx vertx, JsonObject config) {
+    public VisaServiceImpl(Storage storage, EventBus eb, Vertx vertx, JsonObject config, InspectorService inspectorService) {
         this.exportPDFService = new ExportPDFServiceImpl(eb, vertx, storage, config);
+        this.inspectorService = inspectorService;
     }
 
     @Override
@@ -69,27 +73,39 @@ public class VisaServiceImpl implements VisaService {
             visa.put("created", currentTime);
             visa.put("modified", currentTime);
 
-            String fileName = getPDFName(visa);
+            final Consumer<Boolean> proceedWithOwnerType = isInspector -> {
+                visa.put("owner_type", Boolean.TRUE.equals(isInspector) ? "inspector" : "headmaster");
 
-            generatePDF(request, user, visa, pdf -> {
-                this.exportPDFService.storePDF(pdf, fileName, response -> {
+                String fileName = getPDFName(visa);
 
-                    if (response.isLeft()) {
-                        handler.handle(new Either.Left<>("Stored pdf failed"));
-                    }
-                    if (response.isRight()) {
-                        JsonObject file = response.right().getValue();
-                        visa.put("pdf_details", file.getString("_id"));
-                        statements.add(get_VisaSession_Statement(visa));
-                        indexAsync--;
+                generatePDF(request, user, visa, pdf -> {
+                    this.exportPDFService.storePDF(pdf, fileName, response -> {
 
-                        if (indexAsync <= 0) {
-                            Sql.getInstance().transaction(statements, SqlResult.validResultHandler(handler));
+                        if (response.isLeft()) {
+                            handler.handle(new Either.Left<>("Stored pdf failed"));
                         }
-                    }
-                });
+                        if (response.isRight()) {
+                            JsonObject file = response.right().getValue();
+                            visa.put("pdf_details", file.getString("_id"));
+                            statements.add(get_VisaSession_Statement(visa));
+                            indexAsync--;
 
-            });
+                            if (indexAsync <= 0) {
+                                Sql.getInstance().transaction(statements, SqlResult.validResultHandler(handler));
+                            }
+                        }
+                    });
+                });
+            };
+
+            // Seul un PERSONNEL peut être habilité inspecteur : évite une requête SQL inutile
+            // pour les autres profils (toujours "headmaster" dans ce cas).
+            if ("PERSONNEL".equals(user.getType())) {
+                inspectorService.isInspectorHabilitated(user.getUserId(), visa.getString("teacher_id"), visa.getString("structure_id"),
+                        result -> proceedWithOwnerType.accept(result.isRight() && result.right().getValue()));
+            } else {
+                proceedWithOwnerType.accept(false);
+            }
         }
     }
 
@@ -108,12 +124,12 @@ public class VisaServiceImpl implements VisaService {
     private JsonObject get_VisaSession_Statement(JsonObject visa) {
         StringBuilder query = new StringBuilder();
         JsonArray values = new JsonArray();
-        query.append("INSERT INTO diary.visa (comment, structure_id, teacher_id, nb_sessions, pdf_details, owner_id, owner_name, created, modified) ");
+        query.append("INSERT INTO diary.visa (comment, structure_id, teacher_id, nb_sessions, pdf_details, owner_id, owner_name, owner_type, created, modified) ");
         query.append("VALUES ");
 
         JsonArray sessionIds = visa.getJsonArray("sessionIds");
         JsonArray homeworkIds = visa.getJsonArray("homeworkIds");
-        query.append("(?, ?, ?, ?, ?, ?, ?, ?, ?);");
+        query.append("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
         String comment = visa.getString("comment");
         values.add(comment == null || comment.isEmpty() ? "" : comment);
         values.add(visa.getString("structure_id"));
@@ -122,6 +138,7 @@ public class VisaServiceImpl implements VisaService {
         values.add(visa.getString("pdf_details"));
         values.add(visa.getString("owner_id"));
         values.add(visa.getString("owner_name"));
+        values.add(visa.getString("owner_type"));
         values.add(visa.getString("created"));
         values.add(visa.getString("modified"));
 

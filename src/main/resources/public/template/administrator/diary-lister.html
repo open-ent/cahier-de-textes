@@ -89,7 +89,10 @@
                     <div class="flex-col col__2" role="cell">
                         <div style="display:flex; flex-direction:column; width:100%;">
                             <span ng-if="getNotebookVisas(notebook).length === 0"><i18n>sessions.admin.Visa.sateKo</i18n></span>
-                            <div ng-repeat="v in getNotebookVisas(notebook)" style="margin-bottom:4px;">[[formatVisa(v)]]</div>
+                            <div ng-repeat="v in getNotebookVisas(notebook)" style="margin-bottom:4px;">
+                                <span ng-if="v.isInspector" title="[[lang.translate('diary.visa.inspector')]]" style="cursor:help; border-bottom:1px dotted;">[[formatVisa(v)]]</span>
+                                <span ng-if="!v.isInspector">[[formatVisa(v)]]</span>
+                            </div>
                         </div>
                     </div>
                 </div>

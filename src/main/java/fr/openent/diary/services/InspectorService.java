@@ -27,4 +27,10 @@ public interface InspectorService {
      * @param handler     tableau d'objets {@code {id, name}}, vide si aucune habilitation
      */
     void getInspectorStructures(String inspectorId, Handler<Either<String, JsonArray>> handler);
+
+    /**
+     * Un PERSONNEL donné est-il habilité inspecteur pour cet enseignant, dans cet établissement ?
+     * Utilisé au moment du visa pour distinguer un visa d'inspecteur d'un visa de chef d'établissement.
+     */
+    void isInspectorHabilitated(String inspectorId, String teacherId, String structureId, Handler<Either<String, Boolean>> handler);
 }

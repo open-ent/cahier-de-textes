@@ -421,7 +421,9 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
 
         const EMPTY_VISAS: Array<any> = [];
         // Tous les visas d'un notebook. Le backend renvoie une chaîne texte
-        // « date~~owner§§date~~owner » (string_agg) qu'on découpe côté front.
+        // « date~~owner~~ownerType§§date~~owner~~ownerType » (string_agg) qu'on découpe côté front.
+        // ownerType vaut "inspector" quand le visa a été posé par un PERSONNEL habilité inspecteur
+        // (cf. diary.inspector_habilitation), "headmaster" sinon.
         // MÉMOÏSATION OBLIGATOIRE : cette fonction est appelée dans ng-repeat/ng-if ;
         // si elle renvoie un NOUVEAU tableau à chaque digest, AngularJS boucle
         // ($rootScope:infdig) et casse tout le rendu. On parse une fois et on met en
@@ -434,10 +436,8 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
                     ? String(raw).split('§§')
                         .filter((s: string) => !!s && s.length > 0)
                         .map((part: string) => {
-                            const idx: number = part.indexOf('~~');
-                            return idx >= 0
-                                ? { date: part.substring(0, idx), owner: part.substring(idx + 2) }
-                                : { date: part, owner: '' };
+                            const [date, owner, ownerType]: Array<string> = part.split('~~');
+                            return { date: date || '', owner: owner || '', isInspector: ownerType === 'inspector' };
                         })
                     : [];
             }

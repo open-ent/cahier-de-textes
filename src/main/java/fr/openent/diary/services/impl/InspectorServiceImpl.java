@@ -101,4 +101,19 @@ public class InspectorServiceImpl implements InspectorService {
                     Neo4jResult.validResultHandler(handler));
         }));
     }
+
+    @Override
+    public void isInspectorHabilitated(String inspectorId, String teacherId, String structureId, Handler<Either<String, Boolean>> handler) {
+        String query = "SELECT 1 FROM " + Diary.DIARY_SCHEMA + ".inspector_habilitation " +
+                " WHERE inspector_id = ? AND teacher_id = ? AND structure_id = ? LIMIT 1";
+        JsonArray values = new JsonArray().add(inspectorId).add(teacherId).add(structureId);
+
+        Sql.getInstance().prepared(query, values, SqlResult.validResultHandler(result -> {
+            if (result.isLeft()) {
+                handler.handle(new Either.Left<>(result.left().getValue()));
+                return;
+            }
+            handler.handle(new Either.Right<>(!result.right().getValue().isEmpty()));
+        }));
+    }
 }
