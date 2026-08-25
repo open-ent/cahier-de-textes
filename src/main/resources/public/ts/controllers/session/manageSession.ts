@@ -320,6 +320,14 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
                 }
 
                 let sessionSaveResponse: any = await $scope.session.save($scope.placeholder);
+                // Avertit l'enseignant quand une ressource RBS demandée n'a pas pu être réservée
+                // (créneau déjà pris) — jusqu'ici cet échec restait entièrement silencieux
+                // (fire-and-forget côté serveur, seulement loggé). La séance reste enregistrée.
+                const conflictResourceIds: number[] = sessionSaveResponse.data && sessionSaveResponse.data.rbsConflictResourceIds;
+                if (conflictResourceIds && conflictResourceIds.length) {
+                    const names = conflictResourceIds.map((rid: number) => $scope.rbsResourceLabel(rid)).join(', ');
+                    $scope.notifications.push(new Toast(lang.translate('diary.notify.rbs.conflict') + names, 'error'));
+                }
                 if (sessionSaveResponse.succeed) {
                     if (!$scope.session.id && sessionSaveResponse.data.id) {
                         $scope.session.id = sessionSaveResponse.data.id;

@@ -180,6 +180,7 @@
   "session.consult": "View session",
   "session.create": "Create session",
   "session.created": "Session created",
+  "diary.notify.rbs.conflict": "The session was saved, but this resource could not be booked (already taken on this slot): ",
   "session.created.error": "Error while creating session",
   "session.deleted": "Session deleted",
   "session.deleted.error": "Error while deleting session",

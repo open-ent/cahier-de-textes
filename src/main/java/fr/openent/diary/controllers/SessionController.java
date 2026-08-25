@@ -127,13 +127,23 @@ public class SessionController extends ControllerHelper {
     public void createSession(final HttpServerRequest request) {
         UserUtils.getUserInfos(eb, request, user -> RequestUtils.bodyToJson(request, pathPrefix + "session", session -> {
             sessionService.createSession(session, user, result -> {
-                DefaultResponseHandler.defaultResponseHandler(request).handle(result);
                 // Uniquement pour une séance créée directement (course_id absent) — une séance
                 // dérivée d'un cours EDT ne crée jamais sa propre réservation RBS (déjà créée
-                // côté EDT), voir DiaryRbsBridgeService#createBookings.
+                // côté EDT), voir DiaryRbsBridgeService#createBookings. On attend le résultat
+                // avant de répondre pour pouvoir signaler un conflit de créneau à l'enseignant
+                // (sinon l'échec de réservation reste entièrement silencieux).
                 if (result.isRight() && user != null) {
                     long sessionId = result.right().getValue().getLong("id");
-                    DiaryRbsBridgeService.createBookings(eb, session, sessionId, user.getUserId());
+                    DiaryRbsBridgeService.createBookings(eb, session, sessionId, user.getUserId())
+                            .onComplete(ar -> {
+                                JsonArray conflicts = ar.succeeded() ? ar.result() : new JsonArray();
+                                if (!conflicts.isEmpty()) {
+                                    result.right().getValue().put("rbsConflictResourceIds", conflicts);
+                                }
+                                DefaultResponseHandler.defaultResponseHandler(request).handle(result);
+                            });
+                } else {
+                    DefaultResponseHandler.defaultResponseHandler(request).handle(result);
                 }
             });
         }));
@@ -154,11 +164,19 @@ public class SessionController extends ControllerHelper {
                         : null;
 
                 sessionService.updateSession(sessionId, session, result -> {
-                    DefaultResponseHandler.defaultResponseHandler(request).handle(result);
                     if (result.isRight() && user != null) {
                         if (oldBookingIds != null && !oldBookingIds.isEmpty())
                             DiaryRbsBridgeService.deleteBookings(eb, oldBookingIds, user.getUserId());
-                        DiaryRbsBridgeService.createBookings(eb, session, sessionId, user.getUserId());
+                        DiaryRbsBridgeService.createBookings(eb, session, sessionId, user.getUserId())
+                                .onComplete(ar -> {
+                                    JsonArray conflicts = ar.succeeded() ? ar.result() : new JsonArray();
+                                    if (!conflicts.isEmpty()) {
+                                        result.right().getValue().put("rbsConflictResourceIds", conflicts);
+                                    }
+                                    DefaultResponseHandler.defaultResponseHandler(request).handle(result);
+                                });
+                    } else {
+                        DefaultResponseHandler.defaultResponseHandler(request).handle(result);
                     }
                 });
             });

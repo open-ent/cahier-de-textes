@@ -38,21 +38,27 @@ public class DiaryRbsBridgeService {
     }
 
     /**
-     * Fire-and-forget : construit un message "save-bookings" RBS pour une séance créée
-     * directement (course_id absent) portant des rbsResourceIds, et persiste les ids de
-     * réservation obtenus sur la séance (rbs_booking_ids) pour pouvoir les supprimer plus tard.
+     * Construit un message "save-bookings" RBS pour une séance créée directement (course_id
+     * absent) portant des rbsResourceIds, persiste les ids de réservation obtenus sur la séance
+     * (rbs_booking_ids), et renvoie les ids de ressources qui n'ont PAS pu être réservés (conflit
+     * de créneau côté RBS) pour que le contrôleur puisse le signaler à l'enseignant.
      *
      * @param eb        Vert.x EventBus
      * @param session   JsonObject de la séance (tel que soumis par le contrôleur)
      * @param sessionId id de la séance déjà créée en base
      * @param userId    utilisateur propriétaire de la réservation
+     * @return {@link Future<JsonArray>} ids des ressources demandées mais non réservées (vide si
+     *         tout s'est bien passé ou si aucune réservation n'était demandée).
      */
-    public static void createBookings(EventBus eb, JsonObject session, long sessionId, String userId) {
-        if (eb == null || session == null || userId == null) return;
-        if (session.getString("course_id") != null) return; // séance dérivée d'EDT : jamais de réservation ici
+    public static Future<JsonArray> createBookings(EventBus eb, JsonObject session, long sessionId, String userId) {
+        Promise<JsonArray> promise = Promise.promise();
+        JsonArray noConflict = new JsonArray();
+
+        if (eb == null || session == null || userId == null) { promise.complete(noConflict); return promise.future(); }
+        if (session.getString("course_id") != null) { promise.complete(noConflict); return promise.future(); } // séance dérivée d'EDT : jamais de réservation ici
 
         JsonArray rbsResourceIds = session.getJsonArray("rbsResourceIds");
-        if (rbsResourceIds == null || rbsResourceIds.isEmpty()) return;
+        if (rbsResourceIds == null || rbsResourceIds.isEmpty()) { promise.complete(noConflict); return promise.future(); }
 
         long startEpoch, endEpoch;
         try {
@@ -63,7 +69,8 @@ public class DiaryRbsBridgeService {
             endEpoch = LocalDateTime.of(date, end).atZone(ZONE).toEpochSecond();
         } catch (DateTimeParseException e) {
             log.warn("[Diary@DiaryRbsBridgeService] Cannot parse date/time for session " + sessionId + ": " + e.getMessage());
-            return;
+            promise.complete(noConflict);
+            return promise.future();
         }
 
         JsonArray slots = new JsonArray().add(
@@ -71,9 +78,11 @@ public class DiaryRbsBridgeService {
         );
 
         JsonArray bookings = new JsonArray();
+        JsonArray requestedResourceIds = new JsonArray();
         for (int i = 0; i < rbsResourceIds.size(); i++) {
             Integer resourceId = rbsResourceIds.getInteger(i);
             if (resourceId == null) continue;
+            requestedResourceIds.add(resourceId);
             bookings.add(new JsonObject()
                     .put("resource",       new JsonObject().put("id", resourceId))
                     .put("slots",          slots)
@@ -81,7 +90,7 @@ public class DiaryRbsBridgeService {
                     .put("iana",           RBS_IANA)
             );
         }
-        if (bookings.isEmpty()) return;
+        if (bookings.isEmpty()) { promise.complete(noConflict); return promise.future(); }
 
         JsonObject msg = new JsonObject()
                 .put("action",   "save-bookings")
@@ -91,15 +100,27 @@ public class DiaryRbsBridgeService {
         eb.request(RBS_BUS, msg, reply -> {
             if (reply.failed()) {
                 log.error("[Diary@DiaryRbsBridgeService] RBS bus error for session " + sessionId + ": " + reply.cause().getMessage());
+                promise.complete(requestedResourceIds);
                 return;
             }
             JsonArray created = extractCreatedBookings((JsonObject) reply.result().body());
             JsonArray bookingIds = new JsonArray();
+            JsonArray succeededResourceIds = new JsonArray();
             for (int i = 0; i < created.size(); i++) {
-                Integer bookingId = created.getJsonObject(i).getInteger("id");
+                JsonObject b = created.getJsonObject(i);
+                Integer bookingId = b.getInteger("id");
                 if (bookingId != null) bookingIds.add(bookingId);
+                Integer rid = b.getInteger("resource_id");
+                if (rid != null) succeededResourceIds.add(rid);
             }
-            if (bookingIds.isEmpty()) return;
+
+            JsonArray conflictResourceIds = new JsonArray();
+            for (int i = 0; i < requestedResourceIds.size(); i++) {
+                Integer rid = requestedResourceIds.getInteger(i);
+                if (!succeededResourceIds.contains(rid)) conflictResourceIds.add(rid);
+            }
+
+            if (bookingIds.isEmpty()) { promise.complete(conflictResourceIds); return; }
 
             Sql.getInstance().prepared(
                     "UPDATE " + SESSION_TABLE + " SET rbs_booking_ids = ?::jsonb WHERE id = ?",
@@ -108,9 +129,12 @@ public class DiaryRbsBridgeService {
                         if (!"ok".equals(res.body().getString("status"))) {
                             log.error("[Diary@DiaryRbsBridgeService] Failed to persist rbs_booking_ids on session " + sessionId);
                         }
+                        promise.complete(conflictResourceIds);
                     }
             );
         });
+
+        return promise.future();
     }
 
     /**
