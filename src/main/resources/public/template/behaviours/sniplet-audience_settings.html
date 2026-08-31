@@ -1,0 +1,48 @@
+<div class="sniplet cdt audience-settings ten cell">
+    <toasts notifications="notifications"></toasts>
+    <article class="row">
+
+        <h3 class="row">
+            [[lang.translate('cdt.audience.settings.title')]]
+        </h3>
+
+        <div class="twelve cell margin-bottom-lg">
+            <span class="italic">[[lang.translate('cdt.audience.settings.help')]]</span>
+        </div>
+
+        <div ng-if="loading" class="twelve cell">
+            [[lang.translate('loading')]]
+        </div>
+
+        <div ng-if="!loading && audiences.length === 0" class="twelve cell">
+            [[lang.translate('cdt.audience.settings.empty')]]
+        </div>
+
+        <table ng-if="!loading && audiences.length > 0" class="twelve cell">
+            <thead>
+            <tr>
+                <th>[[lang.translate('cdt.audience.settings.column.audience')]]</th>
+                <th>[[lang.translate('cdt.audience.settings.column.teachers')]]</th>
+                <th>[[lang.translate('cdt.audience.settings.column.enabled')]]</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr ng-repeat="audience in audiences">
+                <td>[[audience.name]]</td>
+                <td>
+                    <span ng-if="audience.teacherNames.length === 0" class="italic">
+                        [[lang.translate('cdt.audience.settings.no.teacher')]]
+                    </span>
+                    <span ng-if="audience.teacherNames.length > 0">
+                        [[audience.teacherNames.join(', ')]]
+                    </span>
+                </td>
+                <td>
+                    <input type="checkbox" ng-checked="audience.enabled" ng-click="toggleAudience(audience)"/>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+    </article>
+</div>

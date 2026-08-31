@@ -75,6 +75,7 @@ public class Diary extends BaseServer {
         addController(new NotebookController(eb, vertx, storage, config));
 
         addController(new InitController(new DefautlInitService("diary", eb)));
+        addController(new AudienceSettingsController(new DefaultAudienceSettingsService(eb)));
         addController(new VisaController(visaService, storage));
         addController(new SessionController(new SessionServiceImpl(eb, eventStore)));
         addController(new HomeworkController(new HomeworkServiceImpl("diary", eb, eventStore)));

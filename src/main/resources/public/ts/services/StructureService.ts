@@ -31,6 +31,14 @@ export interface StructureService {
      * rattachements de session.
      */
     syncInspectionStructures(): Promise<void>;
+
+    /**
+     * Liste les classes/groupes de l'établissement avec l'état du cahier de textes
+     * (activé/désactivé) et les enseignants qui y interviennent (MOD11 CCTP).
+     */
+    getAudienceSettings(structure_id: string): Promise<AxiosResponse>;
+
+    setAudienceEnabled(structure_id: string, audience_id: string, enabled: boolean): Promise<AxiosResponse>;
 }
 
 /**
@@ -44,6 +52,14 @@ let inspectionStructures: Array<Structure> = [];
 export const structureService: StructureService = {
     initStructure: async (structure_id: string): Promise<AxiosResponse> => {
         return http.get(`/diary/init/structures/${structure_id}`);
+    },
+
+    getAudienceSettings: async (structure_id: string): Promise<AxiosResponse> => {
+        return http.get(`/diary/structures/${structure_id}/audience-settings`);
+    },
+
+    setAudienceEnabled: async (structure_id: string, audience_id: string, enabled: boolean): Promise<AxiosResponse> => {
+        return http.put(`/diary/structures/${structure_id}/audience-settings/${audience_id}`, {enabled});
     },
 
     getSlotProfile: async (structureId: string): Promise<StructureSlot> => {
