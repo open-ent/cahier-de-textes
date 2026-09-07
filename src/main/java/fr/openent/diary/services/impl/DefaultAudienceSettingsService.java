@@ -14,6 +14,8 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import org.entcore.common.neo4j.Neo4j;
+import org.entcore.common.neo4j.Neo4jResult;
 import org.entcore.common.sql.Sql;
 import org.entcore.common.sql.SqlResult;
 
@@ -24,12 +26,65 @@ public class DefaultAudienceSettingsService implements AudienceSettingsService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultAudienceSettingsService.class);
     private static final String TABLE = "diary.audience_settings";
 
+    private final EventBus eb;
     private final GroupService groupService;
     private final UserService userService;
 
     public DefaultAudienceSettingsService(EventBus eb) {
+        this.eb = eb;
         this.groupService = new DefaultGroupService(eb);
         this.userService = new DefaultUserService();
+    }
+
+    /**
+     * Groupes fonctionnels de l'établissement (le pipeline "classe.*" ci-dessous ne
+     * renvoie jamais que des classes ; sans cet appel, les groupes n'apparaissent jamais
+     * sur l'écran de paramétrage MOD11, quel que soit l'environnement).
+     */
+    private Future<JsonArray> fetchAllFunctionalGroups(String structureId) {
+        Promise<JsonArray> promise = Promise.promise();
+        JsonObject action = new JsonObject()
+                .put("action", "groupe.search")
+                .put("q", "")
+                .put("fields", new JsonArray().add("displayNameSearchField"))
+                .put("structureId", structureId);
+
+        eb.request("viescolaire", action, event -> {
+            if (event.failed()) {
+                promise.fail(event.cause());
+            } else {
+                JsonObject body = (JsonObject) event.result().body();
+                if ("error".equals(body.getString("status"))) {
+                    promise.fail(body.getString("message"));
+                } else {
+                    promise.complete(body.getJsonArray("results"));
+                }
+            }
+        });
+        return promise.future();
+    }
+
+    /** Groupes manuels (ManualGroup), non couverts par l'action bus "groupe.search". */
+    private Future<JsonArray> fetchAllManualGroups(String structureId) {
+        Promise<JsonArray> promise = Promise.promise();
+        String query = "MATCH (g:ManualGroup)-[:BELONGS|:DEPENDS]->(s:Structure {id: {structureId}}) " +
+                "RETURN DISTINCT g.id as id, g.name as name";
+        Neo4j.getInstance().execute(query, new JsonObject().put("structureId", structureId),
+                Neo4jResult.validResultHandler(either -> {
+                    if (either.isRight()) {
+                        promise.complete(either.right().getValue());
+                    } else {
+                        promise.fail(either.left().getValue());
+                    }
+                }));
+        return promise.future();
+    }
+
+    private void mergeGroupsInto(Map<String, Audience> merged, JsonArray groups) {
+        for (int i = 0; i < groups.size(); i++) {
+            JsonObject g = groups.getJsonObject(i);
+            merged.putIfAbsent(g.getString("id"), new Audience(g));
+        }
     }
 
     @Override
@@ -54,7 +109,22 @@ public class DefaultAudienceSettingsService implements AudienceSettingsService {
                 Promise<List<Audience>> audiencesPromise = Promise.promise();
                 groupService.getGroups(classIds, audiencesPromise);
 
-                return audiencesPromise.future().compose(audiences -> {
+                // Ajout des vrais groupes (fonctionnels + manuels), absents du pipeline "classe.*"
+                // ci-dessus : sans cela l'écran de paramétrage MOD11 ne liste jamais que des classes.
+                Future<List<Audience>> mergedAudiencesFuture = audiencesPromise.future().compose(classAudiences ->
+                        fetchAllFunctionalGroups(structureId).compose(functionalGroupsRaw ->
+                                fetchAllManualGroups(structureId).map(manualGroupsRaw -> {
+                                    Map<String, Audience> merged = new LinkedHashMap<>();
+                                    for (Audience a : classAudiences) {
+                                        merged.put(a.getId(), a);
+                                    }
+                                    mergeGroupsInto(merged, functionalGroupsRaw);
+                                    mergeGroupsInto(merged, manualGroupsRaw);
+                                    return new ArrayList<>(merged.values());
+                                })
+                        ));
+
+                return mergedAudiencesFuture.compose(audiences -> {
                     // enseignant.id -> classe.id (déduit des services vie-scolaire, lecture seule)
                     Map<String, Set<String>> teacherIdsByAudience = new HashMap<>();
                     Set<String> allTeacherIds = new HashSet<>();
