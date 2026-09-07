@@ -792,6 +792,16 @@ public class SessionServiceImpl extends DBService implements SessionService {
         params.add(structure_id);
         params.add(id);
 
-        sql.prepared(query, params, SqlResult.validUniqueResultHandler(handler));
+        sql.prepared(query, params, SqlResult.validUniqueResultHandler(event -> {
+            if (event.isRight() && event.right().getValue().containsKey("id")) {
+                handler.handle(event);
+            } else if (event.isRight()) {
+                LOGGER.error("[Diary@SessionServiceImpl::deleteSessionType] Session type is still in use or is the last remaining type for this structure");
+                handler.handle(new Either.Left<>("session.type.in.use.or.last.remaining"));
+            } else {
+                LOGGER.error("[Diary@SessionServiceImpl::deleteSessionType] An error occurred when removing session type");
+                handler.handle(event);
+            }
+        }));
     }
 }

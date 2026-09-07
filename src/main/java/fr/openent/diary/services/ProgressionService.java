@@ -79,5 +79,5 @@ public interface ProgressionService {
 
     void deleteProgressionFolders(JsonObject progression, Handler<Either<String, JsonArray>> arrayResponseHandler);
 
-    void updateProgressionFolder(JsonObject progression, String folderId, Handler<Either<String, JsonObject>> defaultResponseHandler);
+    void updateProgressionFolder(JsonObject progression, String folderId, UserInfos user, Handler<Either<String, JsonObject>> defaultResponseHandler);
 }

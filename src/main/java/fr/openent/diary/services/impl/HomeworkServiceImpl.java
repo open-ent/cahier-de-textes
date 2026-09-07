@@ -502,7 +502,7 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
         JsonArray params = new JsonArray(Collections.singletonList(homeworkId));
 
         sql.prepared(query, params, SqlResult.validUniqueResultHandler(event -> {
-            if (event.isRight()) {
+            if (event.isRight() && event.right().getValue().containsKey("sessionid")) {
                 JsonArray statements = new JsonArray();
                 statements.add(getDeleteHomeworkStatement(homeworkId));
 
@@ -516,6 +516,9 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
 
                 sql.transaction(statements, SqlResult.validUniqueResultHandler(handler));
 
+            } else if (event.isRight()) {
+                LOGGER.error("[Diary@HomeworkServiceImpl::deleteHomework] Homework is archived or not found, cannot delete it");
+                handler.handle(new Either.Left<>("homework.archived.cannot.delete"));
             } else {
                 LOGGER.error("[Diary@HomeworkServiceImpl::deleteHomework] An error occurred when removing homework");
                 handler.handle(new Either.Left<>("Error while retrieving data"));
@@ -654,7 +657,17 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
         params.add(structure_id);
         params.add(id);
 
-        Sql.getInstance().prepared(query, params, SqlResult.validUniqueResultHandler(handler));
+        Sql.getInstance().prepared(query, params, SqlResult.validUniqueResultHandler(event -> {
+            if (event.isRight() && event.right().getValue().containsKey("id")) {
+                handler.handle(event);
+            } else if (event.isRight()) {
+                LOGGER.error("[Diary@HomeworkServiceImpl::deleteHomeworkType] Homework type is still in use or is the last remaining type for this structure");
+                handler.handle(new Either.Left<>("homework.type.in.use.or.last.remaining"));
+            } else {
+                LOGGER.error("[Diary@HomeworkServiceImpl::deleteHomeworkType] An error occurred when removing homework type");
+                handler.handle(event);
+            }
+        }));
     }
 
     @Override
