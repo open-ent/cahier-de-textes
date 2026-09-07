@@ -1,5 +1,5 @@
 <div class="diary-container diary-show-calendar"
-     ng-class="{'diary-show-homeworks': display.homeworks && calendar.increment !== 'month',
+     ng-class="{'diary-show-homeworks': display.homeworks && calendar.increment !== 'month' && calendar.increment !== 'fortnight',
      'calendar-day-mode': calendar.increment === 'day'}">
 
     <!-- Loader calendrier -->
@@ -9,7 +9,7 @@
     <div class="row" ng-class="{'hide-session':!display.sessions}" ng-show="!isRefreshingCalendar">
 
         <!-- Calendar homework -->
-        <div class="homeworks-row" ng-show="calendar.increment != 'month'">
+        <div class="homeworks-row" ng-show="calendar.increment != 'month' && calendar.increment != 'fortnight'">
             <div class="timeslot ng-binding ng-scope">
                 <i18n>Homeworks</i18n>
             </div>
