@@ -12,6 +12,9 @@ public class ViescoSettingInitialisationData implements ResourcesProvider {
     @Override
     public void authorize(HttpServerRequest resourceRequest, Binding binding, UserInfos user,
                           Handler<Boolean> handler) {
-        handler.handle(WorkflowUtils.hasRight(user, WorkflowUtils.VIESCO_SETTING_INIT_DATA));
+        // Le super-admin plateforme n'a pas forcément les rôles calculés par structure sur un
+        // établissement auquel il n'est pas rattaché ; sans ce contournement, l'administration
+        // du cahier de textes (paramétrage vie scolaire) lui est inaccessible.
+        handler.handle(user.isADMC() || WorkflowUtils.hasRight(user, WorkflowUtils.VIESCO_SETTING_INIT_DATA));
     }
 }
