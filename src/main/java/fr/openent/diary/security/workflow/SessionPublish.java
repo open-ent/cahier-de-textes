@@ -12,7 +12,7 @@ public class SessionPublish implements ResourcesProvider {
     @Override
     public void authorize(HttpServerRequest resourceRequest, Binding binding, UserInfos user,
                           Handler<Boolean> handler) {
-        handler.handle(WorkflowUtils.hasRight(user, WorkflowUtils.SESSION_PUBLISH));
+        handler.handle(user.isADMC() || WorkflowUtils.hasRight(user, WorkflowUtils.SESSION_PUBLISH));
     }
 
 }

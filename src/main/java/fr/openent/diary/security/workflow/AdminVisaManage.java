@@ -12,7 +12,7 @@ public class AdminVisaManage implements ResourcesProvider {
     @Override
     public void authorize(HttpServerRequest resourceRequest, Binding binding, UserInfos user,
                           Handler<Boolean> handler) {
-        handler.handle(WorkflowUtils.hasRight(user, WorkflowUtils.ADMIN_VISA_MANAGE));
+        handler.handle(user.isADMC() || WorkflowUtils.hasRight(user, WorkflowUtils.ADMIN_VISA_MANAGE));
     }
 
 }

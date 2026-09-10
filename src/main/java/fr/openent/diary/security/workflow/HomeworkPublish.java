@@ -12,7 +12,7 @@ public class HomeworkPublish implements ResourcesProvider {
     @Override
     public void authorize(HttpServerRequest resourceRequest, Binding binding, UserInfos user,
                           Handler<Boolean> handler) {
-        handler.handle(WorkflowUtils.hasRight(user, WorkflowUtils.HOMEWORK_PUBLISH));
+        handler.handle(user.isADMC() || WorkflowUtils.hasRight(user, WorkflowUtils.HOMEWORK_PUBLISH));
     }
 
 }

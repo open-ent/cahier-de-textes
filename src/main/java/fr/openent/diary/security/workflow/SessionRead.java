@@ -24,6 +24,13 @@ public class SessionRead implements ResourcesProvider {
     @Override
     public void authorize(HttpServerRequest resourceRequest, Binding binding, UserInfos user,
                           Handler<Boolean> handler) {
+        // Le super-admin plateforme n'a pas forcément le droit fonction SESSION_READ ni de
+        // rattachement à l'établissement du propriétaire consulté ; sans ce contournement, il
+        // ne peut jamais consulter les séances/progressions d'un établissement tiers.
+        if (user.isADMC()) {
+            handler.handle(true);
+            return;
+        }
         if (!WorkflowUtils.hasRight(user, WorkflowUtils.SESSION_READ)) {
             handler.handle(false);
             return;
