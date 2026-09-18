@@ -36,7 +36,10 @@ export const notebookService: INotebookService = {
         const isPublished: string = (notebookRequest.published !== undefined && notebookRequest.published !== null)
             ? `&is_published=${notebookRequest.published}` : '';
 
-        const page: string = `&page=${notebookRequest.page.toString()}`;
+        // page omis (undefined/null) => requête non paginée côté backend (DefaultNotebookService),
+        // utilisé par la sélection "tout le résultat du filtre" (globalAdmin.ts#selectAllMatchingFilter).
+        const page: string = (notebookRequest.page !== undefined && notebookRequest.page !== null)
+            ? `&page=${notebookRequest.page.toString()}` : '';
 
         const structureUrl: string = `?structure_id=${notebookRequest.structure_id}`;
         const dateUrl: string = `&start_at=${notebookRequest.start_at}&end_at=${notebookRequest.end_at}`;

@@ -25,10 +25,18 @@ gulp.task('build', ['webpack'], () => {
         .pipe(replace('@@VERSION', Date.now()))
         .pipe(gulp.dest("./src/main/resources/view"));
 
+    // TimelineNotificationsLoader (entcore) résout les fichiers de config des notifications
+    // (default-frequency, push-notif) UNIQUEMENT depuis view/notify/**/*.json — jamais lus
+    // depuis view-src. Sans cette copie, toute notification définie sous view-src/notify/
+    // restait invisible du chargeur au runtime (jamais remarqué : NotifyServiceImpl était
+    // mort jusqu'ici, aucune notification diary n'avait encore été déclenchée en pratique).
+    var notifyConfigs = gulp.src("./src/main/resources/view-src/notify/**/*.json")
+        .pipe(gulp.dest("./src/main/resources/view/notify"));
+
     var copyBehaviours = gulp.src('./src/main/resources/public/dist/behaviours.js')
         .pipe(gulp.dest('./src/main/resources/public/js'));
 
-    return merge[refs, copyBehaviours];
+    return merge[refs, notifyConfigs, copyBehaviours];
 });
 
 function getModName(fileContent){

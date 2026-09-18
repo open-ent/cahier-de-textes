@@ -44,6 +44,9 @@ routes.define(($routeProvider) => {
             })
             .when('/session/update/:id', {
                 action: 'manageSession'
+            })
+            .when('/session/propose/:id', {
+                action: 'manageSession'
             });
     }
 

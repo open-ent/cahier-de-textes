@@ -13,9 +13,16 @@
             </div>
 
             <!--UPDATE SESSION-->
-            <div ng-if="(session.courseId || session.subject_id) && sessionFormIsOpened" class="title-area-simple">
+            <div ng-if="(session.courseId || session.subject_id) && sessionFormIsOpened && !isProposeMode" class="title-area-simple">
                 <h1>
                     <i18n><span>session.manage.update</span></i18n>
+                </h1>
+            </div>
+
+            <!--PROPOSE SESSION MODIFICATION (tiers, enseignant non propriétaire)-->
+            <div ng-if="isProposeMode && sessionFormIsOpened" class="title-area-simple">
+                <h1>
+                    <i18n><span>diary.session.modification.propose.title</span></i18n>
                 </h1>
             </div>
         </app-title>
@@ -31,13 +38,44 @@
             <button class="float-none display-inline-block" ng-disabled="!isValidForm()" type="button"
                     workflow="diary.manageSession"
                     ng-click="saveSession()">
-                <i18n>utils.save</i18n>
+                <i18n ng-if="!isProposeMode">utils.save</i18n>
+                <i18n ng-if="isProposeMode">diary.session.modification.propose.submit</i18n>
+            </button>
+        </div>
+    </div>
+
+    <!--PROPOSITIONS DE MODIFICATION EN ATTENTE (vues par l'enseignant propriétaire)-->
+    <div class="card padding-md margin-bottom-lg session-modification-banner"
+         ng-if="!isProposeMode && pendingModifications.length > 0"
+         ng-repeat="modification in pendingModifications">
+        <p><i18n>diary.session.modification.pending.banner</i18n></p>
+        <div class="row">
+            <button class="float-none display-inline-block" type="button"
+                    ng-click="acceptModification(modification)">
+                <i18n>diary.session.modification.accept</i18n>
+            </button>
+            <button class="float-none display-inline-block cancel" type="button"
+                    ng-click="display.refusingModification = modification">
+                <i18n>diary.session.modification.refuse</i18n>
+            </button>
+        </div>
+        <div ng-if="display.refusingModification === modification">
+            <label>
+                <i18n>diary.session.modification.refuse.reason.label</i18n>
+                <textarea ng-model="refusalReason"></textarea>
+            </label>
+            <button class="float-none display-inline-block cancel" type="button"
+                    ng-click="refuseModification(modification); display.refusingModification = null;">
+                <i18n>diary.session.modification.refuse</i18n>
             </button>
         </div>
     </div>
 
     <!--SESSION FORM-->
     <div ng-if="!isReadOnly">
+        <div class="message info" ng-if="isProposeMode">
+            <i18n>diary.session.modification.propose.info</i18n>
+        </div>
         <div class="row margin-bottom-lg" ng-include="'/diary/public/template/session/session-form.html'"></div>
     </div>
 

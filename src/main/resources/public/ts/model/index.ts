@@ -9,6 +9,7 @@ export * from './teacher';
 export * from './student';
 export * from './Personnel';
 export * from './visa';
+export * from './session-modification';
 export * from './Toast';
 export * from './User';
 export * from './SessionHomework';

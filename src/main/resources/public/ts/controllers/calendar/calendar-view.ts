@@ -439,6 +439,10 @@ export let calendarController = ng.controller('CalendarController',
             $scope.openSession = (session: Session) => {
                 if (model.me.hasWorkflow(WORKFLOW_RIGHTS.manageSession) && $scope.isSessionOwner(session)) {
                     $scope.goTo('/session/update/' + session.id);
+                } else if (model.me.hasWorkflow(WORKFLOW_RIGHTS.manageSession)) {
+                    // Séance d'un enseignant tiers : pas de modification directe, seulement une
+                    // proposition soumise à son acceptation (cf. workflow session_modification).
+                    $scope.goTo('/session/propose/' + session.id);
                 } else {
                     $scope.goTo('/session/view/' + session.id);
                 }

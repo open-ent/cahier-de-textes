@@ -3,6 +3,7 @@ package fr.openent.diary.controllers;
 import fr.openent.diary.core.constants.Actions;
 import fr.openent.diary.security.WorkflowUtils;
 import fr.openent.diary.security.workflow.AdminVisaManage;
+import fr.openent.diary.security.workflow.AdminVisaMassManage;
 import fr.openent.diary.security.workflow.AdminVisaRead;
 import fr.openent.diary.services.ExportPDFService;
 import fr.openent.diary.services.VisaService;
@@ -74,6 +75,22 @@ public class VisaController extends ControllerHelper {
     @Trace(value = Actions.CREATE_VISA)
     @ResourceFilter(AdminVisaManage.class)
     public void createVisa(final HttpServerRequest request) {
+        UserUtils.getUserInfos(eb, request, user -> RequestUtils.bodyToJson(request, json -> {
+            Handler<Either<String, JsonArray>> handler = arrayResponseHandler(request);
+            JsonArray visas = json.getJsonArray("visas");
+            visaService.createVisas(request, visas, user, handler);
+        }));
+    }
+
+    // Route dédiée à la sélection "tout le résultat du filtre" (potentiellement des dizaines de
+    // notebooks, hors de la limite de pagination Diary.PAGE_SIZE que /visas respecte naturellement
+    // via la sélection page par page) : droit distinct AdminVisaMassManage, jamais accordé par
+    // défaut avec le visa unitaire.
+    @Post("/visas/mass")
+    @SecuredAction(value = "", type = ActionType.RESOURCE)
+    @Trace(value = Actions.CREATE_VISA)
+    @ResourceFilter(AdminVisaMassManage.class)
+    public void createVisaMass(final HttpServerRequest request) {
         UserUtils.getUserInfos(eb, request, user -> RequestUtils.bodyToJson(request, json -> {
             Handler<Either<String, JsonArray>> handler = arrayResponseHandler(request);
             JsonArray visas = json.getJsonArray("visas");
