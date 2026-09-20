@@ -522,7 +522,14 @@ public class SessionServiceImpl extends DBService implements SessionService {
             session.put("resources", new JsonArray(session.getString("resources")));
         }
         cleanRbsResourceIds(session);
-        session.put("homeworks", new JsonArray(session.getString("homeworks")));
+        // homeworks (agrégat JSONB) renvoyé en texte -> tableau JSON pour le front. Peut être
+        // NULL quand la session n'a aucune ligne réelle (ex. id inexistant, LEFT JOIN à vide) :
+        // new JsonArray(null) lève une NPE non catchée, qui bloquait la réponse HTTP
+        // indéfiniment côté client (bug préexistant depuis 2020, découvert le 2026-09-21 en
+        // testant GET /session/:id avec un id inexistant).
+        session.put("homeworks", session.getString("homeworks") != null
+                ? new JsonArray(session.getString("homeworks"))
+                : new JsonArray());
         if (session.getJsonArray("homeworks").contains(null)) {
             session.put("homeworks", new JsonArray());
         }
@@ -543,7 +550,14 @@ public class SessionServiceImpl extends DBService implements SessionService {
             session.put("resources", new JsonArray(session.getString("resources")));
         }
         cleanRbsResourceIds(session);
-        session.put("homeworks", new JsonArray(session.getString("homeworks")));
+        // homeworks (agrégat JSONB) renvoyé en texte -> tableau JSON pour le front. Peut être
+        // NULL quand la session n'a aucune ligne réelle (ex. id inexistant, LEFT JOIN à vide) :
+        // new JsonArray(null) lève une NPE non catchée, qui bloquait la réponse HTTP
+        // indéfiniment côté client (bug préexistant depuis 2020, découvert le 2026-09-21 en
+        // testant GET /session/:id avec un id inexistant).
+        session.put("homeworks", session.getString("homeworks") != null
+                ? new JsonArray(session.getString("homeworks"))
+                : new JsonArray());
         if (session.getJsonArray("homeworks").contains(null)) {
             session.put("homeworks", new JsonArray());
         }
