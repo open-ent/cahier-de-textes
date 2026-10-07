@@ -82,6 +82,9 @@ routes.define(($routeProvider) => {
         .when('/progressions/view', {
             action: 'viewProgression'
         })
+        .when('/progressions/consult', {
+            action: 'consultProgression'
+        })
         .when('/archives/notebooks/view', {
             action: 'viewNotebookArchives'
         })

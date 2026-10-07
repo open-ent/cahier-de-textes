@@ -124,7 +124,10 @@ export const asyncAutocomplete = ng.directive('asyncAutocomplete', ['$timeout', 
                 return;
             } else {
                 $scope.search = newVal;
-                $scope.$apply();
+                // Ce callback s'exécute déjà pendant un $digest ($watch) : appeler
+                // $apply() y déclenche "$digest already in progress". On ne ré-applique
+                // que si aucun cycle n'est en cours.
+                if (!$scope.$root.$$phase) $scope.$apply();
             }
         });
     }

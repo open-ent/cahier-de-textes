@@ -26,9 +26,10 @@
       </span>
     </h1>
 
-    <!-- teacher search bar -->
+    <!-- teacher search bar (masquée pour les élèves et parents) -->
     <div
       workflow="diary.diarySearch"
+      ng-if="!isAChildOrAParent"
       class="cell padding-left-xlg margin-right-lg"
       ng-class="isCounselorUser() ? 'four' : 'three'"
     >
@@ -46,9 +47,11 @@
       </div>
       <div
         class="cell twelve main-header-result-search"
+        style="position: static; top: auto; margin-top: 4px; z-index: 1;"
         ng-show="autocomplete.teachersSelected[0] && autocomplete.teachersSelected[0].displayName !== ''"
       >
-        <ul class="cell twelve search-input-ul">
+        <ul class="cell twelve search-input-ul"
+            style="display: inline-flex; align-items: center; width: auto; margin: 0; padding: 3px 10px; background: #fff; border: 1px solid #ccc; border-radius: 4px; list-style: none;">
           <li>
             [[autocomplete.teachersSelected[0].displayName]]
             <i
@@ -60,9 +63,10 @@
       </div>
     </div>
 
-    <!-- Classes/groups search bar -->
+    <!-- Classes/groups search bar (masquée pour les élèves et parents) -->
     <div
       workflow="diary.diarySearch"
+      ng-if="!isAChildOrAParent"
       class="cell padding-left-xlg"
       ng-class="isCounselorUser() ? 'four' : 'three'"
     >
@@ -73,7 +77,7 @@
           data-ng-change="selectClass"
           data-options="autocomplete.classOptions"
           data-on-search="filterClassOptions"
-          data-placeholder="diary.search.group"
+          data-placeholder="diary.search.group.display"
           data-search="autocomplete.class"
         >
         </async-autocomplete>

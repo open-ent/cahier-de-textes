@@ -6,5 +6,6 @@ export * from './calendarDailyEventsController';
 export * from './list/manageList';
 export * from './calendar/calendar-view';
 export * from './progression/manageProgression';
+export * from './progression/consultProgression';
 export * from './navigation/navigation';
 export * from './notebook-archives.controller';

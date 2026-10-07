@@ -1,3 +1,4 @@
+import {idiom as lang} from 'entcore';
 import {SearchItem, SearchService} from "../../services";
 import {User} from "../../model";
 
@@ -97,7 +98,11 @@ export class AutocompleteUtils {
                 && !audiencesId.includes(audience.id)
             )
             .map((audience) => {
-                audience.toString = () => audience.name.trim();
+                const label = audience.name
+                    ? (lang.translate('diary.audience.group.label') + ' ' + audience.name.trim())
+                    : audience.name;
+                audience.toString = () => label;
+                audience.displayName = label;
                 return audience;
             });
     }
@@ -117,10 +122,20 @@ export class AutocompleteUtils {
 
     static async searchClasses(value): Promise<SearchItem[]> {
         try {
-            const data = await SearchService.searchGroup(this.structure.id, value);
+            // La recherche serveur porte sur le nom brut (« 501 ») : on retire un éventuel
+            // préfixe de libellé (« élèves du groupe / de la classe / groupe / classe ») afin
+            // que taper « 501 », « groupe 501 » ou « élèves du groupe 501 » renvoie le résultat.
+            const stripped: string = (value || '')
+                .replace(/^\s*(élèves|eleves)\s+(du\s+groupe|de\s+la\s+classe|du)\s+/i, '')
+                .replace(/^\s*(groupe|classe)\s+/i, '')
+                .trim();
+            const data = await SearchService.searchGroup(this.structure.id, stripped || (value || ''));
             data.forEach((item: SearchItem) => {
-                item.toString = () => item.name.trim();
-                item.displayName = item.name.trim();
+                const label: string = item.name
+                    ? (lang.translate('diary.audience.group.label') + ' ' + item.name.trim())
+                    : item.name;
+                item.toString = () => label;
+                item.displayName = label;
             });
             return data;
         } catch (err) {

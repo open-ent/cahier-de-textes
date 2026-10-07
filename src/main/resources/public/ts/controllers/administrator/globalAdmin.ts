@@ -11,6 +11,10 @@ import {IVisaService} from "../../services";
 import {IViescolaireService} from "../../services";
 import {Groups} from "../../model/group";
 import {AudiencesSearch} from "../../utils/autocomplete/audiencesSearch";
+import {structureService} from "../../services";
+import {PreferencesUtils} from "../../utils/preference/preferences";
+
+declare let window: any;
 
 export let globalAdminCtrl = ng.controller('globalAdminCtrl',
     ['$scope', '$timeout', '$routeParams', '$location', 'SearchService', 'NotebookService', 'VisaService', 'ViescolaireService',
@@ -349,18 +353,31 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             let visas: Array<Visa> = [];
             fetchedVisas.forEach((fetchedVisa: IVisa) => {
                 let visa: Visa = new Visa($scope.structure);
-                visa.buildVisaData(fetchedVisa, getTeacherInfoForVisa(fetchedVisa.created, mainSelectedNotebooks[0]));
+                visa.buildVisaData(fetchedVisa, getTeacherInfoForVisa(fetchedVisa, mainSelectedNotebooks[0]));
                 visas.push(visa);
             });
 
             $scope.visas_pdfChoice = visas;
-            $scope.visaPdfDownloadBox = true;
+            // Réouverture fiable : on force une transition false -> true pour que le $watch('show')
+            // de la directive lightbox se redéclenche à CHAQUE ouverture. Sinon, si la valeur est
+            // restée à true après une fermeture qui n'a pas repassé par le bouton X (ex : clic sur un
+            // PDF), un re-clic la remet à true = aucun changement = pas de réouverture (« marche une fois »).
+            $scope.visaPdfDownloadBox = false;
             $scope.safeApply();
+            $timeout(() => {
+                $scope.visaPdfDownloadBox = true;
+                $scope.safeApply();
+            });
         };
 
-        const getTeacherInfoForVisa = (created_at: string, notebookContent: INotebook): string => {
-            return DateUtils.formatDate(created_at, FORMAT.displayDate) +
-                " - " + notebookContent.audience.name + " - " + notebookContent.teacher.displayName;
+        // Libellé d'un visa dans la popup « Visas du cahier de textes » :
+        // « date - classe - viseur ». Le viseur est celui qui a réellement visé (owner_name),
+        // pas l'enseignant propriétaire du cahier ; repli sur l'enseignant pour les anciens
+        // visas sans owner_name (créés avant l'ajout de la colonne).
+        const getTeacherInfoForVisa = (visa: IVisa, notebookContent: INotebook): string => {
+            const viseur: string = visa.owner_name ? visa.owner_name : notebookContent.teacher.displayName;
+            return DateUtils.formatDate(visa.created, FORMAT.displayDate) +
+                " - " + notebookContent.audience.name + " - " + viseur;
         };
 
         $scope.getVisasFromSelectedNotebooks = (): Array<Visa> => {
@@ -368,7 +385,7 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             $scope.getSelectedNotebooks().forEach((mainNotebook: INotebook) => {
                 mainNotebook.notebookSessionsContents.forEach((notebookContent: INotebook) => {
                     // check if has visa + prevent duplicate data
-                    if (notebookContent.visas.id !== null && (!visas.some((visa: Visa) => visa.id === notebookContent.visas.id))) {
+                    if (notebookContent.visas && notebookContent.visas.id !== null && (!visas.some((visa: Visa) => visa.id === notebookContent.visas.id))) {
                         let visa: Visa = new Visa($scope.structure);
                         visas.push(visa);
                     }
@@ -379,7 +396,10 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
 
         $scope.closeVisaPdfDownloadBox = (): void => {
             $scope.visas_pdfChoice = [];
-            $scope.visaPdfDownloadBox = null;
+            // false (pas null) pour rester cohérent avec ce que la directive lightbox écrit elle-même
+            // (e.show = false) et garder le binding two-way propre pour la prochaine ouverture.
+            $scope.visaPdfDownloadBox = false;
+            $scope.safeApply();
         };
 
         $scope.wantCreateVisa = (): void => {
@@ -397,6 +417,41 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             } else {
                 return lang.translate("sessions.admin.Visa.sateKo");
             }
+        };
+
+        const EMPTY_VISAS: Array<any> = [];
+        // Tous les visas d'un notebook. Le backend renvoie une chaîne texte
+        // « date~~owner~~ownerType§§date~~owner~~ownerType » (string_agg) qu'on découpe côté front.
+        // ownerType vaut "inspector" quand le visa a été posé par un PERSONNEL habilité inspecteur
+        // (cf. diary.inspector_habilitation), "headmaster" sinon.
+        // MÉMOÏSATION OBLIGATOIRE : cette fonction est appelée dans ng-repeat/ng-if ;
+        // si elle renvoie un NOUVEAU tableau à chaque digest, AngularJS boucle
+        // ($rootScope:infdig) et casse tout le rendu. On parse une fois et on met en
+        // cache sur l'objet notebook -> même référence renvoyée à chaque cycle.
+        $scope.getNotebookVisas = (notebook): Array<any> => {
+            if (!notebook) return EMPTY_VISAS;
+            if (notebook.__visasList === undefined) {
+                const raw: string = notebook.visas_detail;
+                notebook.__visasList = raw
+                    ? String(raw).split('§§')
+                        .filter((s: string) => !!s && s.length > 0)
+                        .map((part: string) => {
+                            const [date, owner, ownerType]: Array<string> = part.split('~~');
+                            return { date: date || '', owner: owner || '', isInspector: ownerType === 'inspector' };
+                        })
+                    : [];
+            }
+            return notebook.__visasList;
+        };
+
+        // « Visé le [date] par [nom du viseur] » (date déjà formatée DD/MM/YYYY côté SQL)
+        $scope.formatVisa = (visa): string => {
+            if (!visa || !visa.date) return '';
+            let label: string = lang.translate("sessions.admin.visa.sate.on") + visa.date;
+            if (visa.owner) {
+                label += ' ' + lang.translate("diary.visa.by") + ' ' + visa.owner;
+            }
+            return label;
         };
 
         $scope.printPdf = async (): Promise<void> => {
@@ -494,6 +549,28 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
 
         $scope.back = () => {
             window.history.back();
+        };
+
+        /*
+         * Établissements consultables : rattachements de session ET établissements où
+         * l'utilisateur détient une habilitation d'inspection (cf. StructureService).
+         *
+         * La vue d'inspection ne travaille que sur un établissement à la fois, et le sélecteur de
+         * la barre latérale est réservé aux élèves et parents. Sans ce sélecteur, un inspecteur
+         * resterait bloqué sur son rattachement — le rectorat, qui n'a ni classe ni enseignant.
+         */
+        $scope.consultableStructures = structureService.getUserStructure();
+        $scope.structureSelection = $scope.consultableStructures
+            .find((s) => $scope.structure && s.id === $scope.structure.id);
+
+        $scope.changeStructure = async (selected): Promise<void> => {
+            if (!selected || !selected.id || selected.id === $scope.structure.id) return;
+            window.structure = {id: selected.id, name: selected.name};
+            await PreferencesUtils.updateStructure(window.structure);
+            // Recalcule $scope.structure sur le scope parent, puis relance la vue : même
+            // enchaînement que la directive selectStructure.
+            await $scope.initializeStructure();
+            $scope.$emit(UPDATE_STRUCTURE_EVENTS.UPDATE);
         };
 
         // We use this condition to prevent $scope.init to be called twice with $scope.$on to handle multiple structure

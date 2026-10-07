@@ -16,10 +16,10 @@
     </div>
 
     <div class="list-item"
-        ng-class="{'four_items' : ((userType === 'ENSEIGNANT') && hasRight('readNotebookArchives')),
-                  'three_items' : (((userType !== 'ENSEIGNANT') || !hasRight('readNotebookArchives')))
-                  && !((userType === 'ENSEIGNANT') && hasRight('readNotebookArchives')),
-                   'two_items': (userType !== 'ENSEIGNANT' && !hasRight('readNotebookArchives'))}">
+        ng-class="{'four_items' : ((userType === 'ENSEIGNANT' || userType === 'PERSEDUCNAT') && hasRight('readNotebookArchives')),
+                  'three_items' : (((userType === 'ENSEIGNANT' || userType === 'PERSEDUCNAT') && !hasRight('readNotebookArchives'))
+                  || (userType !== 'ENSEIGNANT' && userType !== 'PERSEDUCNAT' && hasRight('readNotebookArchives'))),
+                   'two_items': (userType !== 'ENSEIGNANT' && userType !== 'PERSEDUCNAT' && !hasRight('readNotebookArchives'))}">
         <!-- Home / Dashboard  -->
         <a role="menuitem" ng-href="[[userType === 'ENSEIGNANT' ? 'diary#/view' : 'diary#/administrator/global']]"
            class="item"
@@ -49,10 +49,22 @@
             </span>
         </a>
 
-        <!-- Progression  -->
+        <!-- Progression (enseignant : ses propres progressions) -->
         <a role="menuitem" href="diary#/progressions/view" class="item"
            ng-class="{active: getCurrentState() === 'progressions'}"
            ng-if="userType === 'ENSEIGNANT'">
+            <!-- icon -->
+            <i class="text-xl margin-sm icon progression"></i>
+            <!-- text -->
+            <span>
+                <i18n>progressions</i18n>
+            </span>
+        </a>
+
+        <!-- Progression (direction : consultation des progressions d'un enseignant, lecture seule) -->
+        <a role="menuitem" href="diary#/progressions/consult" class="item"
+           ng-class="{active: getCurrentState() === 'progressions'}"
+           ng-if="userType === 'PERSEDUCNAT'">
             <!-- icon -->
             <i class="text-xl margin-sm icon progression"></i>
             <!-- text -->

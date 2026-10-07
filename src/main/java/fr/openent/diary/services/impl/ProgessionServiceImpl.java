@@ -121,7 +121,7 @@ public class ProgessionServiceImpl extends SqlCrudService implements Progression
     }
 
     @Override
-    public void updateProgressionFolder(JsonObject progression, String folderId, Handler<Either<String, JsonObject>> handler) {
+    public void updateProgressionFolder(JsonObject progression, String folderId, UserInfos user, Handler<Either<String, JsonObject>> handler) {
         String query = " UPDATE " + Diary.DIARY_SCHEMA + ".progression_folder " +
                 " SET parent_id = ?, title = ? " +
                 " WHERE teacher_id = ? AND id = ? ";
@@ -132,15 +132,19 @@ public class ProgessionServiceImpl extends SqlCrudService implements Progression
         else params.add(parentId);
 
         params.add(progression.getString("title"))
-                .add(progression.getString("owner_id"))
+                .add(user.getUserId())
                 .add(folderId);
 
         Sql.getInstance().prepared(query, params, SqlResult.validUniqueResultHandler(res -> {
             if (res.isLeft()) {
                 LOGGER.error("An error occurred when update progression folder", res.left().getValue());
                 handler.handle(new Either.Left<>(res.left().getValue()));
+            } else if (res.right().getValue().containsKey("id")) {
+                handler.handle(new Either.Right<>(res.right().getValue()));
+            } else {
+                LOGGER.error("[Diary@ProgessionServiceImpl::updateProgressionFolder] Progression folder not owned by user or not found");
+                handler.handle(new Either.Left<>("progression.folder.not.owned.or.not.found"));
             }
-            handler.handle(new Either.Right<>(res.right().getValue()));
         }));
     }
 
@@ -433,7 +437,7 @@ public class ProgessionServiceImpl extends SqlCrudService implements Progression
                 "FROM " + Diary.DIARY_SCHEMA + ".session s WHERE s.id = ? AND s.archive_school_year IS NULL";
         JsonArray params = new JsonArray(Collections.singletonList(idSession));
         sql.prepared(getIdQuery, params, SqlResult.validUniqueResultHandler(event -> {
-            if (event.isRight()) {
+            if (event.isRight() && event.right().getValue().containsKey("id")) {
                 try {
                     final Number id = event.right().getValue().getInteger("id");
 
@@ -453,6 +457,9 @@ public class ProgessionServiceImpl extends SqlCrudService implements Progression
 
                 }
 
+            } else if (event.isRight()) {
+                LOGGER.error("[Diary@ProgessionServiceImpl::progressionToSession] Session is archived or not found, aborting to avoid orphan homeworks");
+                handler.handle(new Either.Left<>("session.archived.cannot.attach.progression"));
             } else {
                 LOGGER.error("[Diary@ProgressionServiceImpl::progressionToSession] An error occurred when selecting id");
             }

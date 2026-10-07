@@ -12,6 +12,6 @@ public class ViescoSettingHomeworkSessionTypeRead implements ResourcesProvider {
     @Override
     public void authorize(HttpServerRequest resourceRequest, Binding binding, UserInfos user,
                           Handler<Boolean> handler) {
-        handler.handle(WorkflowUtils.hasRight(user, WorkflowUtils.VIESCO_SETTING_HOMEWORK_AND_SESSION_TYPE_READ));
+        handler.handle(user.isADMC() || WorkflowUtils.hasRight(user, WorkflowUtils.VIESCO_SETTING_HOMEWORK_AND_SESSION_TYPE_READ));
     }
 }

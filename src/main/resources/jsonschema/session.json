@@ -36,6 +36,12 @@
     "room": {
       "type": "string"
     },
+    "rbsResourceIds": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
     "color": {
       "type": "string"
     },

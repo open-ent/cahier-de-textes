@@ -14,7 +14,7 @@ public class HomeworkRead implements ResourcesProvider {
     @Override
     public void authorize(HttpServerRequest resourceRequest, Binding binding, UserInfos user,
                           Handler<Boolean> handler) {
-        handler.handle(WorkflowUtils.hasRight(user, WorkflowUtils.HOMEWORK_READ));
+        handler.handle(user.isADMC() || WorkflowUtils.hasRight(user, WorkflowUtils.HOMEWORK_READ));
     }
 
     public Future<Boolean> canAccessHomework(HttpServerRequest request, UserInfos userInfos) {

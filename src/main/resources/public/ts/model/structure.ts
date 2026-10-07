@@ -1,4 +1,5 @@
 import {model} from 'entcore';
+import {structureService} from '../services';
 import {
     Audience,
     Audiences, Course,
@@ -128,11 +129,22 @@ export class Structures {
         this.all = structures;
     }
 
-    sync() {
-        for (let i = 0; i < model.me.structures.length; i++) {
-            this.all.push(new Structure(model.me.structures[i], model.me.structureNames[i]));
-        }
-        return;
+    /**
+     * Établissements proposés à l'utilisateur.
+     *
+     * Aux rattachements de session s'ajoutent ceux où il détient une **habilitation
+     * d'inspection**. Le périmètre d'un inspecteur est défini par ses habilitations, alors qu'il
+     * n'est le plus souvent rattaché qu'à son service académique : sans cet ajout, la vue
+     * d'inspection resterait vide pour lui, puisqu'elle travaille sur la structure courante.
+     */
+    async sync(): Promise<void> {
+        // Les habilitations sont chargées AVANT de bâtir la liste : c'est `getUserStructure()` qui
+        // fusionne rattachements et établissements habilités, afin que ce modèle et le sélecteur
+        // d'établissement (directive `selectStructure`) partagent la même source.
+        await structureService.syncInspectionStructures();
+        structureService.getUserStructure()
+            .filter((s: Structure) => !this.get(s.id))
+            .forEach((s: Structure) => this.all.push(s));
     }
 
     /**

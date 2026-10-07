@@ -25,6 +25,9 @@ export class Course {
 
     dayOfWeek: any;
     rooms: any;
+    // Ressources RBS liées au cours EDT (lecture seule côté diary — la réservation existe déjà
+    // côté EDT, jamais recréée ici).
+    rbsResourceIds: number[];
     color: any;
 
     startDate: any;
@@ -69,6 +72,7 @@ export class Course {
             endDate: data.endDate,
             endCourse: data.endCourse,
             rooms: data.roomLabels,
+            rbsResourceIds: Array.isArray(data.rbsResourceIds) ? data.rbsResourceIds : [],
             exceptionnal: data.exceptionnal,
             startDate: data.startDate,
             teacherIds: data.teacherIds,

@@ -27,7 +27,7 @@
                                         data-search="groupsSearch.group">
                     </async-autocomplete>
                     <div class="search-input-ul" ng-show="session.audience">
-                        <span>[[session.audience.name]]</span>&nbsp;
+                        <span>[[audienceLabel(session.audience)]]</span>&nbsp;
                         <i class="close" ng-click="removeSearchSessionAudience()"></i>
                     </div>
                 </div>
@@ -43,11 +43,16 @@
                 </span>
                 <!--CLASS/GROUP NAME CARD-->
                 <span class="card session-form-card" ng-if="session.audience.name">
-                    [[session.audience.name]]
+                    [[audienceLabel(session.audience)]]
                 </span>
             </div>
 
         </div>
+    </div>
+
+    <!-- Consigne : la sélection matière + groupe/classe est obligatoire pour afficher le formulaire -->
+    <div class="message info diary-audience-required" ng-if="!session.opened">
+        <i18n>diary.session.audience.required.hint</i18n>
     </div>
 
     <fieldset class="row cursorDefault card remove-margin padding-md border-width-fieldset"
@@ -77,7 +82,32 @@
                 <div class="twelve">
                     <i18n>utils.room</i18n>
                 </div>
-                <input type="text" class="twelve twelve-mobile" maxlength="50" ng-model="session.room"/>
+                <input type="text" class="twelve twelve-mobile" maxlength="50" readonly
+                       title="[[lang.translate('diary.utils.room.readonly')]]" ng-model="session.room"/>
+            </label>
+            <div class="one"></div>
+            <!--RBS RESOURCE — coexiste avec le texte libre ci-dessus, ne le remplace pas.
+                Éditable seulement si la séance n'est pas dérivée d'un cours EDT (la réservation
+                existe déjà côté EDT sinon, jamais recréée par diary) -->
+            <label class="two cell horizontal-spacing twelve-mobile" ng-if="rbsResources.length > 0 || session.rbsResourceIds.length > 0">
+                <div class="twelve">
+                    <i18n>diary.utils.rbs.resource</i18n>
+                </div>
+                <div ng-if="!session.courseId">
+                    <select ng-model="rbsPicker.selectedId" ng-change="addSessionRbsResource()"
+                            ng-options="r.id as (r.typeName ? r.name + ' (' + r.typeName + ')' : r.name) for r in rbsResources">
+                        <option value="" selected><i18n>diary.utils.rbs.resource.choose</i18n></option>
+                    </select>
+                    <ul ng-if="session.rbsResourceIds.length">
+                        <li ng-repeat="rid in session.rbsResourceIds track by rid" class="diary-resource-item">
+                            [[rbsResourceLabel(rid)]]
+                            <i class="close" ng-click="removeSessionRbsResource(rid)" title="[[lang.translate('utils.delete')]]"></i>
+                        </li>
+                    </ul>
+                </div>
+                <ul ng-if="session.courseId && session.rbsResourceIds.length">
+                    <li ng-repeat="rid in session.rbsResourceIds track by rid">[[rbsResourceLabel(rid)]]</li>
+                </ul>
             </label>
             <div class="one"></div>
             <!--TYPE-->
@@ -161,6 +191,70 @@
             <editor ng-model="session.description"></editor>
         </div>
 
+        <!-- Ressources attachées (espace documentaire ; médiacentre / Éléa à venir) -->
+        <div class="row diary-resources">
+            <label class="block"><i18n>diary.resources.label</i18n></label>
+            <ul ng-if="session.resources.length">
+                <li ng-repeat="res in session.resources track by $index" class="diary-resource-item">
+                    <i class="diary-resource-icon" ng-class="'resource-' + res.type"></i>
+                    <a ng-href="[[res.url]]" target="_blank" ng-if="res.url">[[res.name]]</a>
+                    <span ng-if="!res.url">[[res.name]]</span>
+                    <i class="close" ng-click="removeSessionResource($index)" title="[[lang.translate('utils.delete')]]"></i>
+                </li>
+            </ul>
+            <button type="button" class="add-resource" ng-click="openSessionResourcePicker()">
+                <i18n>diary.resources.add.workspace</i18n>
+            </button>
+            <button type="button" class="add-resource" ng-click="openSessionMediacentrePicker()">
+                <i18n>diary.resources.add.mediacentre</i18n>
+            </button>
+        </div>
+
+        <!-- Picker : documents de l'espace documentaire -->
+        <lightbox show="display.sessionResourcePicker" on-close="display.sessionResourcePicker = false">
+            <h2><i18n>diary.resources.add.workspace</i18n></h2>
+            <p class="info"><i18n>diary.resources.picker.hint</i18n></p>
+            <media-library ng-if="display.sessionResourcePicker"
+                           visibility="'protected'" multiple="true"
+                           ng-model="documents" file-format="'any'"
+                           ng-change="addSessionWorkspaceResources()"></media-library>
+            <div class="row">
+                <button type="button" class="cancel right-magnet" ng-click="display.sessionResourcePicker = false">
+                    <i18n>utils.cancel</i18n>
+                </button>
+            </div>
+        </lightbox>
+
+        <!-- Picker : ressources du médiacentre (recherche) -->
+        <lightbox show="display.sessionMediacentrePicker" on-close="display.sessionMediacentrePicker = false">
+            <h2><i18n>diary.resources.add.mediacentre</i18n></h2>
+            <div class="row">
+                <input type="text" class="eight" ng-model="mediacentreQuery"
+                       ng-keydown="$event.keyCode === 13 && searchMediacentre(mediacentreQuery)"
+                       i18n-placeholder="diary.resources.mediacentre.search.placeholder"/>
+                <button type="button" ng-click="searchMediacentre(mediacentreQuery)"><i18n>diary.resources.mediacentre.search</i18n></button>
+            </div>
+            <p ng-if="mediacentreLoading"><i18n>diary.resources.mediacentre.loading</i18n></p>
+            <p ng-if="!mediacentreLoading && !mediacentreSearched && mediacentreResources.length === 0" class="info">
+                <i18n>diary.resources.mediacentre.empty</i18n>
+            </p>
+            <p ng-if="!mediacentreLoading && mediacentreSearched && mediacentreResources.length === 0" class="info">
+                <i18n>diary.resources.mediacentre.noresult</i18n>
+            </p>
+            <ul class="mediacentre-results">
+                <li ng-repeat="res in mediacentreResources" class="pointer diary-resource-item"
+                    ng-click="addSessionMediacentreResource(res)">
+                    <img ng-if="res.image" ng-src="[[res.image]]" class="mediacentre-thumb" width="40"/>
+                    <span>[[res.title]]</span>
+                </li>
+            </ul>
+            <div class="row">
+                <button type="button" class="cancel right-magnet" ng-click="display.sessionMediacentrePicker = false">
+                    <i18n>utils.cancel</i18n>
+                </button>
+            </div>
+        </lightbox>
+
 
         <!--DISPLAY ATTACHED HOMEWORKS AND CHILD HOMEWORKS-->
         <div class="margin-bottom-md">
@@ -202,7 +296,7 @@
 
                             <!--HOMEWORK AUDIENCE-->
                             <div class="custom-flex-col padding-cell justified-content-center two">
-                                <p>[[session.audience.name]]</p>
+                                <p>[[audienceLabel(session.audience)]]</p>
                             </div>
 
                             <!--HOMEWORK DATE-->

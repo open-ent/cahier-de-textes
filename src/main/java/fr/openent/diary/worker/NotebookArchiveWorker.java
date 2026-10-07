@@ -28,8 +28,10 @@ public class NotebookArchiveWorker extends BusModBase implements Handler<Message
     private final Logger log = LoggerFactory.getLogger(NotebookArchiveWorker.class);
     private static final int ARCHIVE_MONTH = Calendar.AUGUST;
     private static final int ARCHIVE_MONTH_DAY = 15;
-    private static final int ARCHIVE_YEAR_NUMBER = 2;
-    private static final int ARCHIVE_REMOVE_YEAR_NUMBER = 5;
+    private static final int DEFAULT_ARCHIVE_YEAR_NUMBER = 2;
+    private static final int DEFAULT_ARCHIVE_REMOVE_YEAR_NUMBER = 5;
+    private int archiveYearNumber = DEFAULT_ARCHIVE_YEAR_NUMBER;
+    private int archiveRemoveYearNumber = DEFAULT_ARCHIVE_REMOVE_YEAR_NUMBER;
     public static final String ANSI_RESET = "\u001B[0m";
     public static final String ANSI_CYAN = "\u001B[36m";
     private static final String ARCHIVE_FLAG = "[DIARY:ARCHIVE]";
@@ -41,6 +43,8 @@ public class NotebookArchiveWorker extends BusModBase implements Handler<Message
     @Override
     public void start(Promise<Void> startPromise) {
         super.start();
+        this.archiveYearNumber = config.getInteger("archive-year-number", DEFAULT_ARCHIVE_YEAR_NUMBER);
+        this.archiveRemoveYearNumber = config.getInteger("archive-remove-year-number", DEFAULT_ARCHIVE_REMOVE_YEAR_NUMBER);
         StorageFactory.build(vertx, config)
                 .compose(storageFactory -> initNoteBookArchiveWorker(storageFactory))
                 .onComplete(startPromise);
@@ -73,9 +77,9 @@ public class NotebookArchiveWorker extends BusModBase implements Handler<Message
             JsonObject schoolYearPeriod = schoolYearPeriodResult.result();
             Integer baseYear = getEndPeriodYear(schoolYearPeriod);
 
-            String archiveDate = getArchiveDayYearsBefore(ARCHIVE_YEAR_NUMBER, baseYear);
-            String removeArchivePeriod = getArchivePeriod(getArchiveDayYearsBefore(ARCHIVE_YEAR_NUMBER + ARCHIVE_REMOVE_YEAR_NUMBER, baseYear));
-            String removeNotebookDate = getArchiveDayYearsBefore(ARCHIVE_YEAR_NUMBER + ARCHIVE_REMOVE_YEAR_NUMBER, baseYear);
+            String archiveDate = getArchiveDayYearsBefore(archiveYearNumber, baseYear);
+            String removeArchivePeriod = getArchivePeriod(getArchiveDayYearsBefore(archiveYearNumber + archiveRemoveYearNumber, baseYear));
+            String removeNotebookDate = getArchiveDayYearsBefore(archiveYearNumber + archiveRemoveYearNumber, baseYear);
 
 
             Future<JsonObject> removeNotebooksArchiveFuture = removingNotebookArchiveProcess(structureId, removeArchivePeriod);

@@ -17,6 +17,11 @@ export let manageProgressionCtrl = ng.controller('manageProgessionCtrl',
 
         $scope.currentUrlIsManage = $location.url() === '/progressions/view';
 
+        // Garde : $scope.display n'est pas toujours fourni par un contrôleur parent
+        // (ex. ouverture du formulaire de progression depuis la séance) → éviter le
+        // "Cannot set properties of undefined (setting 'progression')".
+        $scope.display = $scope.display || {};
+
         $scope.isListView = true;
         $scope.progressionSessionForm = new ProgressionSession();
         $scope.progressionFolders = null;

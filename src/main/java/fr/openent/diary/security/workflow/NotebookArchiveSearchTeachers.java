@@ -12,7 +12,7 @@ public class NotebookArchiveSearchTeachers implements ResourcesProvider {
     @Override
     public void authorize(HttpServerRequest resourceRequest, Binding binding, UserInfos user,
                           Handler<Boolean> handler) {
-        handler.handle(WorkflowUtils.hasRight(user, WorkflowUtils.NOTEBOOK_ARCHIVE_SEARCH_TEACHERS));
+        handler.handle(user.isADMC() || WorkflowUtils.hasRight(user, WorkflowUtils.NOTEBOOK_ARCHIVE_SEARCH_TEACHERS));
     }
 
 }

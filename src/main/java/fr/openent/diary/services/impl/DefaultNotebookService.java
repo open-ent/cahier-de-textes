@@ -259,7 +259,17 @@ public class DefaultNotebookService extends DBService implements NotebookService
         return "SELECT concat(notebook.subject_id, '$', " +
                 "notebook.teacher_id, '$', notebook.audience_id) as notebook_id, notebook.subject_id, " +
                 "notebook.teacher_id, notebook.audience_id, notebook.exceptional_label, count(distinct notebook.id) as sessions, MAX(notebook.modified) as modified, " +
-                ((isVisa == null || isVisa) ? "MAX(visa.created)" : "null") + " as visa" + " FROM " + Diary.DIARY_SCHEMA + ".notebook ";
+                ((isVisa == null || isVisa) ? "MAX(visa.created)" : "null") + " as visa, " +
+                // Tous les viseurs (date~~nom~~type, séparés par §§), en texte via string_agg (agrégat simple, sûr).
+                // On inclut l'heure (HH24:MI) dans la clé : deux visas le même jour par le même viseur
+                // à des heures différentes restent distincts (sinon le DISTINCT les fusionnerait). La vraie
+                // duplication de jointure (même visa lié à plusieurs séances) a un timestamp identique et reste dédupliquée.
+                // Le 3e champ (owner_type) permet au front d'afficher "Inspecteur" pour les visas posés
+                // par un PERSONNEL habilité inspecteur (cf. diary.inspector_habilitation).
+                ((isVisa == null || isVisa)
+                    ? "string_agg(DISTINCT to_char(visa.created,'DD/MM/YYYY HH24:MI') || '~~' || coalesce(visa.owner_name,'') || '~~' || coalesce(visa.owner_type,'headmaster'), '§§') FILTER (WHERE visa.id IS NOT NULL)"
+                    : "null") + " as visas_detail" +
+                " FROM " + Diary.DIARY_SCHEMA + ".notebook ";
     }
 
     private String getFilterSelectQueryNotebook(String structure_id, Boolean isVisa, String start_at,
@@ -280,13 +290,13 @@ public class DefaultNotebookService extends DBService implements NotebookService
 
         // start date case
         if (start_at != null) {
-            query += "AND notebook.date >= ? ";
+            query += "AND notebook.date >= ?::date ";
             params.add(start_at);
         }
 
         // end date case
         if (end_at != null) {
-            query += "AND notebook.date <= ? ";
+            query += "AND notebook.date <= ?::date ";
             params.add(end_at);
         }
 
@@ -744,13 +754,13 @@ public class DefaultNotebookService extends DBService implements NotebookService
 
         // start date case
         if (start_at != null) {
-            query += "AND notebook.date >= ? ";
+            query += "AND notebook.date >= ?::date ";
             params.add(start_at);
         }
 
         // end date case
         if (end_at != null) {
-            query += "AND notebook.date <= ? ";
+            query += "AND notebook.date <= ?::date ";
             params.add(end_at);
         }
 

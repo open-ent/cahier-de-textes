@@ -53,12 +53,16 @@ public class Diary extends BaseServer {
         final DiaryService diaryService = new DiaryServiceImpl();
 
         final NotifyServiceImpl notifyService = new NotifyServiceImpl(timeline,eb,getPathPrefix(config));
-        final VisaServiceImpl visaService = new VisaServiceImpl(storage, eb, vertx, config);
+
+        // Doit être initialisé AVANT VisaServiceImpl : son constructeur crée ExportPDFServiceImpl
+        // qui capture NodePdfHelper.pdfFactory() dans un champ final. Sinon pdfFactory reste null
+        // -> génération PDF du visa sans token -> POST node-pdf-generator 404 -> visa non enregistré.
+        NodePdfHelper.getInstance().init(vertx, config);
+
+        final InspectorServiceImpl inspectorService = new InspectorServiceImpl();
+        final VisaServiceImpl visaService = new VisaServiceImpl(storage, eb, vertx, config, inspectorService);
 
         EventStore eventStore = EventStoreFactory.getFactory().getEventStore(Diary.class.getSimpleName());
-
-
-        NodePdfHelper.getInstance().init(vertx, config);
 
         addController(new DiaryController(diaryService, eventStore));
 
@@ -66,11 +70,12 @@ public class Diary extends BaseServer {
         addController(new NotebookController(eb, vertx, storage, config));
 
         addController(new InitController(new DefautlInitService("diary", eb)));
+        addController(new AudienceSettingsController(new DefaultAudienceSettingsService(eb)));
         addController(new VisaController(visaService, storage));
         addController(new SessionController(new SessionServiceImpl(eb, eventStore)));
         addController(new HomeworkController(new HomeworkServiceImpl("diary", eb, eventStore)));
         addController(new SessionsHomeworkController(new DefaultSessionsHomeworkService(eb, eventStore)));
-        addController(new InspectorController(new InspectorServiceImpl()));
+        addController(new InspectorController(inspectorService));
         addController(new ProgressionController(new ProgessionServiceImpl("diary")));
         addController(new SearchController(eb));
         addController(new SubjectController(new DefaultSubjectService(eb)));

@@ -672,7 +672,17 @@ export let calendarController = ng.controller('CalendarController',
             const syncCourseFromDate = async (idCourse: string, date: string): Promise<Course> => {
                 let course = new Course($scope.structure, idCourse);
                 date = DateUtils.getFormattedDate(date, FORMAT['DAY/MONTH/YEAR']);
-                await course.sync(date, date);
+                // Course.sync() utilise ce teacherId (et non model.me.userId) dès que le compte
+                // connecté est de profil Personnel (cf. son implémentation) : sans lui, l'appel
+                // interroge les cours de "undefined", n'en trouve aucun, et la séance créée à partir
+                // du cours reste sans matière/classe (formulaire bloqué sur le message
+                // "Sélectionnez une matière et un groupe"). Un ADML ouvrant un créneau d'un
+                // enseignant tiers (ex. depuis le calendrier avec un enseignant sélectionné dans la
+                // recherche) a besoin de cet identifiant, comme pour le reste de l'écran.
+                const teacherSelected: Teacher = !!AutocompleteUtils.getTeachersSelected() &&
+                    AutocompleteUtils.getTeachersSelected().length > 0 ? AutocompleteUtils.getTeachersSelected()[0] : null;
+                const teacherId: string = teacherSelected && teacherSelected.id ? teacherSelected.id : null;
+                await course.sync(date, date, teacherId);
                 return course;
             };
 

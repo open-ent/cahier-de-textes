@@ -13,9 +13,13 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import org.entcore.common.neo4j.Neo4j;
 import org.entcore.common.neo4j.Neo4jResult;
+import org.entcore.common.sql.Sql;
+import org.entcore.common.sql.SqlResult;
 
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,8 +36,9 @@ public class DefaultSearchService implements SearchService {
     public void search(String query, String structureId, Handler<Either<String, JsonArray>> handler) {
         Promise<JsonArray> userAndGroupPromise = Promise.promise();
         Promise<JsonArray> manualGroupPromise = Promise.promise();
+        Future<Set<String>> disabledAudienceIdsFuture = getDisabledAudienceIds(structureId);
 
-        Future.all(userAndGroupPromise.future(), manualGroupPromise.future()).onComplete(event -> {
+        Future.all(userAndGroupPromise.future(), manualGroupPromise.future(), disabledAudienceIdsFuture).onComplete(event -> {
             if (event.failed()) {
                 String message = "[Presences@DefaultSearchService::search] Failed to retrieve users and groups " + event.cause();
                 LOGGER.error(message);
@@ -41,6 +46,8 @@ public class DefaultSearchService implements SearchService {
             } else {
                 List items = Stream.concat(userAndGroupPromise.future().result().stream(), manualGroupPromise.future().result().stream())
                         .collect(Collectors.toList());
+                Set<String> disabledAudienceIds = disabledAudienceIdsFuture.result();
+                items.removeIf(item -> disabledAudienceIds.contains(((JsonObject) item).getString("id")));
                 items.sort((Comparator<JsonObject>) (o1, o2) -> o1.getString("displayName").compareToIgnoreCase(o2.getString("displayName")));
                 handler.handle(new Either.Right<>(new JsonArray(items)));
             }
@@ -53,8 +60,9 @@ public class DefaultSearchService implements SearchService {
     public void searchGroups(String query, List<String> fields, String structure_id, Handler<Either<String, JsonArray>> handler) {
         Promise<JsonArray> groupsPromise = Promise.promise();
         Promise<JsonArray> manualGroupsPromise = Promise.promise();
+        Future<Set<String>> disabledAudienceIdsFuture = getDisabledAudienceIds(structure_id);
 
-        Future.all(groupsPromise.future(), manualGroupsPromise.future()).onComplete(event -> {
+        Future.all(groupsPromise.future(), manualGroupsPromise.future(), disabledAudienceIdsFuture).onComplete(event -> {
             if (event.failed()) {
                 String message = "[Presences@DefaultSearchService::searchGroups] Failed to retrieve groups " + event.cause();
                 LOGGER.error(message);
@@ -64,12 +72,50 @@ public class DefaultSearchService implements SearchService {
                 manualGroupsPromise.future().result().forEach(manualGroup -> {
                     ((JsonObject) manualGroup).put("name", ((JsonObject) manualGroup).getString("displayName"));
                 });
-                handler.handle(new Either.Right<>(groupsPromise.future().result().addAll(manualGroupsPromise.future().result())));
+                Set<String> disabledAudienceIds = disabledAudienceIdsFuture.result();
+                JsonArray groups = filterDisabledGroups(groupsPromise.future().result(), disabledAudienceIds);
+                JsonArray manualGroups = filterDisabledGroups(manualGroupsPromise.future().result(), disabledAudienceIds);
+                handler.handle(new Either.Right<>(groups.addAll(manualGroups)));
             }
         });
 
         searchGroupsEventBus(query, fields, structure_id, FutureHelper.handlerEitherPromise(groupsPromise));
         searchManualGroup(query, structure_id, FutureHelper.handlerEitherPromise(manualGroupsPromise));
+    }
+
+    /**
+     * Classes/groupes désactivés via l'écran de paramétrage MOD11 (table diary.audience_settings) :
+     * à exclure de toute suggestion de recherche, sans quoi le paramétrage n'a aucun effet réel.
+     */
+    private Future<Set<String>> getDisabledAudienceIds(String structureId) {
+        Promise<Set<String>> promise = Promise.promise();
+        Sql.getInstance().prepared(
+                "SELECT audience_id FROM diary.audience_settings WHERE structure_id = ? AND enabled = false",
+                new JsonArray().add(structureId),
+                SqlResult.validResultHandler(either -> {
+                    if (either.isRight()) {
+                        Set<String> ids = new HashSet<>();
+                        JsonArray rows = either.right().getValue();
+                        for (int i = 0; i < rows.size(); i++) {
+                            ids.add(rows.getJsonObject(i).getString("audience_id"));
+                        }
+                        promise.complete(ids);
+                    } else {
+                        promise.fail(either.left().getValue());
+                    }
+                }));
+        return promise.future();
+    }
+
+    private JsonArray filterDisabledGroups(JsonArray groups, Set<String> disabledAudienceIds) {
+        JsonArray filtered = new JsonArray();
+        for (int i = 0; i < groups.size(); i++) {
+            JsonObject group = groups.getJsonObject(i);
+            if (!disabledAudienceIds.contains(group.getString("id"))) {
+                filtered.add(group);
+            }
+        }
+        return filtered;
     }
 
     private void searchGroupsEventBus(String query, List<String> fields, String structure_id, Handler<Either<String, JsonArray>> handler) {

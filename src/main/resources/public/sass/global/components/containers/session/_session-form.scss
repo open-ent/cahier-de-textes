@@ -36,4 +36,21 @@
     }
   }
 
+  // Responsive (anomalie #2) : sur petit écran, le header flex sans wrap tronquait
+  // le champ « Rechercher une classe ». On empile matière + recherche en colonne.
+  @media screen and (max-width: 800px) {
+    &-header {
+      flex-direction: column;
+
+      &-select {
+        margin-right: 0;
+        margin-bottom: 8px;
+      }
+
+      &-search .async-autocomplete {
+        width: 100%;
+      }
+    }
+  }
+
 }

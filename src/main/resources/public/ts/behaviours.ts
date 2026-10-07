@@ -3,6 +3,7 @@ import {inspector} from "./sniplets/inspector";
 import {homeworkType} from "./sniplets/homeworkType";
 import {initData} from "./sniplets/init_data";
 import {sessionType} from "./sniplets/sessionType";
+import {audienceSettings} from "./sniplets/audience_settings";
 
 const diaryBehaviours = {
     rights: {
@@ -41,7 +42,8 @@ const diaryBehaviours = {
         inspector,
         homework_type: homeworkType,
         session_type: sessionType,
-        init_data: initData
+        init_data: initData,
+        audience_settings: audienceSettings
     }
 };
 

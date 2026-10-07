@@ -1,4 +1,5 @@
 import {idiom as lang, model, moment, ng} from 'entcore';
+import http from 'axios';
 import {Audience, Courses, Session, Sessions, SessionTypes, Subject, Subjects, Toast} from '../../model';
 import {Homework, HomeworkTypes, WorkloadDay, Course} from '../../model';
 import {DateUtils} from '../../utils/dateUtils';
@@ -26,6 +27,117 @@ export let manageHomeworkCtrl = ng.controller('manageHomeworkCtrl',
             if ($scope.structure.audiences.all.length === 1) {
                 $scope.homework.audience = $scope.structure.audiences.all[0];
             }
+            if (!$scope.homework.resources) { $scope.homework.resources = []; }
+
+            // Libellé lisible d'une audience (« Élèves du groupe 501 »). Renvoie une CHAÎNE
+            // (stable) -> pas de risque de boucle de digest si utilisé en binding.
+            $scope.audienceLabel = (audience): string =>
+                (audience && audience.name) ? (lang.translate('diary.audience.group.label') + ' ' + audience.name) : '';
+
+            // --- Ressources attachées : documents de l'espace documentaire ---
+            $scope.openHomeworkResourcePicker = function (): void {
+                $scope.documents = [];
+                $scope.display.homeworkResourcePicker = true;
+            };
+
+            $scope.addHomeworkWorkspaceResources = function (): void {
+                // La media-library expose les documents sélectionnés sur son propre scope
+                // (cf. pattern du module calendar). On prend la dernière instance dans le DOM
+                // (la nôtre), pour ne pas capter celles éventuelles de l'éditeur.
+                const mlEls: any = document.getElementsByTagName('media-library');
+                let docs: any[] = [];
+                if (mlEls && mlEls.length) {
+                    const mlScope: any = (window as any).angular.element(mlEls[mlEls.length - 1]).scope();
+                    docs = (mlScope && mlScope.documents) ? mlScope.documents : ($scope.documents || []);
+                } else {
+                    docs = $scope.documents || [];
+                }
+                if (!$scope.homework.resources) { $scope.homework.resources = []; }
+                docs.forEach((doc: any) => {
+                    const id: string = doc._id || doc.id;
+                    const already: boolean = $scope.homework.resources
+                        .some((r: any) => r.type === 'workspace' && r.id === id);
+                    if (id && !already) {
+                        $scope.homework.resources.push({
+                            type: 'workspace',
+                            id: id,
+                            name: doc.name || doc.title || id,
+                            url: '/workspace/document/' + id
+                        });
+                    }
+                });
+                $scope.documents = [];
+                $scope.display.homeworkResourcePicker = false;
+                safeApply($scope);
+            };
+
+            $scope.removeHomeworkResource = function (index: number): void {
+                if ($scope.homework.resources) { $scope.homework.resources.splice(index, 1); }
+            };
+
+            // --- Ressources attachées : ressources du médiacentre (recherche) ---
+            const MEDIACENTRE_SOURCES: string[] = [
+                'fr.openent.mediacentre.source.GAR',
+                'fr.openent.mediacentre.source.Signet',
+                'fr.openent.mediacentre.source.Moodle',
+                'fr.openent.mediacentre.source.PMB'
+            ];
+            $scope.mediacentreQuery = '';
+            $scope.mediacentreResources = [];
+            $scope.mediacentreLoading = false;
+            $scope.mediacentreSearched = false;
+
+            $scope.openHomeworkMediacentrePicker = function (): void {
+                $scope.mediacentreQuery = '';
+                $scope.mediacentreResources = [];
+                $scope.mediacentreSearched = false;
+                $scope.display.homeworkMediacentrePicker = true;
+            };
+
+            $scope.searchMediacentre = async function (queryArg?: string): Promise<void> {
+                // queryArg = valeur du champ (scope enfant du <lightbox>) ; fallback scope parent.
+                const q: string = ((queryArg != null ? queryArg : $scope.mediacentreQuery) || '').trim();
+                if (!q) { return; }
+                $scope.mediacentreLoading = true;
+                $scope.mediacentreResources = [];
+                $scope.safeApply();
+                const jsondata: string = JSON.stringify({
+                    state: 'PLAIN_TEXT', event: 'search',
+                    sources: MEDIACENTRE_SOURCES, data: {query: q}
+                });
+                try {
+                    const {data}: any = await http.get('/mediacentre/search?jsondata=' + encodeURIComponent(jsondata));
+                    const frames: any[] = Array.isArray(data) ? data : [];
+                    const resources: any[] = [];
+                    frames.forEach((f: any) => {
+                        const list: any[] = (f && f.data && Array.isArray(f.data.resources)) ? f.data.resources : [];
+                        list.forEach((r: any) => resources.push(r));
+                    });
+                    $scope.mediacentreResources = resources;
+                } catch (e) {
+                    $scope.mediacentreResources = [];
+                }
+                $scope.mediacentreSearched = true;
+                $scope.mediacentreLoading = false;
+                $scope.safeApply();
+            };
+
+            $scope.addHomeworkMediacentreResource = function (res: any): void {
+                if (!$scope.homework.resources) { $scope.homework.resources = []; }
+                const id: string = (res.id != null) ? String(res.id) : (res.link || res.title);
+                const already: boolean = $scope.homework.resources
+                    .some((r: any) => r.type === 'mediacentre' && String(r.id) === String(id));
+                if (id && !already) {
+                    $scope.homework.resources.push({
+                        type: 'mediacentre', id: id,
+                        name: res.title || res.link || id,
+                        url: res.link || res.url || '',
+                        image: res.image || ''
+                    });
+                }
+                $scope.display.homeworkMediacentrePicker = false;
+                $scope.safeApply();
+            };
             $scope.sessions = new Sessions($scope.structure);
             $scope.courses = new Courses($scope.structure);
             $scope.subjects = new Subjects();

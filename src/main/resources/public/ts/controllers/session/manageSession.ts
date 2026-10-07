@@ -13,7 +13,7 @@ import {SearchService, SubjectService} from '../../services';
 import {Moment} from 'moment';
 import {FORMAT} from '../../core/const/dateFormat';
 import {GroupsSearch} from '../../utils/autocomplete/groupsSearch';
-import {AxiosResponse} from 'axios';
+import http, {AxiosResponse} from 'axios';
 import {EXCEPTIONAL} from '../../core/const/exceptional-subject';
 
 export let manageSessionCtrl = ng.controller('manageSessionCtrl',
@@ -29,6 +29,168 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
             $scope.isReadOnly = modeIsReadOnly();
             $scope.isInsideDiary = $attrs.insideDiary;
             $scope.session = $rootScope.session ? $rootScope.session : new Session($scope.structure);
+            if (!$scope.session.resources) { $scope.session.resources = []; }
+            $scope.display = $scope.display || {};
+
+            // --- Ressource RBS (réservation de ressources) — coexiste avec le texte libre
+            // `room`, éditable seulement pour une séance créée directement (sans cours EDT).
+            // Relais serveur (/diary/structures/:id/rbs/resources), pas d'appel direct à l'API
+            // RBS : visible à n'importe quel enseignant même sans droit RBS individuel.
+            if (!$scope.session.rbsResourceIds) { $scope.session.rbsResourceIds = []; }
+            $scope.rbsResources = [];
+            // Objet (et non une primitive) : le bloc contenant le <select> est sous ng-if, qui
+            // crée un scope enfant — un ng-model sur une primitive sans point s'y lierait à une
+            // propriété locale à ce scope enfant, jamais vue par addSessionRbsResource() (défini
+            // sur le scope parent). Un objet se lit par référence à travers la chaîne de
+            // prototypes : la mutation reste visible partout.
+            $scope.rbsPicker = { selectedId: null };
+
+            $scope.loadRbsResources = async function (): Promise<void> {
+                $scope.rbsResources = [];
+                if (!$scope.structure || !$scope.structure.id) { return; }
+                try {
+                    const {data}: any = await http.get(`/diary/structures/${$scope.structure.id}/rbs/resources`);
+                    const types: any[] = (data && data.types) || [];
+                    const resources: any[] = (data && data.resources) || [];
+                    const typeNameById: any = {};
+                    types.forEach((t: any) => { typeNameById[t.id] = t.name; });
+                    $scope.rbsResources = resources.map((r: any) => ({
+                        id: r.id,
+                        name: r.name,
+                        typeName: typeNameById[r.type_id] || ''
+                    }));
+                } catch (e) {
+                    $scope.rbsResources = [];
+                }
+                $scope.safeApply();
+            };
+            $scope.loadRbsResources();
+
+            $scope.rbsResourceLabel = function (id: number): string {
+                const found: any = $scope.rbsResources.find((r: any) => r.id === id);
+                if (!found) { return String(id); }
+                return found.typeName ? `${found.name} (${found.typeName})` : found.name;
+            };
+
+            $scope.addSessionRbsResource = function (): void {
+                const id: number = $scope.rbsPicker.selectedId;
+                if (id === null || id === undefined) { return; }
+                if (!$scope.session.rbsResourceIds) { $scope.session.rbsResourceIds = []; }
+                if ($scope.session.rbsResourceIds.indexOf(id) === -1) {
+                    $scope.session.rbsResourceIds.push(id);
+                }
+                $scope.rbsPicker.selectedId = null;
+            };
+
+            $scope.removeSessionRbsResource = function (id: number): void {
+                if (!$scope.session.rbsResourceIds) { return; }
+                $scope.session.rbsResourceIds = $scope.session.rbsResourceIds.filter((rid: number) => rid !== id);
+            };
+
+            // Libellé lisible d'une audience (« Élèves du groupe 501 »). Renvoie une CHAÎNE stable.
+            $scope.audienceLabel = (audience): string =>
+                (audience && audience.name) ? (lang.translate('diary.audience.group.label') + ' ' + audience.name) : '';
+
+            // --- Ressources attachées : documents de l'espace documentaire ---
+            $scope.openSessionResourcePicker = function (): void {
+                $scope.documents = [];
+                $scope.display.sessionResourcePicker = true;
+            };
+            $scope.addSessionWorkspaceResources = function (): void {
+                const mlEls: any = document.getElementsByTagName('media-library');
+                let docs: any[] = [];
+                if (mlEls && mlEls.length) {
+                    const mlScope: any = (window as any).angular.element(mlEls[mlEls.length - 1]).scope();
+                    docs = (mlScope && mlScope.documents) ? mlScope.documents : ($scope.documents || []);
+                } else {
+                    docs = $scope.documents || [];
+                }
+                if (!$scope.session.resources) { $scope.session.resources = []; }
+                docs.forEach((doc: any) => {
+                    const id: string = doc._id || doc.id;
+                    const already: boolean = $scope.session.resources
+                        .some((r: any) => r.type === 'workspace' && r.id === id);
+                    if (id && !already) {
+                        $scope.session.resources.push({
+                            type: 'workspace',
+                            id: id,
+                            name: doc.name || doc.title || id,
+                            url: '/workspace/document/' + id
+                        });
+                    }
+                });
+                $scope.documents = [];
+                $scope.display.sessionResourcePicker = false;
+                $scope.safeApply();
+            };
+            $scope.removeSessionResource = function (index: number): void {
+                if ($scope.session.resources) { $scope.session.resources.splice(index, 1); }
+            };
+
+            // --- Ressources attachées : ressources du médiacentre (recherche) ---
+            const MEDIACENTRE_SOURCES: string[] = [
+                'fr.openent.mediacentre.source.GAR',
+                'fr.openent.mediacentre.source.Signet',
+                'fr.openent.mediacentre.source.Moodle',
+                'fr.openent.mediacentre.source.PMB'
+            ];
+            $scope.mediacentreQuery = '';
+            $scope.mediacentreResources = [];
+            $scope.mediacentreLoading = false;
+            $scope.mediacentreSearched = false;
+
+            $scope.openSessionMediacentrePicker = function (): void {
+                $scope.mediacentreQuery = '';
+                $scope.mediacentreResources = [];
+                $scope.mediacentreSearched = false;
+                $scope.display.sessionMediacentrePicker = true;
+            };
+
+            $scope.searchMediacentre = async function (queryArg?: string): Promise<void> {
+                // queryArg = valeur du champ (scope enfant du <lightbox>) ; fallback scope parent.
+                const q: string = ((queryArg != null ? queryArg : $scope.mediacentreQuery) || '').trim();
+                if (!q) { return; }
+                $scope.mediacentreLoading = true;
+                $scope.mediacentreResources = [];
+                $scope.safeApply();
+                const jsondata: string = JSON.stringify({
+                    state: 'PLAIN_TEXT', event: 'search',
+                    sources: MEDIACENTRE_SOURCES, data: {query: q}
+                });
+                try {
+                    const {data}: any = await http.get('/mediacentre/search?jsondata=' + encodeURIComponent(jsondata));
+                    const frames: any[] = Array.isArray(data) ? data : [];
+                    const resources: any[] = [];
+                    frames.forEach((f: any) => {
+                        const list: any[] = (f && f.data && Array.isArray(f.data.resources)) ? f.data.resources : [];
+                        list.forEach((r: any) => resources.push(r));
+                    });
+                    $scope.mediacentreResources = resources;
+                } catch (e) {
+                    $scope.mediacentreResources = [];
+                }
+                $scope.mediacentreSearched = true;
+                $scope.mediacentreLoading = false;
+                $scope.safeApply();
+            };
+
+            $scope.addSessionMediacentreResource = function (res: any): void {
+                if (!$scope.session.resources) { $scope.session.resources = []; }
+                const id: string = (res.id != null) ? String(res.id) : (res.link || res.title);
+                const already: boolean = $scope.session.resources
+                    .some((r: any) => r.type === 'mediacentre' && String(r.id) === String(id));
+                if (id && !already) {
+                    $scope.session.resources.push({
+                        type: 'mediacentre', id: id,
+                        name: res.title || res.link || id,
+                        url: res.link || res.url || '',
+                        image: res.image || ''
+                    });
+                }
+                $scope.display.sessionMediacentrePicker = false;
+                $scope.safeApply();
+            };
+
             $scope.sessionGetter = new Sessions($scope.structure);
             $scope.courses = new Courses($scope.structure);
             $scope.subjects = new Subjects();
@@ -158,6 +320,14 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
                 }
 
                 let sessionSaveResponse: any = await $scope.session.save($scope.placeholder);
+                // Avertit l'enseignant quand une ressource RBS demandée n'a pas pu être réservée
+                // (créneau déjà pris) — jusqu'ici cet échec restait entièrement silencieux
+                // (fire-and-forget côté serveur, seulement loggé). La séance reste enregistrée.
+                const conflictResourceIds: number[] = sessionSaveResponse.data && sessionSaveResponse.data.rbsConflictResourceIds;
+                if (conflictResourceIds && conflictResourceIds.length) {
+                    const names = conflictResourceIds.map((rid: number) => $scope.rbsResourceLabel(rid)).join(', ');
+                    $scope.notifications.push(new Toast(lang.translate('diary.notify.rbs.conflict') + names, 'error'));
+                }
                 if (sessionSaveResponse.succeed) {
                     if (!$scope.session.id && sessionSaveResponse.data.id) {
                         $scope.session.id = sessionSaveResponse.data.id;

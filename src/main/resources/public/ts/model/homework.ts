@@ -51,6 +51,8 @@ export class Homework {
     publishDate ?: any;
     publishedChanged: boolean = false;
     courseId: string = null;
+    // Ressources attachées (espace doc / médiacentre / Éléa) : [{type, id, name, url}]
+    resources: any[] = [];
 
     static HOMEWORK_STATE_TODO: number = 1;
     static HOMEWORK_STATE_DONE: number = 2;
@@ -78,6 +80,7 @@ export class Homework {
             color: this.color,
             is_published: this.isPublished,
             workload: this.workload,
+            resources: this.resources || [],
             detachFromSession: (!this.session || !this.session.id)
         };
     }
@@ -132,6 +135,8 @@ export class Homework {
             session: (data.session && typeof data.session === 'string') ? JSON.parse(data.session) : data.session,
             type: (data.type && typeof data.type === 'string') ? JSON.parse(data.type) : data.type,
             visas: data.visas && data.visas !== '[null]' ? JSON.parse(data.visas) : [],
+            resources: Array.isArray(data.resources) ? data.resources
+                : (data.resources && typeof data.resources === 'string' ? JSON.parse(data.resources) : []),
             title: data.title,
             color: data.color,
             estimatedTime: data.estimatedtime,

@@ -86,6 +86,10 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
 
         if(homework.getString("progress") != null)
             homework.put("progress", new JsonObject(homework.getString("progress")));
+
+        // resources (JSONB) renvoyé en texte -> tableau JSON pour le front
+        if(homework.getString("resources") != null)
+            homework.put("resources", new JsonArray(homework.getString("resources")));
     }
 
     @Override
@@ -99,6 +103,10 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
 
             this.getHomeworks(structureId, startDate, endDate, (teacherId != null) ? null : user.getUserId(),
                     listAudienceId, listTeacherId, subjectId, false, handler);
+        } else {
+            // Profils non gérés (Personnel, Relative, Guest...) : pas de devoirs "own",
+            // mais on doit toujours répondre pour ne pas laisser la requête en attente.
+            handler.handle(new Either.Right<>(new JsonArray()));
         }
     }
 
@@ -386,10 +394,10 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
     public void createHomework(JsonObject homework, UserInfos user, Handler<Either<String, JsonObject>> handler) {
         JsonArray values = new JsonArray();
         String query = "INSERT INTO " + Diary.DIARY_SCHEMA + ".homework (subject_id, exceptional_label, structure_id, teacher_id, audience_id, estimatedTime, " +
-                "color, description, is_published, from_session_id, session_id, due_date, type_id, owner_id " +
+                "color, description, is_published, from_session_id, session_id, due_date, type_id, resources, owner_id " +
                 ", created, modified" + ((homework.getBoolean("is_published") == true)? " , publish_date) " : ")" )+
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
-                "to_date(?,'YYYY-MM-DD'), ?, ?, NOW()," +
+                "to_date(?,'YYYY-MM-DD'), ?, ?::jsonb, ?, NOW()," +
                 " NOW()"+((homework.getBoolean("is_published") == true)? " , NOW()) " : ")" )+" RETURNING id";
 
         values.add(homework.getString("subject_id"));
@@ -430,6 +438,8 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
             values.addNull();
         }
         values.add(homework.getInteger("type_id"));
+        // resources : tableau JSON des ressources attachées (espace doc / médiacentre / Éléa)
+        values.add(homework.getJsonArray("resources") != null ? homework.getJsonArray("resources").encode() : "[]");
         values.add(user.getUserId());
 
         Sql.getInstance().prepared(query, values, SqlResult.validUniqueResultHandler(handler));
@@ -441,7 +451,7 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
         JsonArray values = new JsonArray();
         String query = "UPDATE " + Diary.DIARY_SCHEMA + ".homework " +
                 "SET subject_id = ?, exceptional_label = ?, structure_id = ?, audience_id = ?, estimatedTime = ?," +
-                " color = ?, description = ?, type_id = ?, modified = NOW() " ;
+                " color = ?, description = ?, type_id = ?, resources = ?::jsonb, modified = NOW() " ;
 
         values.add(homework.getString("subject_id"));
         if (homework.getString("exceptional_label") != null) {
@@ -455,6 +465,7 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
         values.add(homework.getString("color"));
         values.add(homework.getString("description"));
         values.add(homework.getInteger("type_id"));
+        values.add(homework.getJsonArray("resources") != null ? homework.getJsonArray("resources").encode() : "[]");
 
         if(homework.getInteger("session_id") != null || Boolean.TRUE.equals(homework.getBoolean("detachFromSession"))) {
             query += ", session_id = ?";
@@ -491,7 +502,7 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
         JsonArray params = new JsonArray(Collections.singletonList(homeworkId));
 
         sql.prepared(query, params, SqlResult.validUniqueResultHandler(event -> {
-            if (event.isRight()) {
+            if (event.isRight() && event.right().getValue().containsKey("sessionid")) {
                 JsonArray statements = new JsonArray();
                 statements.add(getDeleteHomeworkStatement(homeworkId));
 
@@ -505,6 +516,9 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
 
                 sql.transaction(statements, SqlResult.validUniqueResultHandler(handler));
 
+            } else if (event.isRight()) {
+                LOGGER.error("[Diary@HomeworkServiceImpl::deleteHomework] Homework is archived or not found, cannot delete it");
+                handler.handle(new Either.Left<>("homework.archived.cannot.delete"));
             } else {
                 LOGGER.error("[Diary@HomeworkServiceImpl::deleteHomework] An error occurred when removing homework");
                 handler.handle(new Either.Left<>("Error while retrieving data"));
@@ -643,7 +657,17 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
         params.add(structure_id);
         params.add(id);
 
-        Sql.getInstance().prepared(query, params, SqlResult.validUniqueResultHandler(handler));
+        Sql.getInstance().prepared(query, params, SqlResult.validUniqueResultHandler(event -> {
+            if (event.isRight() && event.right().getValue().containsKey("id")) {
+                handler.handle(event);
+            } else if (event.isRight()) {
+                LOGGER.error("[Diary@HomeworkServiceImpl::deleteHomeworkType] Homework type is still in use or is the last remaining type for this structure");
+                handler.handle(new Either.Left<>("homework.type.in.use.or.last.remaining"));
+            } else {
+                LOGGER.error("[Diary@HomeworkServiceImpl::deleteHomeworkType] An error occurred when removing homework type");
+                handler.handle(event);
+            }
+        }));
     }
 
     @Override

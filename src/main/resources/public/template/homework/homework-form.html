@@ -20,11 +20,11 @@
                                     data-ng-change="selectSearchAudience"
                                     data-on-search="searchAudience"
                                     data-options="groupsSearch.groups"
-                                    data-placeholder="printer.audience"
+                                    data-placeholder="diary.search.group"
                                     data-search="groupsSearch.group">
                 </async-autocomplete>
                 <div class="search-input-ul" ng-show="homework.audience">
-                    <span>[[homework.audience.name]]</span>&nbsp;
+                    <span>[[audienceLabel(homework.audience)]]</span>&nbsp;
                     <i class="close" ng-click="removeSearchAudience()"></i>
                 </div>
             </div>
@@ -37,10 +37,15 @@
             </span>
             <!--CLASS/GROUP NAME CARD-->
             <span class="card session-form-card" ng-if="homework.audience.name">
-                [[homework.audience.name]]
+                [[audienceLabel(homework.audience)]]
             </span>
         </div>
     </div>
+    <!-- Consigne : la sélection matière + groupe/classe est obligatoire pour afficher le formulaire -->
+    <div class="message info diary-audience-required" ng-if="!isInsideSessionForm && !homework.opened">
+        <i18n>diary.homework.audience.required.hint</i18n>
+    </div>
+
     <fieldset class="row cursorDefault card remove-margin padding-md border-widht-fieldset"
               ng-disabled="isSelectSubjectAndAudienceHomework">
         <h2 class="cdt-title-not-clickable">
@@ -78,6 +83,7 @@
                     <div class="row margin-bottom-md" ng-show="display.sessionSelect && ((isSessionFuture() && homework.session) || !homework.id || homework.editable)">
                         <label>
                             <input type="radio"
+                                   name="homework-attach-type"
                                    ng-click="attachToSession(); syncWorkloadDay();"
                                    ng-checked="homework.attachedToSession"
                                    value="true">
@@ -85,6 +91,7 @@
                         </label><br>
                         <label>
                             <input type="radio"
+                                   name="homework-attach-type"
                                    ng-click="attachToDate(); syncWorkloadDay();"
                                    ng-checked="homework.attachedToDate"
                                    value="false">
@@ -163,6 +170,25 @@
             <editor editor-resize ng-model="homework.description"></editor>
         </div>
 
+        <!-- Ressources attachées (espace documentaire ; médiacentre / Éléa à venir) -->
+        <div class="row diary-resources">
+            <label class="block"><i18n>diary.resources.label</i18n></label>
+            <ul ng-if="homework.resources.length">
+                <li ng-repeat="res in homework.resources track by $index" class="diary-resource-item">
+                    <i class="diary-resource-icon" ng-class="'resource-' + res.type"></i>
+                    <a ng-href="[[res.url]]" target="_blank" ng-if="res.url">[[res.name]]</a>
+                    <span ng-if="!res.url">[[res.name]]</span>
+                    <i class="close" ng-click="removeHomeworkResource($index)" title="[[lang.translate('utils.delete')]]"></i>
+                </li>
+            </ul>
+            <button type="button" class="add-resource" ng-click="openHomeworkResourcePicker()">
+                <i18n>diary.resources.add.workspace</i18n>
+            </button>
+            <button type="button" class="add-resource" ng-click="openHomeworkMediacentrePicker()">
+                <i18n>diary.resources.add.mediacentre</i18n>
+            </button>
+        </div>
+
         <div class="row" ng-if="isInsideSessionForm">
             <button class="cancel float-none display-inline-block" type="button" ng-click="cancelCreation()">
                 <i18n>utils.cancel</i18n>
@@ -171,5 +197,50 @@
                 <i18n>utils.delete</i18n>
             </button>
         </div>
+
+        <!-- Picker : documents de l'espace documentaire -->
+        <lightbox show="display.homeworkResourcePicker" on-close="display.homeworkResourcePicker = false">
+            <h2><i18n>diary.resources.add.workspace</i18n></h2>
+            <p class="info"><i18n>diary.resources.picker.hint</i18n></p>
+            <media-library ng-if="display.homeworkResourcePicker"
+                           visibility="'protected'" multiple="true"
+                           ng-model="documents" file-format="'any'"
+                           ng-change="addHomeworkWorkspaceResources()"></media-library>
+            <div class="row">
+                <button type="button" class="cancel right-magnet" ng-click="display.homeworkResourcePicker = false">
+                    <i18n>utils.cancel</i18n>
+                </button>
+            </div>
+        </lightbox>
+
+        <!-- Picker : ressources du médiacentre (recherche) -->
+        <lightbox show="display.homeworkMediacentrePicker" on-close="display.homeworkMediacentrePicker = false">
+            <h2><i18n>diary.resources.add.mediacentre</i18n></h2>
+            <div class="row">
+                <input type="text" class="eight" ng-model="mediacentreQuery"
+                       ng-keydown="$event.keyCode === 13 && searchMediacentre(mediacentreQuery)"
+                       i18n-placeholder="diary.resources.mediacentre.search.placeholder"/>
+                <button type="button" ng-click="searchMediacentre(mediacentreQuery)"><i18n>diary.resources.mediacentre.search</i18n></button>
+            </div>
+            <p ng-if="mediacentreLoading"><i18n>diary.resources.mediacentre.loading</i18n></p>
+            <p ng-if="!mediacentreLoading && !mediacentreSearched && mediacentreResources.length === 0" class="info">
+                <i18n>diary.resources.mediacentre.empty</i18n>
+            </p>
+            <p ng-if="!mediacentreLoading && mediacentreSearched && mediacentreResources.length === 0" class="info">
+                <i18n>diary.resources.mediacentre.noresult</i18n>
+            </p>
+            <ul class="mediacentre-results">
+                <li ng-repeat="res in mediacentreResources" class="pointer diary-resource-item"
+                    ng-click="addHomeworkMediacentreResource(res)">
+                    <img ng-if="res.image" ng-src="[[res.image]]" class="mediacentre-thumb" width="40"/>
+                    <span>[[res.title]]</span>
+                </li>
+            </ul>
+            <div class="row">
+                <button type="button" class="cancel right-magnet" ng-click="display.homeworkMediacentrePicker = false">
+                    <i18n>utils.cancel</i18n>
+                </button>
+            </div>
+        </lightbox>
     </div>
 </div>

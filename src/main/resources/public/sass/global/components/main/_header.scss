@@ -4,9 +4,22 @@
   justify-content: space-between;
 
   &-result-search {
-    position: absolute;
-    top: 42px;
+    // Anciennement position:absolute; top:42px -> le chip de l'enseignant
+    // sélectionné flottait PAR-DESSUS le panneau « Mode d'affichage » du dessous
+    // (chevauchement). En flux normal il se place proprement sous le champ.
+    position: static;
     z-index: 1;
+    margin-top: 4px;
+
+    ul.search-input-ul {
+      display: inline-flex;
+      align-items: center;
+      width: auto;
+      padding: 3px 10px;
+      background: $white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
   }
 }
 

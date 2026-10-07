@@ -114,7 +114,7 @@ public class ProgressionController extends ControllerHelper {
     public void updateProgressionFolder(final HttpServerRequest request) {
         String progressionId = request.getParam("progressionId");
         UserUtils.getUserInfos(eb, request, user -> RequestUtils.bodyToJson(request, json -> {
-            progressionService.updateProgressionFolder(json, progressionId, DefaultResponseHandler.defaultResponseHandler(request));
+            progressionService.updateProgressionFolder(json, progressionId, user, DefaultResponseHandler.defaultResponseHandler(request));
         }));
 
     }
