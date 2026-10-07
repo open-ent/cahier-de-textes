@@ -1,4 +1,4 @@
-import {idiom as lang, model, moment, ng} from 'entcore';
+import {Behaviours, idiom as lang, model, moment, ng} from 'entcore';
 import * as html2canvas from 'html2canvas';
 import {Audience, DateUtils, Homeworks, IVisa, Sessions, Visa, Visas} from "../../model";
 import {UPDATE_STRUCTURE_EVENTS} from "../../core/enum/events";
@@ -66,6 +66,13 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
         $scope.visaForm = {
             comment: null
         };
+
+        // Sélection en masse sur tout le résultat du filtre (classe/période), pas seulement la
+        // page affichée — droit distinct du visa unitaire, jamais accordé par défaut.
+        $scope.canMassVisa = model.me.hasWorkflow(Behaviours.applicationsBehaviours.diary.rights.workflow.adminVisaMassManage);
+        $scope.massVisaMode = false;
+        $scope.massVisaLoading = false;
+        $scope.massVisaTotal = 0;
 
         $scope.init = async (): Promise<void> => {
             $scope.notebooks.setStructure($scope.structure.id);
@@ -259,6 +266,43 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             }
             $scope.updateOptionToaster();
             $scope.safeApply();
+        };
+
+        // Récupère TOUT le résultat du filtre courant (classe/période/enseignant...), pas juste la
+        // page affichée : appel sans "page" => DefaultNotebookService omet LIMIT/OFFSET côté SQL.
+        // Remplace l'affichage paginé par la liste complète, tout sélectionné, prêt pour le visa
+        // en masse (POST /visas/mass, droit adminVisaMassManage). updateFilter() restaure la
+        // pagination normale après coup (déjà appelé par submitVisaForm en cas de succès).
+        $scope.selectAllMatchingFilter = async (): Promise<void> => {
+            $scope.massVisaLoading = true;
+            $scope.safeApply();
+
+            prepareNotebookRequest();
+            const unpaginatedRequest: INotebookRequest = {...$scope.notebookRequest};
+            delete unpaginatedRequest.page;
+
+            const fullResponse = await notebookService.getNotebooks(unpaginatedRequest);
+            const allNotebooks: Array<INotebook> = fullResponse.all || [];
+
+            await Promise.all(allNotebooks.map(async (notebook: INotebook) => {
+                notebook.notebookSessionsContents = await notebookService.getNotebooksSessionsContent(getNotebookRequest(notebook));
+                notebook.isSelected = true;
+            }));
+
+            $scope.notebooks.notebookResponse.all = allNotebooks;
+            $scope.notebooks.notebookResponse.page_count = 0;
+            $scope.massVisaTotal = allNotebooks.length;
+            $scope.massVisaMode = true;
+            $scope.massVisaLoading = false;
+            $scope.updateOptionToaster();
+            $scope.safeApply();
+        };
+
+        $scope.cancelMassVisaSelection = async (): Promise<void> => {
+            $scope.massVisaMode = false;
+            $scope.massVisaTotal = 0;
+            $scope.allSessionsSelect = false;
+            await $scope.updateFilter();
         };
 
         $scope.getSelectedNotebooks = (): Array<INotebook> => {
@@ -488,9 +532,11 @@ export let globalAdminCtrl = ng.controller('globalAdminCtrl',
             });
 
             let visas: Visas = createVisasData(mainNotebooks);
-            let {succeed} = await visas.save();
+            let {succeed} = $scope.massVisaMode ? await visas.saveMass() : await visas.save();
 
             if (succeed) {
+                $scope.massVisaMode = false;
+                $scope.massVisaTotal = 0;
                 $scope.updateFilter();
                 $scope.selectOrUnselectAllSessions(false);
                 $scope.visaForm.comment = "";

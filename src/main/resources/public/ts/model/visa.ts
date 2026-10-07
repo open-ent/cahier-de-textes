@@ -214,4 +214,11 @@ export class Visas {
         return ToastUtils.setToastMessage(response, 'visas.created', 'visas.created.error');
     }
 
+    // Réservé à la sélection "tout le résultat du filtre" (droit administrator.visa.mass.manage,
+    // distinct du visa unitaire) — voir globalAdmin.ts#selectAllMatchingFilter.
+    async saveMass() {
+        let response = await http.post('/diary/visas/mass', this.toSendFormat());
+        return ToastUtils.setToastMessage(response, 'visas.created', 'visas.created.error');
+    }
+
 }

@@ -12,6 +12,10 @@ public final class WorkflowUtils {
     public static final String ADMIN_ACCESS = "administrator.read";
     public static final String ADMIN_VISA_MANAGE = "administrator.visa.manage";
     public static final String ADMIN_VISA_READ = "administrator.visa.read";
+    // Droit distinct du visa unitaire (ADMIN_VISA_MANAGE) : jamais accordé par défaut, doit être
+    // attribué explicitement — sans lui, la sélection "tout le résultat du filtre" reste masquée
+    // et POST /visas/mass reste inaccessible même à un titulaire de ADMIN_VISA_MANAGE.
+    public static final String ADMIN_VISA_MASS_MANAGE = "administrator.visa.mass.manage";
 
     public static final String SESSION_READ = "session.read";
     public static final String SESSION_MANAGE = "session.manage";

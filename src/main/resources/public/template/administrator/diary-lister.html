@@ -188,28 +188,41 @@
 </lightbox>
 
 <!-- manage visa form lightbox as personal user -->
-<lightbox workflow="diary.manageVisa" show="visaCreateBox" class="lightbox create-visa" on-close="closeVisaCreateBox()">
-    <section class="body">
-        <form>
-            <div class="cell twelve">
-                <label for="comment">
-
+<!-- Fenêtre autonome (pas la directive <lightbox> partagée d'entcore) : celle-ci ne se rouvrait
+     plus après une première ouverture/fermeture dans la même session de page (bug constaté dans
+     la bibliothèque partagée, hors de ce module — cf mémoire diary-visa-lightbox-ne-se-reouvre-pas).
+     ng-if détruit et recrée entièrement le contenu à chaque ouverture, ce qui évite tout état
+     interne périmé côté directive partagée. -->
+<div class="create-visa" ng-if="visaCreateBox"
+     style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;">
+    <div class="background" ng-click="closeVisaCreateBox()"
+         style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);"></div>
+    <div style="position:relative;max-width:500px;margin:10% auto;background:#ffffff;border-radius:6px;
+                box-shadow:0 4px 24px rgba(0,0,0,0.3);box-sizing:border-box;overflow:hidden;">
+        <form style="margin:0;padding:24px;background:#ffffff;">
+            <div style="margin-bottom:16px;">
+                <label for="comment" style="display:block;font-weight:bold;margin-bottom:8px;">
                     <i18n>sessions.admin.comment</i18n>
                 </label>
-                <textarea class="resize-vertical min-height-textarea" i18n-placeholder="visa.create.commentLabel"
-                          ng-model="visaForm.comment"
-                          id="comment"></textarea>
+                <textarea i18n-placeholder="visa.create.commentLabel"
+                          ng-model="visaForm.comment" id="comment"
+                          style="display:block;width:100%;box-sizing:border-box;min-height:100px;padding:8px;
+                                 border:1px solid #ccc;border-radius:4px;resize:vertical;background:#fff;"></textarea>
             </div>
-            <div class="cell twelve">
-                <button class="right-magnet" ng-class="{'loading': visaForm.loading}"
-                        ng-click="submitVisaForm()">
+            <div style="text-align:right;">
+                <button ng-class="{'loading': visaForm.loading}"
+                        ng-click="submitVisaForm()"
+                        style="background:#2e9d5c;color:#fff;border:none;border-radius:20px;
+                               padding:10px 20px;cursor:pointer;">
                     <i18n>visa.vise.diary</i18n>
                     <span class="loader"></span>
                 </button>
             </div>
         </form>
-    </section>
-</lightbox>
+        <div ng-click="closeVisaCreateBox()"
+             style="position:absolute;top:8px;right:12px;cursor:pointer;"><i class="close-2x"></i></div>
+    </div>
+</div>
 
 <div id="list-diary-to-pdf"></div>
 <div id="canvas-diary-to-pdf"></div>

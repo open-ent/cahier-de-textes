@@ -5,6 +5,7 @@ import {
     Homework,
     HomeworkTypes, ISessionHomeworkBody, ISessionHomeworkService,
     Session, Sessions,
+    SessionModification,
     SessionTypes, Subject, Subjects,
     Toast,
     WorkloadDay
@@ -261,6 +262,43 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
                 return currentPath.includes('view') || $attrs.readOnly;
             }
 
+            // Un ADML propose une modification à un enseignant tiers : le formulaire reste
+            // éditable (pas de readOnly), mais l'enregistrement passe par SessionModification
+            // au lieu d'écrire directement la séance (cf. calendar-view.ts#openSession).
+            $scope.isProposeMode = $location.path().includes('propose');
+            $scope.pendingModifications = [];
+            $scope.refusalReason = '';
+
+            async function loadPendingModifications(): Promise<void> {
+                if (!$scope.session.id || $scope.isProposeMode) {
+                    return;
+                }
+                try {
+                    $scope.pendingModifications = (await SessionModification.listForSession($scope.session.id))
+                        .filter((m: any) => m.status === 1);
+                } catch (e) {
+                    $scope.pendingModifications = [];
+                }
+            }
+
+            $scope.acceptModification = async (modification): Promise<void> => {
+                let response: any = await Object.assign(new SessionModification(), modification).accept();
+                if (response.succeed) {
+                    await $scope.session.sync();
+                    await loadPendingModifications();
+                }
+                $scope.safeApply();
+            };
+
+            $scope.refuseModification = async (modification): Promise<void> => {
+                let response: any = await Object.assign(new SessionModification(), modification).refuse($scope.refusalReason);
+                if (response.succeed) {
+                    $scope.refusalReason = '';
+                    await loadPendingModifications();
+                }
+                $scope.safeApply();
+            };
+
             $scope.cancelCreation = () => {
                 $scope.goTo("/main");
             };
@@ -317,6 +355,17 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
 
                 if ($scope.session.subject && $scope.session.subject.id === EXCEPTIONAL.subjectId) {
                     $scope.session.exceptional_label = $scope.session.getSubjectTitle();
+                }
+
+                if ($scope.isProposeMode) {
+                    // Aucune écriture directe sur la séance ni sur les devoirs : seule la
+                    // proposition est enregistrée, en attente d'acceptation par l'enseignant.
+                    let proposeResponse: any = await SessionModification.propose($scope.session, $scope.session.teacher.id);
+                    if (proposeResponse.succeed) {
+                        $scope.back();
+                    }
+                    $scope.safeApply();
+                    return;
                 }
 
                 let sessionSaveResponse: any = await $scope.session.save($scope.placeholder);
@@ -785,6 +834,7 @@ export let manageSessionCtrl = ng.controller('manageSessionCtrl',
                         $scope.session.id = $routeParams.id;
                         await $scope.session.sync();
                         $scope.session.opened = true;
+                        await loadPendingModifications();
                     } else if ($routeParams.courseId && $routeParams.date) {
                         let course = new Course($scope.structure, $routeParams.courseId);
                         await course.sync($routeParams.date, $routeParams.date);

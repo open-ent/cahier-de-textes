@@ -53,4 +53,24 @@
             </div>
         </div>
     </div>
+
+    <!-- Visa en masse : droit distinct administrator.visa.mass.manage, jamais accordé par défaut -->
+    <div class="flex-row-cdt margin-bottom-md" ng-if="canMassVisa">
+        <div class="flex-col margin-right-md" ng-if="!massVisaMode">
+            <button type="button" ng-disabled="massVisaLoading" ng-click="selectAllMatchingFilter()">
+                <span class="loader" ng-if="massVisaLoading"></span>
+                <i18n>diary.visa.mass.select</i18n>
+            </button>
+        </div>
+        <div class="flex-col margin-right-md" ng-if="massVisaMode">
+            <!-- Compte la sélection réelle (décochable ligne par ligne), pas le total récupéré -->
+            <span class="card">[[getSelectedNotebooks().length]] / [[massVisaTotal]] <i18n>diary.visa.mass.selected.count</i18n></span>
+            <button type="button" ng-disabled="getSelectedNotebooks().length === 0" ng-click="wantCreateVisa()">
+                <i18n>diary.visa.mass.viser</i18n>
+            </button>
+            <button type="button" class="cancel" ng-click="cancelMassVisaSelection()">
+                <i18n>utils.cancel</i18n>
+            </button>
+        </div>
+    </div>
 </div>

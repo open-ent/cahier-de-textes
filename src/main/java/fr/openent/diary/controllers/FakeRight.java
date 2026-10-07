@@ -27,4 +27,10 @@ public class FakeRight extends ControllerHelper {
     public void adminVisaRead(HttpServerRequest request) {
         notImplemented(request);
     }
+
+    @Get("/rights/admin/visa/mass/manage")
+    @SecuredAction(WorkflowUtils.ADMIN_VISA_MASS_MANAGE)
+    public void adminVisaMassManage(HttpServerRequest request) {
+        notImplemented(request);
+    }
 }
