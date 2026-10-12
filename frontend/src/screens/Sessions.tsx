@@ -1,9 +1,10 @@
-import { useEdificeClient } from '@open-ent/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { api } from '../api';
+import { api, defaultSessionType } from '../api';
+import { isStudentOrRelative } from '../context';
+import { useDiaryContext } from '../hooks/useDiaryContext';
 import { formatDate, hhmm, mondayOf, sortKey, stripHtml, ymd } from '../utils';
 
 /**
@@ -13,18 +14,25 @@ import { formatDate, hhmm, mondayOf, sortKey, stripHtml, ymd } from '../utils';
  */
 export function Sessions() {
   const { t } = useTranslation(['diary', 'common']);
-  const { user, init } = useEdificeClient();
+  const ctx = useDiaryContext();
   const qc = useQueryClient();
-  const structureId = user?.structures?.[0] ?? '';
+  const structureId = ctx.structure?.id ?? '';
+  const canManage = ctx.has('manageSession');
+  const canPublish = ctx.has('publishSession');
 
-  const start = '2025-09-01';
-  const end = '2026-07-31';
+  // Période : l'année scolaire de l'établissement (ex. du 01/09/2026 au 04/07/2027) ; à défaut,
+  // l'année scolaire calendaire en cours. Remplace une période figée qui masquait l'année en cours.
+  const schoolYearQuery = useQuery({ queryKey: ['diary', 'schoolyear', structureId], queryFn: () => api.getSchoolYear(structureId), enabled: !!structureId });
+  const fallbackYear = new Date().getMonth() >= 7 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+  const start = schoolYearQuery.data?.start ?? `${fallbackYear}-08-01`;
+  const end = schoolYearQuery.data?.end ?? `${fallbackYear + 1}-07-31`;
 
-  const sessionsQuery = useQuery({ queryKey: ['diary', 'sessions', structureId], queryFn: () => api.getOwnSessions(start, end, structureId), enabled: !!structureId });
+  const sessionsQuery = useQuery({ queryKey: ['diary', 'sessions', structureId, start, end], queryFn: () => (ctx.profile === 'personnel' ? api.getExternalSessions(start, end, ctx.userId) : api.getOwnSessions(start, end, structureId)), enabled: !!structureId && !schoolYearQuery.isLoading });
   const subjectsQuery = useQuery({ queryKey: ['diary', 'subjects', structureId], queryFn: () => api.getSubjects(structureId), enabled: !!structureId });
-  const classesQuery = useQuery({ queryKey: ['diary', 'classes', structureId], queryFn: () => api.getClasses(structureId), enabled: !!structureId });
+  const classesQuery = useQuery({ queryKey: ['diary', 'classes', structureId], queryFn: () => api.getClasses(structureId, isStudentOrRelative(ctx.profile)), enabled: !!structureId });
+  const typesQuery = useQuery({ queryKey: ['diary', 'session-types', structureId], queryFn: () => api.getSessionTypes(structureId), enabled: !!structureId });
 
-  const subjectById = useMemo(() => new Map((subjectsQuery.data ?? []).map((s) => [s.id, s.name])), [subjectsQuery.data]);
+  const subjectById = useMemo(() => new Map((subjectsQuery.data ?? []).filter((s) => !s.exceptional).map((s) => [s.id, s.name])), [subjectsQuery.data]);
   const classById = useMemo(() => new Map((classesQuery.data ?? []).map((c) => [c.id, c.name])), [classesQuery.data]);
 
   const sessions = useMemo(
@@ -41,22 +49,33 @@ export function Sessions() {
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('09:00');
   const [description, setDescription] = useState('');
+  const [typeId, setTypeId] = useState('');
+  const [publish, setPublish] = useState(false);
   const [formError, setFormError] = useState('');
+  const effectiveTypeId = typeId || String(defaultSessionType(typesQuery.data ?? [])?.id ?? '');
+  // Matière : identifiant, ou « exceptional:<intitulé> » pour un intitulé libre.
+  const exceptionalLabel = subjectId.startsWith('exceptional:') ? subjectId.slice('exceptional:'.length) : undefined;
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['diary', 'sessions', structureId] });
   const createMut = useMutation({
     mutationFn: () =>
       api.createSession({
         title: title.trim(),
-        subject_id: subjectId,
+        subject_id: exceptionalLabel !== undefined ? 'exceptional' : subjectId,
+        ...(exceptionalLabel !== undefined ? { exceptional_label: exceptionalLabel } : {}),
         structure_id: structureId,
         audience_id: audienceId,
+        type_id: Number(effectiveTypeId),
         date,
         start_time: `${startTime}:00`,
         end_time: `${endTime}:00`,
         description: description.trim(),
         color: '#2ecc71',
-        course_id: '',
+        // null hors cours de l'emploi du temps : une chaîne vide désactive la réservation de salle.
+        course_id: null,
+        // Comme l'AngularJS : sinon le serveur marque la séance « vide ».
+        is_empty: false,
+        is_published: publish,
       }),
     onSuccess: () => { setTitle(''); setDescription(''); setFormError(''); invalidate(); },
     onError: () => setFormError(t('diary.session.error', { defaultValue: 'La création de la séance a échoué.' })),
@@ -66,15 +85,21 @@ export function Sessions() {
 
   const onCreate = (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !subjectId || !audienceId) {
-      setFormError(t('diary.session.required', { defaultValue: 'Titre, matière et classe sont obligatoires.' }));
+    if (!title.trim() || !subjectId || !audienceId || !effectiveTypeId) {
+      setFormError(t('diary.session.required', { defaultValue: 'Titre, matière, classe et type sont obligatoires.' }));
+      return;
+    }
+    // Au moins 15 minutes entre le début et la fin, comme l'AngularJS (validDate).
+    const minutes = (hm: string) => Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5));
+    if (minutes(endTime) - minutes(startTime) < 15) {
+      setFormError(t('diary.session.duration', { defaultValue: 'La séance doit durer au moins 15 minutes.' }));
       return;
     }
     setFormError('');
     createMut.mutate();
   };
 
-  if (init && !structureId) {
+  if (ctx.ready && !structureId) {
     return (
       <div>
         <h1>{t('diary.title', { defaultValue: 'Cahier de textes' })}</h1>
@@ -87,8 +112,8 @@ export function Sessions() {
     <div>
       <h1 className="mb-16">{t('diary.sessions.title', { defaultValue: 'Séances' })}</h1>
 
-      {/* Création d'une séance */}
-      <section className="card p-16 mb-24">
+      {/* Création d'une séance (droit de gestion des séances) */}
+      {canManage && <section className="card p-16 mb-24">
         <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.session.new', { defaultValue: 'Nouvelle séance' })}</h2>
         <form onSubmit={onCreate} className="d-flex flex-column gap-12">
           <div className="d-flex gap-12 flex-wrap">
@@ -100,7 +125,13 @@ export function Sessions() {
               <label htmlFor="s-subject" className="form-label">{t('diary.subject', { defaultValue: 'Matière' })}</label>
               <select id="s-subject" className="form-select" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
                 <option value="">{t('diary.choose', { defaultValue: 'Choisir…' })}</option>
-                {(subjectsQuery.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {(subjectsQuery.data ?? []).map((s) =>
+                  s.exceptional ? (
+                    <option key={`x-${s.name}`} value={`exceptional:${s.name}`}>{s.name}</option>
+                  ) : (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ),
+                )}
               </select>
             </div>
             <div style={{ minWidth: 200 }}>
@@ -124,6 +155,18 @@ export function Sessions() {
               <label htmlFor="s-end" className="form-label">{t('diary.end', { defaultValue: 'Fin' })}</label>
               <input id="s-end" type="time" className="form-control" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
             </div>
+            <div style={{ minWidth: 160 }}>
+              <label htmlFor="s-type" className="form-label">{t('diary.session.type', { defaultValue: 'Type de séance' })} *</label>
+              <select id="s-type" className="form-select" value={effectiveTypeId} onChange={(e) => setTypeId(e.target.value)}>
+                {(typesQuery.data ?? []).map((ty) => <option key={ty.id} value={ty.id}>{ty.label}</option>)}
+              </select>
+            </div>
+            {canPublish && (
+              <label className="d-flex align-items-center gap-4 m-0">
+                <input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
+                {t('diary.publish', { defaultValue: 'Publier' })}
+              </label>
+            )}
             <div className="flex-grow-1" style={{ minWidth: 220 }}>
               <label htmlFor="s-desc" className="form-label">{t('diary.description', { defaultValue: 'Contenu' })}</label>
               <input id="s-desc" className="form-control" value={description} onChange={(e) => setDescription(e.target.value)} />
@@ -132,7 +175,7 @@ export function Sessions() {
           </div>
           {formError && <div className="alert alert-warning mb-0" role="alert">{formError}</div>}
         </form>
-      </section>
+      </section>}
 
       {/* Liste des séances */}
       <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.sessions.list', { defaultValue: 'Mes séances' })} <span className="text-muted" style={{ fontSize: 14 }}>({sessions.length})</span></h2>
@@ -157,12 +200,14 @@ export function Sessions() {
                 <tr key={s.id}>
                   <td>{formatDate(s.date)}</td>
                   <td>{hhmm(s.start_time)}{s.end_time ? ` – ${hhmm(s.end_time)}` : ''}</td>
-                  <td>{subjectById.get(s.subject_id) ?? s.subject_id}</td>
+                  <td>{s.exceptional_label || subjectById.get(s.subject_id) || s.subject_id}</td>
                   <td>{classById.get(s.audience_id) ?? s.audience_id}</td>
                   <td>{s.title}</td>
                   <td>{stripHtml(s.description)}</td>
                   <td className="text-center">
-                    {s.is_published ? (
+                    {!canPublish ? (
+                      s.is_published ? t('diary.published', { defaultValue: 'Publiée' }) : t('diary.unpublished', { defaultValue: 'Non publiée' })
+                    ) : s.is_published ? (
                       <button type="button" className="btn btn-sm btn-success" disabled={unpublishMut.isPending} onClick={() => unpublishMut.mutate(s.id)}>
                         {t('diary.published', { defaultValue: 'Publiée' })} ✓
                       </button>

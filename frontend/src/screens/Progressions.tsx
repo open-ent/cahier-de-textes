@@ -1,9 +1,9 @@
-import { useEdificeClient } from '@open-ent/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { api } from '../api';
+import { useDiaryContext } from '../hooks/useDiaryContext';
 import { formatDate, stripHtml } from '../utils';
 
 /**
@@ -13,10 +13,10 @@ import { formatDate, stripHtml } from '../utils';
  */
 export function Progressions() {
   const { t } = useTranslation(['diary', 'common']);
-  const { user, init } = useEdificeClient();
+  const ctx = useDiaryContext();
   const qc = useQueryClient();
-  const structureId = user?.structures?.[0] ?? '';
-  const ownerId = user?.userId ?? '';
+  const structureId = ctx.structure?.id ?? '';
+  const ownerId = ctx.userId;
 
   const progressionsQuery = useQuery({ queryKey: ['diary', 'progressions', ownerId], queryFn: () => api.getProgressions(ownerId), enabled: !!ownerId });
   const subjectsQuery = useQuery({ queryKey: ['diary', 'subjects', structureId], queryFn: () => api.getSubjects(structureId), enabled: !!structureId });
@@ -36,11 +36,12 @@ export function Progressions() {
     mutationFn: () =>
       api.createProgression({
         title: title.trim(),
-        description: description.trim() || title.trim(),
+        description: description.trim(),
         owner_id: ownerId,
         subjectLabel: subjectLabel || undefined,
         class: className || undefined,
-        progression_homework: [],
+        // Pluriel : nom lu par le serveur (ProgressionController) ; le singulier était ignoré.
+        progression_homeworks: [],
       }),
     onSuccess: () => { setTitle(''); setDescription(''); setFormError(''); invalidate(); },
     onError: () => setFormError(t('diary.progression.error', { defaultValue: 'La création de la progression a échoué.' })),
@@ -68,7 +69,7 @@ export function Progressions() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], 'fr'));
   }, [progressions]);
 
-  if (init && !structureId) {
+  if (ctx.ready && !structureId) {
     return (
       <div>
         <h1>{t('diary.title', { defaultValue: 'Cahier de textes' })}</h1>

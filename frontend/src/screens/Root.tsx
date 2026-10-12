@@ -1,20 +1,29 @@
-import {
-  AppHeader,
-  Breadcrumb,
-  Layout,
-  LoadingScreen,
-  useEdificeClient,
-} from '@open-ent/react';
+import { AppHeader, Breadcrumb, Layout, LoadingScreen, useEdificeClient } from '@open-ent/react';
+import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
-/** Gabarit commun : bandeau ENT (Layout + AppHeader + fil d'Ariane) + navigation + contenu. */
-export function Root() {
-  const { currentApp, init } = useEdificeClient();
-  if (!init) return <LoadingScreen />;
+import { navTabs } from '../context';
+import { useDiaryContext } from '../hooks/useDiaryContext';
 
-  const tab = (to: string, label: string, end?: boolean) => (
-    <NavLink to={to} end={end} className={({ isActive }) => `btn btn-${isActive ? 'primary' : 'secondary'}`}>{label}</NavLink>
-  );
+const TAB_ROUTE = { homeworks: '/', sessions: '/seances', progressions: '/progressions' } as const;
+
+/**
+ * Gabarit commun : bandeau ENT, choix de l'établissement (si plusieurs, mémorisé comme
+ * l'AngularJS) et onglets selon les droits. Ex. un élève voit « Devoirs » et « Séances », pas
+ * « Progressions ».
+ */
+export function Root() {
+  const { t } = useTranslation(['diary', 'common']);
+  const { currentApp, init } = useEdificeClient();
+  const ctx = useDiaryContext();
+  if (!init || !ctx.ready) return <LoadingScreen />;
+
+  const tabs = navTabs(ctx.has, ctx.profile);
+  const label = {
+    homeworks: t('diary.tab.homeworks', { defaultValue: 'Devoirs' }),
+    sessions: t('diary.tab.sessions', { defaultValue: 'Séances' }),
+    progressions: t('diary.tab.progressions', { defaultValue: 'Progressions' }),
+  };
 
   return (
     <div className="d-flex flex-column vh-100">
@@ -24,12 +33,34 @@ export function Root() {
         </div>
         <div className="flex-grow-1 overflow-auto">
           <div className="container py-16">
-            <nav className="btn-group mb-16" aria-label="Navigation cahier de textes">
-              {tab('/', 'Devoirs', true)}
-              {tab('/seances', 'Séances')}
-              {tab('/progressions', 'Progressions')}
-            </nav>
-            <Outlet />
+            <div className="d-flex align-items-center justify-content-between gap-12 flex-wrap mb-16">
+              <nav className="btn-group" aria-label={t('diary.nav', { defaultValue: 'Navigation cahier de textes' })}>
+                {tabs.map((tab) => (
+                  <NavLink key={tab} to={TAB_ROUTE[tab]} end={tab === 'homeworks'} className={({ isActive }) => `btn btn-${isActive ? 'primary' : 'secondary'}`}>
+                    {label[tab]}
+                  </NavLink>
+                ))}
+              </nav>
+              {ctx.structures.length > 1 && (
+                <div className="d-flex align-items-center gap-8">
+                  <label htmlFor="diary-structure" className="m-0" style={{ fontWeight: 700 }}>
+                    {t('diary.structure', { defaultValue: 'Établissement' })}
+                  </label>
+                  <select id="diary-structure" className="form-select" style={{ width: 'auto' }} value={ctx.structure?.id ?? ''} onChange={(e) => ctx.selectStructure(e.target.value)}>
+                    {ctx.structures.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            {tabs.length === 0 ? (
+              <div className="alert alert-info" role="alert">
+                {t('diary.no.rights', { defaultValue: "Vous n'avez pas accès aux devoirs ni aux séances du cahier de textes." })}
+              </div>
+            ) : (
+              <Outlet />
+            )}
           </div>
         </div>
       </Layout>

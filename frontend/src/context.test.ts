@@ -1,0 +1,24 @@
+import { describe, expect, it } from 'vitest';
+
+import { initialStructureId, isStudentOrRelative, navTabs, profileOf, userStructures, WorkflowKey } from './context';
+
+describe('contexte du cahier de textes', () => {
+  it('profils d\'après le type de session', () => {
+    expect(profileOf('ENSEIGNANT')).toBe('teacher');
+    expect(profileOf('PERSRELELEVE')).toBe('relative');
+    expect(isStudentOrRelative(profileOf('ELEVE'))).toBe(true);
+    expect(isStudentOrRelative(profileOf('PERSEDUCNAT'))).toBe(false);
+  });
+  it('établissement initial : préférence encore valide, sinon le premier', () => {
+    const s = userStructures(['a', 'b'], ['Collège A', 'Lycée B']);
+    expect(initialStructureId(s, 'b')).toBe('b');
+    expect(initialStructureId(s, 'z')).toBe('a');
+    expect(initialStructureId([], undefined)).toBe('');
+  });
+  it('onglets selon les droits : progressions pour l\'enseignant qui gère les séances', () => {
+    const has = (granted: WorkflowKey[]) => (k: WorkflowKey) => granted.includes(k);
+    expect(navTabs(has(['readHomework', 'readSession']), 'student')).toEqual(['homeworks', 'sessions']);
+    expect(navTabs(has(['manageHomework', 'manageSession']), 'teacher')).toEqual(['homeworks', 'sessions', 'progressions']);
+    expect(navTabs(has([]), 'other')).toEqual([]);
+  });
+});

@@ -1,9 +1,10 @@
-import { useEdificeClient } from '@open-ent/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { api } from '../api';
+import { isStudentOrRelative } from '../context';
+import { useDiaryContext } from '../hooks/useDiaryContext';
 import { addDays, formatDate, mondayOf, sortKey, stripHtml, weekLabel, ymd } from '../utils';
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
@@ -11,30 +12,37 @@ const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 /** Écran devoirs : vue calendrier/liste des devoirs + création + gestion des types. */
 export function Homeworks() {
   const { t } = useTranslation(['diary', 'common']);
-  const { user, init } = useEdificeClient();
+  const ctx = useDiaryContext();
   const qc = useQueryClient();
-  const structureId = user?.structures?.[0] ?? '';
+  const structureId = ctx.structure?.id ?? '';
+  const canManage = ctx.has('manageHomework');
+  const canPublish = ctx.has('publishHomework');
+  const canManageTypes = ctx.has('settingTypesManage');
+  const pupilView = isStudentOrRelative(ctx.profile);
 
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
   const [monday, setMonday] = useState(() => mondayOf(new Date()));
 
-  // Fenêtre large autour d'aujourd'hui pour lister les devoirs.
-  const start = ymd(addDays(new Date(), -30));
-  const end = ymd(addDays(new Date(), 180));
+  // Période : l'année scolaire de l'établissement (à défaut, l'année scolaire calendaire en cours),
+  // au lieu d'une fenêtre fixe J-30 / J+180 qui laissait la navigation par semaine sans données.
+  const schoolYearQuery = useQuery({ queryKey: ['diary', 'schoolyear', structureId], queryFn: () => api.getSchoolYear(structureId), enabled: !!structureId });
+  const fallbackYear = new Date().getMonth() >= 7 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+  const start = schoolYearQuery.data?.start ?? `${fallbackYear}-08-01`;
+  const end = schoolYearQuery.data?.end ?? `${fallbackYear + 1}-07-31`;
 
   const subjectsQuery = useQuery({ queryKey: ['diary', 'subjects', structureId], queryFn: () => api.getSubjects(structureId), enabled: !!structureId });
-  const classesQuery = useQuery({ queryKey: ['diary', 'classes', structureId], queryFn: () => api.getClasses(structureId), enabled: !!structureId });
+  const classesQuery = useQuery({ queryKey: ['diary', 'classes', structureId], queryFn: () => api.getClasses(structureId, pupilView), enabled: !!structureId });
   const slotsQuery = useQuery({ queryKey: ['diary', 'timeslots', structureId], queryFn: () => api.getTimeSlots(structureId), enabled: !!structureId });
   const typesQuery = useQuery({ queryKey: ['diary', 'types', structureId], queryFn: () => api.getHomeworkTypes(structureId), enabled: !!structureId });
   const homeworksKey = ['diary', 'homeworks', structureId, start, end];
-  const homeworksQuery = useQuery({ queryKey: homeworksKey, queryFn: () => api.getOwnHomeworks(start, end, structureId), enabled: !!structureId });
+  const homeworksQuery = useQuery({ queryKey: homeworksKey, queryFn: () => (ctx.profile === 'personnel' ? api.getExternalHomeworks(start, end, ctx.userId) : api.getOwnHomeworks(start, end, structureId)), enabled: !!structureId && !schoolYearQuery.isLoading });
   // Séances de la semaine affichée (la grille suit `monday`, pas la fenêtre des devoirs).
   const weekStart = ymd(monday);
   const weekEnd = ymd(addDays(monday, 6));
-  const sessionsQuery = useQuery({ queryKey: ['diary', 'sessions', structureId, weekStart, weekEnd], queryFn: () => api.getOwnSessions(weekStart, weekEnd, structureId), enabled: !!structureId });
+  const sessionsQuery = useQuery({ queryKey: ['diary', 'sessions', structureId, weekStart, weekEnd], queryFn: () => (ctx.profile === 'personnel' ? api.getExternalSessions(weekStart, weekEnd, ctx.userId) : api.getOwnSessions(weekStart, weekEnd, structureId)), enabled: !!structureId });
   const invalidate = () => qc.invalidateQueries({ queryKey: homeworksKey });
 
-  const subjectName = useMemo(() => new Map((subjectsQuery.data ?? []).map((s) => [s.id, s.name])), [subjectsQuery.data]);
+  const subjectName = useMemo(() => new Map((subjectsQuery.data ?? []).filter((s) => !s.exceptional).map((s) => [s.id, s.name])), [subjectsQuery.data]);
   const className = useMemo(() => new Map((classesQuery.data ?? []).map((c) => [c.id, c.name])), [classesQuery.data]);
   const typeLabel = useMemo(() => new Map((typesQuery.data ?? []).map((t2) => [t2.id, t2.label])), [typesQuery.data]);
 
@@ -48,12 +56,15 @@ export function Homeworks() {
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
   const [estimatedTime, setEstimatedTime] = useState(30);
+  const [publish, setPublish] = useState(false);
   const [formError, setFormError] = useState('');
 
   const createMut = useMutation({
     mutationFn: () =>
       api.createHomework({
-        subject_id: subjectId,
+        // Intitulé libre : matière « exceptional » + exceptional_label, comme l'AngularJS.
+        subject_id: subjectId.startsWith('exceptional:') ? 'exceptional' : subjectId,
+        ...(subjectId.startsWith('exceptional:') ? { exceptional_label: subjectId.slice('exceptional:'.length) } : {}),
         structure_id: structureId,
         audience_id: audienceId,
         type_id: Number(typeId),
@@ -61,7 +72,8 @@ export function Homeworks() {
         description: description.trim(),
         color: '#4bafd5',
         estimatedTime,
-        is_published: true,
+        // Brouillon par défaut, comme l'AngularJS ; publier envoie la notification aux élèves.
+        is_published: canPublish && publish,
         session_id: null,
       }),
     onSuccess: () => {
@@ -93,7 +105,8 @@ export function Homeworks() {
     createMut.mutate();
   };
 
-  const homeworks = [...(homeworksQuery.data ?? [])].sort((a, b) => sortKey(a.due_date).localeCompare(sortKey(b.due_date)));
+  // Élève et parent : devoirs non publiés masqués (calendar-view.ts:232-244).
+  const homeworks = [...(homeworksQuery.data ?? [])].filter((h) => !pupilView || h.is_published).sort((a, b) => sortKey(a.due_date).localeCompare(sortKey(b.due_date)));
 
   // Jours ouvrés de la semaine affichée + devoirs indexés par jour (due_date).
   const weekDays = JOURS.map((label, i) => ({ label, date: addDays(monday, i), key: ymd(addDays(monday, i)) }));
@@ -129,7 +142,7 @@ export function Homeworks() {
     return m;
   }, [sessions, slots]);
 
-  if (init && !structureId) {
+  if (ctx.ready && !structureId) {
     return (
       <div>
         <h1>{t('diary.title', { defaultValue: 'Cahier de textes' })}</h1>
@@ -144,15 +157,21 @@ export function Homeworks() {
     <div>
       <h1 className="mb-16">{t('diary.title', { defaultValue: 'Cahier de textes' })}</h1>
 
-      {/* Formulaire de création de devoir */}
-      <form className="card p-16 mb-16" onSubmit={onSubmit}>
+      {/* Formulaire de création de devoir (droit de gestion des devoirs) */}
+      {canManage && <form className="card p-16 mb-16" onSubmit={onSubmit}>
         <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.homework.new', { defaultValue: 'Nouveau devoir' })}</h2>
         <div className="d-flex gap-16 flex-wrap mb-8">
           <div>
             <label htmlFor="hw-subject" className="form-label">{t('diary.subject', { defaultValue: 'Matière' })}</label>
             <select id="hw-subject" className="form-select" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
               <option value="">—</option>
-              {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {subjects.map((s) =>
+                s.exceptional ? (
+                  <option key={`x-${s.name}`} value={`exceptional:${s.name}`}>{s.name}</option>
+                ) : (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ),
+              )}
             </select>
           </div>
           <div>
@@ -182,12 +201,18 @@ export function Homeworks() {
           <label htmlFor="hw-desc" className="form-label">{t('diary.description', { defaultValue: 'Description' })}</label>
           <textarea id="hw-desc" className="form-control" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
+        {canPublish && (
+          <label className="d-flex align-items-center gap-4 mb-8">
+            <input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
+            {t('diary.publish', { defaultValue: 'Publier' })}
+          </label>
+        )}
         {formError && <div className="alert alert-warning" role="alert">{formError}</div>}
         <button type="submit" className="btn btn-primary" disabled={createMut.isPending}>{t('diary.homework.add', { defaultValue: 'Ajouter le devoir' })}</button>
-      </form>
+      </form>}
 
-      {/* Gestion des types de devoir */}
-      <section className="card p-16 mb-16" style={{ maxWidth: 520 }}>
+      {/* Gestion des types de devoir (droit de paramétrage, comme le sniplet AngularJS) */}
+      {canManageTypes && <section className="card p-16 mb-16" style={{ maxWidth: 520 }}>
         <h2 style={{ fontSize: 18 }} className="mb-12">
           {t('diary.types', { defaultValue: 'Types de devoir' })}{' '}
           <span className="text-muted" style={{ fontSize: 14 }}>({types.length})</span>
@@ -220,7 +245,7 @@ export function Homeworks() {
             ))}
           </ul>
         )}
-      </section>
+      </section>}
 
       {/* Barre d'affichage : calendrier / liste + navigation semaine */}
       <div className="d-flex gap-16 flex-wrap align-items-center justify-content-between mb-12">
@@ -260,7 +285,7 @@ export function Homeworks() {
                   <td key={d.key} style={{ verticalAlign: 'top', background: '#fff7ec' }}>
                     {(byDay.get(d.key) ?? []).map((h) => (
                       <div key={h.id} title={stripHtml(h.description)} style={{ background: '#f6a623', color: '#fff', borderRadius: 3, padding: '3px 6px', marginBottom: 4, fontSize: 12 }}>
-                        <div style={{ fontWeight: 600 }}>{subjectName.get(h.subject_id) ?? h.subject_id}</div>
+                        <div style={{ fontWeight: 600 }}>{h.exceptional_label || subjectName.get(h.subject_id) || h.subject_id}</div>
                         <div>{className.get(h.audience_id) ?? ''}</div>
                       </div>
                     ))}
@@ -309,12 +334,12 @@ export function Homeworks() {
                 {homeworks.map((h) => (
                   <tr key={h.id}>
                     <td>{formatDate(h.due_date)}</td>
-                    <td>{subjectName.get(h.subject_id) ?? h.subject_id}</td>
+                    <td>{h.exceptional_label || subjectName.get(h.subject_id) || h.subject_id}</td>
                     <td>{className.get(h.audience_id) ?? h.audience_id}</td>
                     <td>{h.type_id ? typeLabel.get(h.type_id) ?? '' : ''}</td>
                     <td>{stripHtml(h.description)}</td>
                     <td className="text-end">
-                      <button
+                      {canManage && <button
                         type="button"
                         className="btn btn-link p-0 text-danger"
                         onClick={() => {
@@ -322,7 +347,7 @@ export function Homeworks() {
                         }}
                       >
                         {t('diary.delete', { defaultValue: 'Supprimer' })}
-                      </button>
+                      </button>}
                     </td>
                   </tr>
                 ))}

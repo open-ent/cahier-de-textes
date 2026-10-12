@@ -176,6 +176,10 @@ public class SessionServiceImpl extends DBService implements SessionService {
             this.getChildSessions(structureId, startDate, endDate, user.getUserId(), listSubjectId, handler);
         } else if (user.getType().equals("Teacher")) {
             this.getSessions(structureId, startDate, endDate, user.getUserId(), audienceIds, Arrays.asList(user.getUserId()), listSubjectId, false, false, false, false, false, handler);
+        } else {
+            // Profils non gérés (Personnel, Relative, Guest...) : pas de séances "own", mais on doit
+            // toujours répondre (sinon la requête reste sans réponse), comme getOwnHomeworks.
+            handler.handle(new Either.Right<>(new JsonArray()));
         }
     }
 

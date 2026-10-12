@@ -1,0 +1,83 @@
+// Contexte de l'usager pour le cahier de textes : droits, profil, établissement. Fonctions pures,
+// testées dans context.test.ts ; le hook React est dans hooks/useDiaryContext.ts. Même logique que
+// l'IHM AngularJS (public/ts/behaviours.ts, utils/user.utils.ts), pour que les deux accordent les
+// mêmes affichages et les mêmes actions.
+
+/** Droits de workflow du module (clés de la session, cf. public/ts/behaviours.ts). */
+export const WORKFLOW = {
+  view: 'fr.openent.diary.controllers.DiaryController|view',
+  calendarView: 'fr.openent.diary.controllers.DiaryController|workflow1',
+  listView: 'fr.openent.diary.controllers.DiaryController|workflow2',
+  accessOwnData: 'fr.openent.diary.controllers.DiaryController|workflow3',
+  accessChildData: 'fr.openent.diary.controllers.DiaryController|workflow4',
+  accessExternalData: 'fr.openent.diary.controllers.FakeRight|accessExternalData',
+  diarySearch: 'fr.openent.diary.controllers.SearchController|searchUsers',
+  readSession: 'fr.openent.diary.controllers.SessionController|workflow1',
+  manageSession: 'fr.openent.diary.controllers.SessionController|workflow2',
+  publishSession: 'fr.openent.diary.controllers.SessionController|workflow3',
+  readHomework: 'fr.openent.diary.controllers.HomeworkController|workflow1',
+  manageHomework: 'fr.openent.diary.controllers.HomeworkController|workflow2',
+  publishHomework: 'fr.openent.diary.controllers.HomeworkController|workflow3',
+  setProgressHomework: 'fr.openent.diary.controllers.HomeworkController|setProgressHomework',
+  settingTypesRead: 'fr.openent.diary.controllers.HomeworkController|workflow4',
+  settingTypesManage: 'fr.openent.diary.controllers.HomeworkController|workflow5',
+  adminAccess: 'fr.openent.diary.controllers.VisaController|workflow1',
+  manageVisa: 'fr.openent.diary.controllers.VisaController|workflow2',
+  readVisa: 'fr.openent.diary.controllers.FakeRight|adminVisaRead',
+  readNotebookArchives: 'fr.openent.diary.controllers.NotebookArchiveController|readArchives',
+  searchNotebookArchiveTeachers: 'fr.openent.diary.controllers.NotebookArchiveController|searchTeachers',
+} as const;
+
+export type WorkflowKey = keyof typeof WORKFLOW;
+
+/** Profils, d'après `user.type` de la session (cf. public/ts/core/const/user-types.ts). */
+export type Profile = 'teacher' | 'personnel' | 'student' | 'relative' | 'other';
+
+export function profileOf(type: string | undefined): Profile {
+  switch (type) {
+    case 'ENSEIGNANT':
+      return 'teacher';
+    case 'PERSEDUCNAT':
+      return 'personnel';
+    case 'ELEVE':
+      return 'student';
+    case 'PERSRELELEVE':
+      return 'relative';
+    default:
+      return 'other';
+  }
+}
+
+/** Élève ou parent : liste seulement, éléments non publiés masqués (main.ts:249-250). */
+export const isStudentOrRelative = (p: Profile): boolean => p === 'student' || p === 'relative';
+
+export interface StructureRef {
+  id: string;
+  name: string;
+}
+
+/** Établissements de l'usager, dans l'ordre de la session (`structures` / `structureNames`). */
+export function userStructures(ids: string[] | undefined, names: string[] | undefined): StructureRef[] {
+  return (ids ?? []).map((id, i) => ({ id, name: names?.[i] ?? id }));
+}
+
+/**
+ * Établissement affiché à l'ouverture, comme l'AngularJS (user.utils.ts) : le dernier choisi
+ * (préférence `cdt.structure`) s'il fait toujours partie des établissements de l'usager, sinon le
+ * premier. Ex. préférence « Lycée B » retirée du compte → « Collège A ».
+ */
+export function initialStructureId(structures: StructureRef[], preferredId: string | undefined): string {
+  const ids = structures.map((s) => s.id);
+  if (preferredId && ids.includes(preferredId)) return preferredId;
+  return ids[0] ?? '';
+}
+
+/** Onglets de navigation selon les droits, comme le menu latéral de l'AngularJS (side-navbar). */
+export function navTabs(has: (k: WorkflowKey) => boolean, profile: Profile): Array<'homeworks' | 'sessions' | 'progressions'> {
+  const tabs: Array<'homeworks' | 'sessions' | 'progressions'> = [];
+  if (has('readHomework') || has('manageHomework')) tabs.push('homeworks');
+  if (has('readSession') || has('manageSession')) tabs.push('sessions');
+  // Progressions : outil de l'enseignant (gestion des séances), comme progressions/view.
+  if (profile === 'teacher' && has('manageSession')) tabs.push('progressions');
+  return tabs;
+}
