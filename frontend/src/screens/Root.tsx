@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import { navTabs } from '../context';
+import { setLanguage } from '../locale';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 
 const TAB_ROUTE = { homeworks: '/', sessions: '/seances', progressions: '/progressions' } as const;
@@ -14,7 +15,13 @@ const TAB_ROUTE = { homeworks: '/', sessions: '/seances', progressions: '/progre
  */
 export function Root() {
   const { t } = useTranslation(['diary', 'common']);
-  const { currentApp, init } = useEdificeClient();
+  const { currentApp, currentLanguage, init } = useEdificeClient();
+
+  // La locale de formatage des dates suit la langue de la session (cf. locale.ts). Elle est
+  // posée pendant le rendu, et non dans un effet : les écrans sont montés sous ce composant
+  // et formateraient leurs premières dates en français avant que l'effet ne s'exécute.
+  setLanguage(currentLanguage);
+
   const ctx = useDiaryContext();
   if (!init || !ctx.ready) return <LoadingScreen />;
 

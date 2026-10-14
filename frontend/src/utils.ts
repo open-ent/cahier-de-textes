@@ -1,3 +1,5 @@
+import { dateLocale } from './locale';
+
 /** Fonctions pures du module Cahier-de-textes (testables). */
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -28,15 +30,18 @@ export function weekLabel(monday: Date): string {
   return `du ${fr(monday)} au ${fr(friday)}`;
 }
 
-/** Formate une date « YYYY-MM-DD » en « jj/mm/aaaa » (locale FR). */
+/**
+ * Formate une date « YYYY-MM-DD » dans la locale de la session. Les composantes d'une date
+ * ISO sont réassemblées en date **locale** plutôt que parsées, pour qu'un « 2026-09-15 » ne
+ * recule pas d'un jour selon le fuseau.
+ */
 export function formatDate(s?: string): string {
   if (!s) return '';
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
-  if (!m) {
-    const d = new Date(s);
-    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR');
-  }
-  return `${m[3]}/${m[2]}/${m[1]}`;
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s);
+  return Number.isNaN(d.getTime())
+    ? ''
+    : d.toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 /** Clé de tri chronologique d'une date « YYYY-MM-DD » (chaîne comparable). */

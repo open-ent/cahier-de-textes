@@ -5,9 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { isStudentOrRelative } from '../context';
 import { useDiaryContext } from '../hooks/useDiaryContext';
+import { dayLabels } from '../locale';
 import { addDays, formatDate, mondayOf, sortKey, stripHtml, weekLabel, ymd } from '../utils';
-
-const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 
 /** Écran devoirs : vue calendrier/liste des devoirs + création + gestion des types. */
 export function Homeworks() {
@@ -109,7 +108,9 @@ export function Homeworks() {
   const homeworks = [...(homeworksQuery.data ?? [])].filter((h) => !pupilView || h.is_published).sort((a, b) => sortKey(a.due_date).localeCompare(sortKey(b.due_date)));
 
   // Jours ouvrés de la semaine affichée + devoirs indexés par jour (due_date).
-  const weekDays = JOURS.map((label, i) => ({ label, date: addDays(monday, i), key: ymd(addDays(monday, i)) }));
+  // Libellés lus au rendu et non figés à l'import : la locale n'est posée qu'une fois la
+  // session chargée (cf. locale.ts).
+  const weekDays = dayLabels().slice(0, 5).map((label, i) => ({ label, date: addDays(monday, i), key: ymd(addDays(monday, i)) }));
   const byDay = useMemo(() => {
     const m = new Map<string, typeof homeworks>();
     for (const h of homeworks) {
