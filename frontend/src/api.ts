@@ -1,4 +1,6 @@
 // Client REST du module Cahier-de-textes (diary) — session ENT, même origine. XSRF sur mutations.
+import type { CalendarCourse } from './calendarItems';
+import type { CalendarOptions } from './period';
 
 /** Matière ; `exceptional` : intitulé libre de l'établissement (id « exceptional »). */
 export interface Subject {
@@ -46,6 +48,7 @@ export interface Homework {
   is_published?: boolean;
   teacher_id?: string;
   exceptional_label?: string;
+  session_id?: number | null;
 }
 
 /** Corps de POST /diary/homework (cf. jsonschema/homework.json ; session_id peut être null). */
@@ -165,6 +168,46 @@ export const getTimeSlots = async (structureId: string): Promise<TimeSlot[]> =>
     .then((g) => (g?.slots ?? []).map((x) => ({ id: x._id, name: x.name, startHour: x.startHour, endHour: x.endHour })))
     .then((arr) => [...arr].sort((a, b) => (a.startHour || '').localeCompare(b.startHour || '')))
     .catch(() => []);
+
+// ── Cours de l'emploi du temps (vie scolaire) ──────────────────────────────────────
+/**
+ * Cours d'une période (`/viescolaire/common/courses`, course.service.ts) : par enseignant
+ * (`teacherId`) ou par classe / groupe (`group`, nom). Ex. cours de l'enseignant du lundi au vendredi.
+ */
+export const getCourses = async (
+  structureId: string,
+  start: string,
+  end: string,
+  filter: { teacherIds?: string[]; groups?: string[] },
+): Promise<CalendarCourse[]> => {
+  const params = [...(filter.teacherIds ?? []).map((id) => `teacherId=${encodeURIComponent(id)}`), ...(filter.groups ?? []).map((g) => `group=${encodeURIComponent(g)}`)];
+  if (params.length === 0) return [];
+  return json<CalendarCourse[]>(await fetch(`/viescolaire/common/courses/${structureId}/${start}/${end}?${params.join('&')}`, base)).then((a) => a ?? []);
+};
+
+// ── Options d'affichage du calendrier (préférence partagée avec l'AngularJS) ───────────
+/** Préférence `calendarOptions` du socle AngularJS : quarts d'heure, samedi, dimanche. */
+export const getCalendarOptions = async (): Promise<CalendarOptions> => {
+  const res = await fetch('/userbook/preference/calendarOptions', base);
+  if (!res.ok) return {};
+  const body = (await res.json().catch(() => null)) as { preference?: string } | null;
+  if (!body?.preference) return {};
+  try {
+    return (JSON.parse(body.preference) as CalendarOptions) ?? {};
+  } catch {
+    return {};
+  }
+};
+
+export const saveCalendarOptions = async (options: CalendarOptions): Promise<void> => {
+  await fetch('/userbook/preference/calendarOptions', { ...base, method: 'PUT', headers: mutHeaders(), body: JSON.stringify(options) });
+};
+
+/** Publie un devoir (POST /diary/homework/publish/:id). */
+export const publishHomework = async (id: number): Promise<void> => {
+  const res = await fetch(`/diary/homework/publish/${id}`, { ...base, method: 'POST', headers: mutHeaders(), body: '{}' });
+  if (!res.ok) throw new Error(String(res.status));
+};
 
 // ── Devoirs ────────────────────────────────────────────────────────────────────
 export const getOwnHomeworks = async (start: string, end: string, structureId: string): Promise<Homework[]> =>
@@ -316,6 +359,10 @@ export const createProgression = async (body: ProgressionInput): Promise<{ id: n
   json<{ id: number }>(await fetch('/diary/progression/create', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
 
 export const api = {
+  getCourses,
+  getCalendarOptions,
+  saveCalendarOptions,
+  publishHomework,
   getStructurePreference,
   saveStructurePreference,
   getSessionTypes,

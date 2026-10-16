@@ -19,6 +19,9 @@ describe('contexte du cahier de textes', () => {
     const has = (granted: WorkflowKey[]) => (k: WorkflowKey) => granted.includes(k);
     expect(navTabs(has(['readHomework', 'readSession']), 'student')).toEqual(['homeworks', 'sessions']);
     expect(navTabs(has(['manageHomework', 'manageSession']), 'teacher')).toEqual(['homeworks', 'sessions', 'progressions']);
+    expect(navTabs(has(['calendarView', 'readHomework']), 'teacher')).toEqual(['calendar', 'homeworks']);
+    // Élève : jamais le calendrier, même avec le droit (liste seulement, comme l'AngularJS).
+    expect(navTabs(has(['calendarView', 'readHomework']), 'student')).toEqual(['homeworks']);
     expect(navTabs(has([]), 'other')).toEqual([]);
   });
 });
