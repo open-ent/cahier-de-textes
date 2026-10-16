@@ -2,6 +2,7 @@ import { Modal } from '@open-ent/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { api } from '../api';
 import { buildItems, CalendarHomework, CalendarItem, COLORS, dailyHomeworks, hourRange } from '../calendarItems';
@@ -54,6 +55,7 @@ export function Calendar() {
   const personnel = ctx.profile === 'personnel';
   const { options, set: setOptions, ready: optionsReady } = useCalendarOptions();
   const dialogId = useId();
+  const navigate = useNavigate();
 
   const [mode, setMode] = useState<ViewMode>('week');
   const [anchor, setAnchor] = useState(() => initialAnchor(new Date()));
@@ -293,6 +295,16 @@ export function Calendar() {
           </Modal.Body>
           <Modal.Footer>
             <button type="button" className="btn btn-secondary" onClick={() => setSelected(null)}>{t('diary.close', { defaultValue: 'Fermer' })}</button>
+            {selected.kind === 'course' && ctx.has('manageSession') && (
+              <button type="button" className="btn btn-primary" onClick={() => navigate(`/seance/nouvelle?course=${selected.course!._id}&date=${selected.day}`)}>
+                {t('diary.calendar.fill', { defaultValue: 'Renseigner la séance' })}
+              </button>
+            )}
+            {selected.kind === 'session' && (
+              <button type="button" className="btn btn-primary" onClick={() => navigate(`/seance/${selected.session!.id}`)}>
+                {selected.session?.teacher_id === ctx.userId && ctx.has('manageSession') ? t('diary.calendar.edit', { defaultValue: 'Modifier' }) : t('diary.calendar.open', { defaultValue: 'Consulter' })}
+              </button>
+            )}
             {selected.kind === 'session' && !selected.published && ctx.has('publishSession') && selected.session?.teacher_id === ctx.userId && (
               <button type="button" className="btn btn-primary" disabled={publishSession.isPending} onClick={() => publishSession.mutate(selected.session!.id)}>
                 {t('diary.publish', { defaultValue: 'Publier' })}

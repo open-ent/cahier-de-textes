@@ -4,6 +4,7 @@ import { Home } from './screens/Home';
 import { Homeworks } from './screens/Homeworks';
 import { Progressions } from './screens/Progressions';
 import { Root } from './screens/Root';
+import { SessionForm } from './screens/SessionForm';
 import { Sessions } from './screens/Sessions';
 
 export const routes: RouteObject[] = [
@@ -14,6 +15,7 @@ export const routes: RouteObject[] = [
       { index: true, element: <Home /> },
       { path: 'devoirs', element: <Homeworks /> },
       { path: 'seances', element: <Sessions /> },
+      { path: 'seance/:id', element: <SessionForm /> },
       { path: 'progressions', element: <Progressions /> },
     ],
   },

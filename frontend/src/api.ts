@@ -132,6 +132,16 @@ export const getClasses = async (structureId: string, studentOrRelative = false)
       .sort((a, b) => (a.type_groupe ?? 0) - (b.type_groupe ?? 0) || a.name.localeCompare(b.name, 'fr', { numeric: true })),
   );
 
+/** Séance telle que la renvoie GET /diary/session/:id. */
+export interface SessionFull extends Session {
+  type_id?: number | null;
+  course_id?: string | null;
+  rbsResourceIds?: number[];
+  resources?: unknown;
+  one_visa?: boolean;
+  homeworks?: Homework[];
+}
+
 /** Types de séance de l'établissement (GET /diary/session-types). */
 export const getSessionTypes = async (structureId: string): Promise<SessionType[]> =>
   json<SessionType[]>(await fetch(`/diary/session-types?idStructure=${structureId}`, base)).then((a) => (a ?? []).sort((x, y) => x.rank - y.rank));
@@ -283,6 +293,53 @@ export const getExternalSessions = async (start: string, end: string, teacherId:
 export const createSession = async (body: SessionInput): Promise<{ id: number }> =>
   json<{ id: number }>(await fetch('/diary/session', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
 
+/** Séance complète (GET /diary/session/:id), avec ressources, réservations et devoirs. */
+export const getSession = async (id: number): Promise<SessionFull> => json<SessionFull>(await fetch(`/diary/session/${id}`, base));
+
+/**
+ * Modifie une séance (PUT /diary/session/:id). Le serveur REMPLACE tous les champs, ressources et
+ * réservations comprises : envoyer l'objet complet (sessionForm.sessionPayload). Renvoie les
+ * réservations refusées (`rbsConflictResourceIds`), la séance restant enregistrée.
+ */
+export const updateSession = async (id: number, body: Record<string, unknown>): Promise<{ rbsConflictResourceIds?: number[] }> =>
+  json<{ rbsConflictResourceIds?: number[] } | null>(await fetch(`/diary/session/${id}`, { ...base, method: 'PUT', headers: mutHeaders(), body: JSON.stringify(body) })).then((r) => r ?? {});
+
+/** Supprime une séance (DELETE /diary/session/:id) ; refusé par le serveur si un visa est posé. */
+export const deleteSession = async (id: number): Promise<void> => {
+  const res = await fetch(`/diary/session/${id}`, { ...base, method: 'DELETE', headers: xsrfHeader() });
+  if (!res.ok && res.status !== 204) throw new Error(String(res.status));
+};
+
+/** Ressources réservables de l'établissement (salles, matériel), avec leur type en clair. */
+export interface RbsResource {
+  id: number;
+  name: string;
+  typeName: string;
+}
+export const getRbsResources = async (structureId: string): Promise<RbsResource[]> => {
+  const data = await json<{ types?: Array<{ id: number; name: string }>; resources?: Array<{ id: number; name: string; type_id: number }> } | null>(
+    await fetch(`/diary/structures/${structureId}/rbs/resources`, base),
+  ).catch(() => null);
+  const typeName = new Map((data?.types ?? []).map((t) => [t.id, t.name]));
+  return (data?.resources ?? []).map((r) => ({ id: r.id, name: r.name, typeName: typeName.get(r.type_id) ?? '' }));
+};
+
+const MEDIACENTRE_SOURCES = [
+  'fr.openent.mediacentre.source.GAR',
+  'fr.openent.mediacentre.source.Signet',
+  'fr.openent.mediacentre.source.Moodle',
+  'fr.openent.mediacentre.source.PMB',
+];
+
+/** Recherche plein texte dans le médiacentre ; une trame par source (cf. parseMediacentreFrames). */
+export const searchMediacentre = async (query: string): Promise<unknown[]> => {
+  const jsondata = JSON.stringify({ state: 'PLAIN_TEXT', event: 'search', sources: MEDIACENTRE_SOURCES, data: { query } });
+  const res = await fetch(`/mediacentre/search?jsondata=${encodeURIComponent(jsondata)}`, base);
+  if (!res.ok) throw new Error(String(res.status));
+  const body = (await res.json()) as unknown[] | null;
+  return Array.isArray(body) ? body : [];
+};
+
 /** Publie une séance (visible des élèves) — POST /diary/session/publish/:id. */
 export const publishSession = async (id: number): Promise<void> => {
   const res = await fetch(`/diary/session/publish/${id}`, { ...base, method: 'POST', headers: mutHeaders(), body: '{}' });
@@ -359,6 +416,11 @@ export const createProgression = async (body: ProgressionInput): Promise<{ id: n
   json<{ id: number }>(await fetch('/diary/progression/create', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
 
 export const api = {
+  getSession,
+  updateSession,
+  deleteSession,
+  getRbsResources,
+  searchMediacentre,
   getCourses,
   getCalendarOptions,
   saveCalendarOptions,
