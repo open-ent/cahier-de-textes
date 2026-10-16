@@ -8,7 +8,8 @@
  *    (≤ 4), rouge (> 4).
  * Ex. « Exercices 1 à 5 », type « Exercice(s) », 30 min, pour la séance du jeudi suivant.
  */
-import { htmlToXhtml } from './sessionForm';
+import type { SessionResource } from './resources';
+import { EXCEPTIONAL, exceptionalLabelOf, htmlToXhtml, subjectKeyOf } from './sessionForm';
 
 export const HOMEWORK_COLOR = '#ff9700';
 
@@ -123,3 +124,132 @@ export function futureSessions<T extends { id: number; date: string; audience_id
     .filter((s) => s.id !== current.id && s.audience_id === current.audienceId && s.date.slice(0, 10) > current.date)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.start_time ?? '').localeCompare(b.start_time ?? ''));
 }
+
+// ── Page « devoir » (hors séance) ─────────────────────────────────────────────────────────────────
+
+/**
+ * Devoir créé ou modifié seul, comme l'AngularJS (homework/homework-form.html) : matière, classe,
+ * type, échéance (séance future ou date), durée, publication, description et documents. Le PUT
+ * serveur REMPLACE tout, ressources comprises : toujours renvoyer l'objet complet.
+ * Ex. « Apprendre la leçon 4 », classe 401, pour le 12/11, 20 min.
+ */
+export interface HomeworkPageDraft {
+  id?: number;
+  subjectKey: string;
+  audienceId: string;
+  typeId: string;
+  dueMode: 'session' | 'date';
+  dueSessionId: string;
+  dueDate: string;
+  estimatedTime: number;
+  description: string;
+  published: boolean;
+  resources: SessionResource[];
+  teacherId?: string;
+  /** Séance dans laquelle le devoir a été donné, conservée à la modification. */
+  fromSessionId?: number | null;
+  /** « fait » / « à faire » pour l'élève. */
+  done?: boolean;
+}
+
+export type HomeworkPageError = 'subject' | 'audience' | 'type' | 'due' | 'time';
+
+export const emptyHomeworkPage = (): HomeworkPageDraft => ({
+  subjectKey: '',
+  audienceId: '',
+  typeId: '',
+  dueMode: 'date',
+  dueSessionId: '',
+  dueDate: '',
+  estimatedTime: 0,
+  description: '',
+  published: false,
+  resources: [],
+});
+
+export function validateHomeworkPage(d: HomeworkPageDraft): HomeworkPageError[] {
+  const errs: HomeworkPageError[] = [];
+  if (!d.subjectKey) errs.push('subject');
+  if (!d.audienceId) errs.push('audience');
+  if (!d.typeId) errs.push('type');
+  if (d.dueMode === 'session' ? !d.dueSessionId : !d.dueDate) errs.push('due');
+  if (!(d.estimatedTime >= 0)) errs.push('time');
+  return errs;
+}
+
+/** Corps de POST / PUT /diary/homework, comme Homework.toSendFormat. */
+export function homeworkPagePayload(d: HomeworkPageDraft, ctx: { structureId: string; teacherId: string; dueSessionDate?: string }) {
+  const label = exceptionalLabelOf(d.subjectKey);
+  const session = d.dueMode === 'session' && d.dueSessionId ? Number(d.dueSessionId) : null;
+  return {
+    subject_id: label !== undefined ? EXCEPTIONAL : d.subjectKey,
+    ...(label !== undefined ? { exceptional_label: label } : {}),
+    type_id: Number(d.typeId),
+    teacher_id: ctx.teacherId,
+    structure_id: ctx.structureId,
+    session_id: session,
+    ...(d.fromSessionId != null ? { from_session_id: d.fromSessionId } : {}),
+    audience_id: d.audienceId,
+    estimatedTime: d.estimatedTime || 0,
+    due_date: session ? ctx.dueSessionDate ?? d.dueDate : d.dueDate,
+    description: htmlToXhtml(d.description),
+    color: HOMEWORK_COLOR,
+    is_published: d.published,
+    resources: d.resources,
+    detachFromSession: session === null,
+  };
+}
+
+/** Devoir serveur (GET /diary/homework/:id) → brouillon. `estimatedtime` est en minuscules côté SQL. */
+export function draftFromHomeworkPage(h: {
+  id: number;
+  subject_id?: string;
+  exceptional_label?: string | null;
+  audience_id?: string;
+  type_id?: number | null;
+  session_id?: number | null;
+  from_session_id?: number | null;
+  due_date?: string;
+  estimatedTime?: number;
+  estimatedtime?: number;
+  description?: string;
+  is_published?: boolean;
+  resources?: unknown;
+  teacher_id?: string;
+  progress?: { state_label?: string } | null;
+}): HomeworkPageDraft {
+  let resources: SessionResource[] = [];
+  if (Array.isArray(h.resources)) resources = h.resources as SessionResource[];
+  else if (typeof h.resources === 'string') {
+    try {
+      resources = JSON.parse(h.resources) as SessionResource[];
+    } catch {
+      resources = [];
+    }
+  }
+  return {
+    id: h.id,
+    subjectKey: subjectKeyOf(h.subject_id ?? '', h.exceptional_label),
+    audienceId: h.audience_id ?? '',
+    typeId: h.type_id != null ? String(h.type_id) : '',
+    dueMode: h.session_id != null ? 'session' : 'date',
+    dueSessionId: h.session_id != null ? String(h.session_id) : '',
+    dueDate: (h.due_date ?? '').slice(0, 10),
+    estimatedTime: Number(h.estimatedTime ?? h.estimatedtime ?? 0),
+    description: h.description ?? '',
+    published: !!h.is_published,
+    resources,
+    teacherId: h.teacher_id,
+    fromSessionId: h.from_session_id ?? null,
+    done: h.progress?.state_label === 'done',
+  };
+}
+
+/** Modifier : droit de gestion des devoirs ET propriétaire (filtre HomeworkManage). */
+export const canEditHomework = (d: HomeworkPageDraft, userId: string, canManage: boolean): boolean => canManage && (!d.id || d.teacherId === userId);
+
+/** Un devoir dont l'échéance est passée n'est plus modifiable (AngularJS `editable`). */
+export const isPastDue = (d: HomeworkPageDraft, today: string): boolean => !!d.id && !!d.dueDate && d.dueDate < today;
+
+/** État envoyé à /diary/homework/progress/:id/:state. */
+export const progressState = (done: boolean): 'done' | 'todo' => (done ? 'done' : 'todo');

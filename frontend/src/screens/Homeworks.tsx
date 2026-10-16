@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FormEvent, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 import { api } from '../api';
 import { isStudentOrRelative } from '../context';
@@ -19,7 +20,7 @@ export function Homeworks() {
   const canManageTypes = ctx.has('settingTypesManage');
   const pupilView = isStudentOrRelative(ctx.profile);
 
-  const [view, setView] = useState<'calendar' | 'list'>('calendar');
+  const [view, setView] = useState<'calendar' | 'list'>(() => (pupilView ? 'list' : 'calendar'));
   const [monday, setMonday] = useState(() => mondayOf(new Date()));
 
   // Période : l'année scolaire de l'établissement (à défaut, l'année scolaire calendaire en cours),
@@ -49,39 +50,14 @@ export function Homeworks() {
   const classes = classesQuery.data ?? [];
   const types = typesQuery.data ?? [];
 
-  const [subjectId, setSubjectId] = useState('');
-  const [audienceId, setAudienceId] = useState('');
-  const [typeId, setTypeId] = useState<number | ''>('');
-  const [dueDate, setDueDate] = useState('');
-  const [description, setDescription] = useState('');
-  const [estimatedTime, setEstimatedTime] = useState(30);
-  const [publish, setPublish] = useState(false);
-  const [formError, setFormError] = useState('');
-
-  const createMut = useMutation({
-    mutationFn: () =>
-      api.createHomework({
-        // Intitulé libre : matière « exceptional » + exceptional_label, comme l'AngularJS.
-        subject_id: subjectId.startsWith('exceptional:') ? 'exceptional' : subjectId,
-        ...(subjectId.startsWith('exceptional:') ? { exceptional_label: subjectId.slice('exceptional:'.length) } : {}),
-        structure_id: structureId,
-        audience_id: audienceId,
-        type_id: Number(typeId),
-        due_date: dueDate,
-        description: description.trim(),
-        color: '#4bafd5',
-        estimatedTime,
-        // Brouillon par défaut, comme l'AngularJS ; publier envoie la notification aux élèves.
-        is_published: canPublish && publish,
-        session_id: null,
-      }),
-    onSuccess: () => {
-      setDescription('');
-      setDueDate('');
-      setFormError('');
-      invalidate();
-    },
-    onError: () => setFormError(t('diary.homework.error', { defaultValue: "L'enregistrement a échoué." })),
+  // Élève : marque un devoir « fait » ou « à faire » depuis la liste. La case change tout de suite
+  // (valeur locale), puis la liste est relue ; en cas d'échec on revient à l'état du serveur.
+  const [doneLocal, setDoneLocal] = useState<Record<number, boolean>>({});
+  const progressMut = useMutation({
+    mutationFn: ({ id, done }: { id: number; done: boolean }) => api.setHomeworkProgress(id, done ? 'done' : 'todo'),
+    onMutate: ({ id, done }) => setDoneLocal((m) => ({ ...m, [id]: done })),
+    onError: (_e, { id }) => setDoneLocal((m) => { const n = { ...m }; delete n[id]; return n; }),
+    onSettled: () => invalidate(),
   });
   const deleteMut = useMutation({ mutationFn: (id: number) => api.deleteHomework(id), onSuccess: invalidate });
 
@@ -93,16 +69,6 @@ export function Homeworks() {
     onSuccess: () => { setNewType(''); invalidateTypes(); },
   });
   const deleteTypeMut = useMutation({ mutationFn: (id: number) => api.deleteHomeworkType(id, structureId), onSuccess: invalidateTypes });
-
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!subjectId || !audienceId || !typeId || !dueDate || !description.trim()) {
-      setFormError(t('diary.homework.incomplete', { defaultValue: 'Renseignez la matière, la classe, le type, la date et la description.' }));
-      return;
-    }
-    setFormError('');
-    createMut.mutate();
-  };
 
   // Élève et parent : devoirs non publiés masqués (calendar-view.ts:232-244).
   const homeworks = [...(homeworksQuery.data ?? [])].filter((h) => !pupilView || h.is_published).sort((a, b) => sortKey(a.due_date).localeCompare(sortKey(b.due_date)));
@@ -158,59 +124,12 @@ export function Homeworks() {
     <div>
       <h1 className="mb-16">{t('diary.title', { defaultValue: 'Cahier de textes' })}</h1>
 
-      {/* Formulaire de création de devoir (droit de gestion des devoirs) */}
-      {canManage && <form className="card p-16 mb-16" onSubmit={onSubmit}>
-        <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.homework.new', { defaultValue: 'Nouveau devoir' })}</h2>
-        <div className="d-flex gap-16 flex-wrap mb-8">
-          <div>
-            <label htmlFor="hw-subject" className="form-label">{t('diary.subject', { defaultValue: 'Matière' })}</label>
-            <select id="hw-subject" className="form-select" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
-              <option value="">—</option>
-              {subjects.map((s) =>
-                s.exceptional ? (
-                  <option key={`x-${s.name}`} value={`exceptional:${s.name}`}>{s.name}</option>
-                ) : (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ),
-              )}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="hw-class" className="form-label">{t('diary.class', { defaultValue: 'Classe' })}</label>
-            <select id="hw-class" className="form-select" value={audienceId} onChange={(e) => setAudienceId(e.target.value)}>
-              <option value="">—</option>
-              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="hw-type" className="form-label">{t('diary.type', { defaultValue: 'Type' })}</label>
-            <select id="hw-type" className="form-select" value={typeId} onChange={(e) => setTypeId(e.target.value ? Number(e.target.value) : '')}>
-              <option value="">—</option>
-              {types.map((ty) => <option key={ty.id} value={ty.id}>{ty.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="hw-due" className="form-label">{t('diary.due', { defaultValue: 'À rendre le' })}</label>
-            <input id="hw-due" type="date" className="form-control" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          </div>
-          <div style={{ maxWidth: 130 }}>
-            <label htmlFor="hw-time" className="form-label">{t('diary.esttime', { defaultValue: 'Durée (min)' })}</label>
-            <input id="hw-time" type="number" min={0} className="form-control" value={estimatedTime} onChange={(e) => setEstimatedTime(Math.max(0, Number(e.target.value) || 0))} />
-          </div>
-        </div>
-        <div className="mb-8">
-          <label htmlFor="hw-desc" className="form-label">{t('diary.description', { defaultValue: 'Description' })}</label>
-          <textarea id="hw-desc" className="form-control" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        {canPublish && (
-          <label className="d-flex align-items-center gap-4 mb-8">
-            <input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
-            {t('diary.publish', { defaultValue: 'Publier' })}
-          </label>
-        )}
-        {formError && <div className="alert alert-warning" role="alert">{formError}</div>}
-        <button type="submit" className="btn btn-primary" disabled={createMut.isPending}>{t('diary.homework.add', { defaultValue: 'Ajouter le devoir' })}</button>
-      </form>}
+      {/* Création : page complète (droit de gestion des devoirs) */}
+      {canManage && (
+        <p>
+          <Link to="/devoir/nouveau" className="btn btn-primary">{t('diary.homework.new', { defaultValue: 'Nouveau devoir' })}</Link>
+        </p>
+      )}
 
       {/* Gestion des types de devoir (droit de paramétrage, comme le sniplet AngularJS) */}
       {canManageTypes && <section className="card p-16 mb-16" style={{ maxWidth: 520 }}>
@@ -328,6 +247,7 @@ export function Homeworks() {
                   <th>{t('diary.class', { defaultValue: 'Classe' })}</th>
                   <th>{t('diary.type', { defaultValue: 'Type' })}</th>
                   <th>{t('diary.description', { defaultValue: 'Description' })}</th>
+                  {ctx.has('setProgressHomework') && ctx.profile === 'student' && <th>{t('diary.homework.done', { defaultValue: 'Fait' })}</th>}
                   <th />
                 </tr>
               </thead>
@@ -338,7 +258,19 @@ export function Homeworks() {
                     <td>{h.exceptional_label || subjectName.get(h.subject_id) || h.subject_id}</td>
                     <td>{className.get(h.audience_id) ?? h.audience_id}</td>
                     <td>{h.type_id ? typeLabel.get(h.type_id) ?? '' : ''}</td>
-                    <td>{stripHtml(h.description)}</td>
+                    <td>
+                      <Link to={`/devoir/${h.id}`}>{stripHtml(h.description) || t('diary.homework', { defaultValue: 'Devoir' })}</Link>
+                    </td>
+                    {ctx.has('setProgressHomework') && ctx.profile === 'student' && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`${t('diary.homework.done', { defaultValue: 'Fait' })} : ${stripHtml(h.description)}`}
+                          checked={doneLocal[h.id] ?? h.progress?.state_label === 'done'}
+                          onChange={(e) => progressMut.mutate({ id: h.id, done: e.target.checked })}
+                        />
+                      </td>
+                    )}
                     <td className="text-end">
                       {canManage && <button
                         type="button"

@@ -429,5 +429,16 @@
   "diary.homework.error.description": "Enter the homework description.",
   "diary.status": "Status",
   "diary.description": "Content",
-  "diary.due": "Due on"
+  "diary.due": "Due on",
+  "diary.homework.new": "New homework",
+  "diary.homework.edit": "Edit homework",
+  "diary.homework.view": "View homework",
+  "diary.homework.add": "Add homework",
+  "diary.homework.error": "Saving failed.",
+  "diary.homework.delete.error": "The homework could not be deleted.",
+  "diary.homework.confirm.delete": "Delete this homework?",
+  "diary.homework.past": "The due date has passed: this homework can no longer be edited.",
+  "diary.homework.done": "Done",
+  "diary.homework.todo": "To do",
+  "diary.homework": "Homework"
 }

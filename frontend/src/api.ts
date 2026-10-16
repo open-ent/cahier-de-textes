@@ -49,7 +49,14 @@ export interface Homework {
   teacher_id?: string;
   exceptional_label?: string;
   session_id?: number | null;
+  from_session_id?: number | null;
+  estimatedtime?: number;
+  resources?: unknown;
+  progress?: { state_label?: string } | null;
 }
+
+/** Devoir tel que le renvoie GET /diary/homework/:id (durée en minuscules côté SQL). */
+export type HomeworkFull = Homework;
 
 /** Corps de POST /diary/homework (cf. jsonschema/homework.json ; session_id peut être null). */
 export interface HomeworkInput {
@@ -252,6 +259,19 @@ export const updateHomework = async (id: number, publicationStateChanged: boolea
 export const getWorkload = async (structureId: string, audienceId: string, dueDate: string, published: boolean): Promise<Array<{ day: string; count: number | string; total: number | string }>> =>
   json<Array<{ day: string; count: number | string; total: number | string }>>(await fetch(`/diary/workload/${structureId}/${audienceId}/${dueDate}/${published}`, base)).then((a) => a ?? []).catch(() => []);
 
+/**
+ * Devoir complet. Pour un élève, `/diary/homework/:id/:studentId` : seule cette route renvoie son
+ * état « fait » (`progress`), comme l'AngularJS (homework.ts).
+ */
+export const getHomework = async (id: number, studentId?: string): Promise<HomeworkFull> =>
+  json<HomeworkFull>(await fetch(studentId ? `/diary/homework/${id}/${studentId}` : `/diary/homework/${id}`, base));
+
+/** Marque un devoir « fait » ou « à faire » (POST /diary/homework/progress/:id/done|todo), côté élève. */
+export const setHomeworkProgress = async (id: number, state: 'done' | 'todo'): Promise<void> => {
+  const res = await fetch(`/diary/homework/progress/${id}/${state}`, { ...base, method: 'POST', headers: mutHeaders(), body: '{}' });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
 export const deleteHomework = async (id: number): Promise<void> => {
   const res = await fetch(`/diary/homework/${id}`, { ...base, method: 'DELETE', headers: xsrfHeader() });
   if (!res.ok && res.status !== 204) throw new Error(String(res.status));
@@ -435,6 +455,8 @@ export const createProgression = async (body: ProgressionInput): Promise<{ id: n
   json<{ id: number }>(await fetch('/diary/progression/create', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
 
 export const api = {
+  getHomework,
+  setHomeworkProgress,
   saveHomework,
   updateHomework,
   getWorkload,

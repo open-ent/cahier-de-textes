@@ -451,5 +451,16 @@
   "diary.homework.error.description": "Renseignez la description du devoir.",
   "diary.status": "Statut",
   "diary.description": "Contenu",
-  "diary.due": "À rendre le"
+  "diary.due": "À rendre le",
+  "diary.homework.new": "Nouveau devoir",
+  "diary.homework.edit": "Modifier le devoir",
+  "diary.homework.view": "Consulter le devoir",
+  "diary.homework.add": "Ajouter le devoir",
+  "diary.homework.error": "L'enregistrement a échoué.",
+  "diary.homework.delete.error": "Le devoir n'a pas pu être supprimé.",
+  "diary.homework.confirm.delete": "Supprimer ce devoir ?",
+  "diary.homework.past": "L'échéance de ce devoir est passée : il n'est plus modifiable.",
+  "diary.homework.done": "Fait",
+  "diary.homework.todo": "À faire",
+  "diary.homework": "Devoir"
 }

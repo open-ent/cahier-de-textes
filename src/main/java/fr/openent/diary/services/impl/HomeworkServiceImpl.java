@@ -494,24 +494,26 @@ public class HomeworkServiceImpl extends SqlCrudService implements HomeworkServi
 
     @Override
     public void deleteHomework(long homeworkId, Handler<Either<String, JsonObject>> handler) {
-        String query = "SELECT s.id AS sessionId, s.is_empty AS isEmpty FROM " + Diary.DIARY_SCHEMA +
+        // LEFT JOIN : un devoir à rendre à une date n'a pas de séance rattachée (session_id nul) et
+        // doit pouvoir être supprimé. Avec un INNER JOIN, il restait impossible à supprimer
+        // (« homework.archived.cannot.delete »), depuis l'AngularJS comme depuis la React.
+        String query = "SELECT h.id AS homeworkId, s.id AS sessionId, s.is_empty AS isEmpty FROM " + Diary.DIARY_SCHEMA +
                 ".homework h " +
-                "INNER JOIN "+ Diary.DIARY_SCHEMA + ".session s ON h.session_id = s.id WHERE h.id = ?" +
-                " AND h.archive_school_year IS NULL AND s.archive_school_year IS NULL";
+                "LEFT JOIN "+ Diary.DIARY_SCHEMA + ".session s ON h.session_id = s.id WHERE h.id = ?" +
+                " AND h.archive_school_year IS NULL AND (s.id IS NULL OR s.archive_school_year IS NULL)";
 
         JsonArray params = new JsonArray(Collections.singletonList(homeworkId));
 
         sql.prepared(query, params, SqlResult.validUniqueResultHandler(event -> {
-            if (event.isRight() && event.right().getValue().containsKey("sessionid")) {
+            if (event.isRight() && event.right().getValue().containsKey("homeworkid")) {
                 JsonArray statements = new JsonArray();
                 statements.add(getDeleteHomeworkStatement(homeworkId));
 
-                if (!event.right().getValue().isEmpty()) {
-                    final boolean isEmpty = event.right().getValue().getBoolean("isempty");
-                    if (isEmpty) {
-                        final long sessionId = event.right().getValue().getLong("sessionid");
-                        statements.add(getDeleteEmptySessionStatement(sessionId));
-                    }
+                // La séance d'échéance n'est supprimée que s'il y en a une et qu'elle est vide.
+                final Long sessionId = event.right().getValue().getLong("sessionid");
+                final Boolean isEmpty = event.right().getValue().getBoolean("isempty");
+                if (sessionId != null && Boolean.TRUE.equals(isEmpty)) {
+                    statements.add(getDeleteEmptySessionStatement(sessionId));
                 }
 
                 sql.transaction(statements, SqlResult.validUniqueResultHandler(handler));
