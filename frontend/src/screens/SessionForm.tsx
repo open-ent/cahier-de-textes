@@ -15,6 +15,7 @@ import {
   draftFromCourse,
   draftFromSession,
   emptyDraft,
+  exceptionalLabelOf,
   isExceptional,
   SessionDraft,
   SessionError,
@@ -22,7 +23,9 @@ import {
   TITLE_MAX,
   validateSession,
 } from '../sessionForm';
+import { draftFromHomework, futureSessions as pickFutureSessions, HomeworkDraft, homeworkPayload } from '../homeworkForm';
 import { MediacentrePicker } from './MediacentrePicker';
+import { SessionHomeworks } from './SessionHomeworks';
 
 /** Une chaîne VIDE fait planter l'éditeur du socle (erreur React #321) : paragraphe vide à la place. */
 const editorContent = (html: string) => (html && html.trim() ? html : '<p></p>');
@@ -59,6 +62,7 @@ export function SessionForm() {
   const [mediacentre, setMediacentre] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [rbsPick, setRbsPick] = useState('');
+  const [homeworks, setHomeworks] = useState<HomeworkDraft[]>([]);
 
   const sessionQuery = useQuery({ queryKey: ['diary', 'session', sessionId], queryFn: () => api.getSession(sessionId!), enabled: !!sessionId });
   const subjectsQuery = useQuery({ queryKey: ['diary', 'subjects', structureId], queryFn: () => api.getSubjects(structureId), enabled: !!structureId });
@@ -70,6 +74,20 @@ export function SessionForm() {
     queryFn: async () => (await api.getCourses(structureId, dateParam!, dateParam!, { teacherIds: [ctx.userId] })).find((c) => c._id === courseParam) ?? null,
     enabled: !!structureId && !!courseParam && !!dateParam && !!ctx.userId,
   });
+  const homeworkTypesQuery = useQuery({ queryKey: ['diary', 'types', structureId], queryFn: () => api.getHomeworkTypes(structureId), enabled: !!structureId });
+  // Séances de la classe dans les 28 jours suivants : échéances possibles d'un devoir.
+  const horizon = draft.date ? new Date(`${draft.date}T12:00:00`) : null;
+  const horizonEnd = horizon ? new Date(horizon.getTime() + 28 * 86_400_000) : null;
+  const futureQuery = useQuery({
+    queryKey: ['diary', 'future-sessions', structureId, draft.audienceId, draft.date],
+    queryFn: () => {
+      const end = `${horizonEnd!.getFullYear()}-${String(horizonEnd!.getMonth() + 1).padStart(2, '0')}-${String(horizonEnd!.getDate()).padStart(2, '0')}`;
+      // Un personnel lit par la route « external » (la route « own » ne lui renvoie rien), comme l'AngularJS.
+      return ctx.profile === 'personnel' ? api.getExternalSessions(draft.date, end, ctx.userId) : api.getOwnSessions(draft.date, end, structureId);
+    },
+    enabled: !!structureId && !!draft.date && !!draft.audienceId,
+  });
+  const futureSessions = pickFutureSessions(futureQuery.data ?? [], { id: sessionId, date: draft.date, audienceId: draft.audienceId });
   const subjects = subjectsQuery.data ?? [];
   const classes = classesQuery.data ?? [];
   const types = typesQuery.data ?? [];
@@ -81,6 +99,7 @@ export function SessionForm() {
     if (sessionId) {
       if (sessionQuery.data) {
         setDraft(draftFromSession(sessionQuery.data));
+        setHomeworks((sessionQuery.data.from_homeworks ?? []).map((h) => draftFromHomework(h as never)));
         setLoaded(true);
       }
     } else if (courseParam) {
@@ -118,9 +137,37 @@ export function SessionForm() {
   const save = useMutation({
     mutationFn: async () => {
       const body = sessionPayload(draft, structureId);
-      if (sessionId) return { conflicts: (await api.updateSession(sessionId, body)).rbsConflictResourceIds ?? [] };
-      const created = await api.createSession(body as never);
-      return { conflicts: ((created as { rbsConflictResourceIds?: number[] }).rbsConflictResourceIds ?? []) as number[] };
+      let savedId = sessionId;
+      let conflicts: number[] = [];
+      if (sessionId) conflicts = (await api.updateSession(sessionId, body)).rbsConflictResourceIds ?? [];
+      else {
+        const created = (await api.createSession(body as never)) as { id: number; rbsConflictResourceIds?: number[] };
+        savedId = created.id;
+        conflicts = created.rbsConflictResourceIds ?? [];
+      }
+      // Devoirs donnés pendant la séance : suppression, modification (objet complet), création.
+      const label = exceptionalLabelOf(draft.subjectKey);
+      const original = new Map((sessionQuery.data?.from_homeworks ?? []).map((h) => [h.id, !!h.is_published]));
+      for (const h of homeworks) {
+        if (h.deleted && h.id) {
+          await api.deleteHomework(h.id);
+          continue;
+        }
+        if (h.deleted) continue;
+        const dueSession = futureSessions.find((x) => String(x.id) === h.dueSessionId);
+        const hw = homeworkPayload(h, {
+          sessionId: savedId!,
+          subjectId: label !== undefined ? 'exceptional' : draft.subjectKey,
+          exceptionalLabel: label,
+          structureId,
+          audienceId: draft.audienceId,
+          teacherId: ctx.userId,
+          dueSessionDate: dueSession?.date.slice(0, 10),
+        });
+        if (h.id) await api.updateHomework(h.id, original.get(h.id) !== h.published, hw);
+        else await api.saveHomework(hw);
+      }
+      return { conflicts };
     },
     onSuccess: ({ conflicts }) => {
       qc.invalidateQueries({ queryKey: ['diary'] });
@@ -325,6 +372,17 @@ export function SessionForm() {
               </ul>
             )}
           </section>
+
+          <SessionHomeworks
+            drafts={homeworks}
+            onChange={setHomeworks}
+            types={homeworkTypesQuery.data ?? []}
+            structureId={structureId}
+            audienceId={draft.audienceId}
+            futureSessions={futureSessions}
+            canPublish={ctx.has('publishHomework')}
+            readOnly={!editable || !ctx.has('manageHomework')}
+          />
         </fieldset>
 
         {submitted && errors.length > 0 && (

@@ -412,5 +412,22 @@
   "diary.resources.mediacentre": "media centre",
   "diary.form.mediacentre.error": "The media centre search failed.",
   "diary.form.resource.added": "Added",
-  "diary.form.resource.add": "Add"
+  "diary.form.resource.add": "Add",
+  "diary.session.homeworks": "Homework given during the session",
+  "diary.session.homeworks.none": "No homework given during this session.",
+  "diary.homework.create": "Create homework",
+  "diary.homework.type": "Type",
+  "diary.homework.due": "Due for",
+  "diary.homework.due.session": "A session",
+  "diary.homework.due.date": "A date",
+  "diary.homework.time": "Duration (min)",
+  "diary.homework.validate": "Confirm",
+  "diary.homework.workload": "Workload that day: [[count]] homework(s), [[total]] min",
+  "diary.homework.error.type": "Choose a homework type.",
+  "diary.homework.error.due": "Choose the due date (session or date).",
+  "diary.homework.error.time": "The estimated duration must be zero or positive.",
+  "diary.homework.error.description": "Enter the homework description.",
+  "diary.status": "Status",
+  "diary.description": "Content",
+  "diary.due": "Due on"
 }

@@ -140,6 +140,7 @@ export interface SessionFull extends Session {
   resources?: unknown;
   one_visa?: boolean;
   homeworks?: Homework[];
+  from_homeworks?: Homework[];
 }
 
 /** Types de séance de l'établissement (GET /diary/session-types). */
@@ -232,6 +233,24 @@ export const getExternalHomeworks = async (start: string, end: string, teacherId
 
 export const createHomework = async (body: HomeworkInput): Promise<{ id: number }> =>
   json<{ id: number }>(await fetch('/diary/homework', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
+
+/** Crée un devoir avec le corps complet de l'AngularJS (homeworkForm.homeworkPayload). */
+export const saveHomework = async (body: Record<string, unknown>): Promise<{ id: number }> =>
+  json<{ id: number }>(await fetch('/diary/homework', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
+
+/**
+ * Modifie un devoir (PUT /diary/homework/:id/:publicationStateChanged). Le serveur remplace tous les
+ * champs, ressources comprises : envoyer l'objet complet. `publicationStateChanged` à true date la
+ * publication et prévient les élèves.
+ */
+export const updateHomework = async (id: number, publicationStateChanged: boolean, body: Record<string, unknown>): Promise<void> => {
+  const res = await fetch(`/diary/homework/${id}/${publicationStateChanged}`, { ...base, method: 'PUT', headers: mutHeaders(), body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
+/** Charge de travail de la semaine de `dueDate` pour une classe : une entrée par jour {day, count, total}. */
+export const getWorkload = async (structureId: string, audienceId: string, dueDate: string, published: boolean): Promise<Array<{ day: string; count: number | string; total: number | string }>> =>
+  json<Array<{ day: string; count: number | string; total: number | string }>>(await fetch(`/diary/workload/${structureId}/${audienceId}/${dueDate}/${published}`, base)).then((a) => a ?? []).catch(() => []);
 
 export const deleteHomework = async (id: number): Promise<void> => {
   const res = await fetch(`/diary/homework/${id}`, { ...base, method: 'DELETE', headers: xsrfHeader() });
@@ -416,6 +435,9 @@ export const createProgression = async (body: ProgressionInput): Promise<{ id: n
   json<{ id: number }>(await fetch('/diary/progression/create', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
 
 export const api = {
+  saveHomework,
+  updateHomework,
+  getWorkload,
   getSession,
   updateSession,
   deleteSession,

@@ -434,5 +434,22 @@
   "diary.resources.mediacentre": "médiacentre",
   "diary.form.mediacentre.error": "La recherche dans le médiacentre a échoué.",
   "diary.form.resource.added": "Ajoutée",
-  "diary.form.resource.add": "Ajouter"
+  "diary.form.resource.add": "Ajouter",
+  "diary.session.homeworks": "Devoirs donnés pendant la séance",
+  "diary.session.homeworks.none": "Aucun devoir donné pendant cette séance.",
+  "diary.homework.create": "Créer un devoir",
+  "diary.homework.type": "Type",
+  "diary.homework.due": "À rendre pour",
+  "diary.homework.due.session": "Une séance",
+  "diary.homework.due.date": "Une date",
+  "diary.homework.time": "Durée (min)",
+  "diary.homework.validate": "Valider",
+  "diary.homework.workload": "Charge de travail ce jour-là : [[count]] devoir(s), [[total]] min",
+  "diary.homework.error.type": "Choisissez un type de devoir.",
+  "diary.homework.error.due": "Choisissez l'échéance (séance ou date).",
+  "diary.homework.error.time": "La durée estimée doit être positive ou nulle.",
+  "diary.homework.error.description": "Renseignez la description du devoir.",
+  "diary.status": "Statut",
+  "diary.description": "Contenu",
+  "diary.due": "À rendre le"
 }
