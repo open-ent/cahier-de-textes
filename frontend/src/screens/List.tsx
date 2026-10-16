@@ -4,9 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { api } from '../api';
+import { SearchBar } from '../components/SearchBar';
 import { useDiaryContext } from '../hooks/useDiaryContext';
+import { useReadScope } from '../hooks/useReadScope';
 import { buildDays, dayLabel, defaultDisplay, defaultPeriod, isDone, isValidPeriod, ListDisplay, ListHomework, ListSession } from '../listItems';
 import { dateLocale } from '../locale';
+import { scopeKey } from '../searchScope';
 import { stripHtml } from '../utils';
 
 const COLOR = { green: '#00ab6f', yellow: '#f5b700', red: '#e13a3a' } as const;
@@ -22,7 +25,7 @@ export function List() {
   const ctx = useDiaryContext();
   const qc = useQueryClient();
   const structureId = ctx.structure?.id ?? '';
-  const personnel = ctx.profile === 'personnel';
+  const rs = useReadScope();
   const pupilView = ctx.profile === 'student' || ctx.profile === 'relative';
   const student = ctx.profile === 'student';
 
@@ -40,14 +43,14 @@ export function List() {
   const classesQuery = useQuery({ queryKey: ['diary', 'classes', structureId], queryFn: () => api.getClasses(structureId, pupilView), enabled: !!structureId });
   const typesQuery = useQuery({ queryKey: ['diary', 'types', structureId], queryFn: () => api.getHomeworkTypes(structureId), enabled: !!structureId });
   const sessionsQuery = useQuery({
-    queryKey: ['diary', 'list', 'sessions', structureId, start, end, subjectId, ctx.profile],
-    queryFn: () => (personnel ? api.getExternalSessions(start, end, ctx.userId, subjectId || undefined) : api.getOwnSessions(start, end, structureId, subjectId || undefined)),
-    enabled: !!structureId && valid,
+    queryKey: ['diary', 'list', 'sessions', structureId, start, end, subjectId, scopeKey(rs.scope)],
+    queryFn: () => api.readSessions(rs.scope, start, end, structureId, subjectId || undefined),
+    enabled: !!structureId && valid && rs.scope.mode !== 'none',
   });
   const homeworksQuery = useQuery({
-    queryKey: ['diary', 'list', 'homeworks', structureId, start, end, subjectId, ctx.profile],
-    queryFn: () => (personnel ? api.getExternalHomeworks(start, end, ctx.userId, subjectId || undefined) : api.getOwnHomeworks(start, end, structureId, subjectId || undefined)),
-    enabled: !!structureId && valid,
+    queryKey: ['diary', 'list', 'homeworks', structureId, start, end, subjectId, scopeKey(rs.scope)],
+    queryFn: () => api.readHomeworks(rs.scope, start, end, structureId, subjectId || undefined),
+    enabled: !!structureId && valid && rs.scope.mode !== 'none',
   });
 
   const subjectName = useMemo(() => new Map((subjectsQuery.data ?? []).filter((s) => !s.exceptional).map((s) => [s.id, s.name])), [subjectsQuery.data]);
@@ -83,6 +86,20 @@ export function List() {
   return (
     <div>
       <h1 className="mb-16">{t('diary.list.title', { defaultValue: 'Liste' })}</h1>
+
+      {rs.canSearch && <SearchBar structureId={structureId} teacher={rs.teacher} onTeacher={rs.setTeacher} classes={rs.classes} onClasses={rs.setClasses} />}
+      {ctx.profile === 'relative' && (
+        <div className="mb-12" style={{ maxWidth: 320 }}>
+          <label htmlFor="ls-child" className="form-label" style={{ fontWeight: 700 }}>{t('diary.child', { defaultValue: 'Enfant' })}</label>
+          {rs.children.length === 0 ? (
+            <p className="text-muted m-0" data-no-child>{t('diary.child.none', { defaultValue: 'Aucun enfant rattaché à votre compte dans cet établissement.' })}</p>
+          ) : (
+            <select id="ls-child" className="form-select" value={rs.childId} onChange={(e) => rs.setChildId(e.target.value)}>
+              {rs.children.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}
+            </select>
+          )}
+        </div>
+      )}
 
       <div className="d-flex gap-16 flex-wrap align-items-end mb-12" role="group" aria-label={t('diary.list.filters', { defaultValue: 'Filtres' })}>
         <div>

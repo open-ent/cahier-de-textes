@@ -7,9 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { buildItems, CalendarHomework, CalendarItem, COLORS, dailyHomeworks, hourRange } from '../calendarItems';
 import { useCalendarOptions } from '../hooks/useCalendarOptions';
+import { SearchBar } from '../components/SearchBar';
 import { useDiaryContext } from '../hooks/useDiaryContext';
+import { useReadScope } from '../hooks/useReadScope';
 import { dateLocale } from '../locale';
 import { daysPerWeek, initialAnchor, periodOf, step, ViewMode, VIEW_MODES, visibleDays } from '../period';
+import { scopeKey } from '../searchScope';
 import { stripHtml, ymd } from '../utils';
 
 const HOUR_PX = 48;
@@ -52,7 +55,7 @@ export function Calendar() {
   const ctx = useDiaryContext();
   const qc = useQueryClient();
   const structureId = ctx.structure?.id ?? '';
-  const personnel = ctx.profile === 'personnel';
+  const rs = useReadScope();
   const { options, set: setOptions, ready: optionsReady } = useCalendarOptions();
   const dialogId = useId();
   const navigate = useNavigate();
@@ -65,18 +68,18 @@ export function Calendar() {
   const end = ymd(period.last);
 
   const sessionsQuery = useQuery({
-    queryKey: ['diary', 'calendar', 'sessions', structureId, start, end],
-    queryFn: () => (personnel ? api.getExternalSessions(start, end, ctx.userId) : api.getOwnSessions(start, end, structureId)),
+    queryKey: ['diary', 'calendar', 'sessions', structureId, start, end, scopeKey(rs.scope)],
+    queryFn: () => api.readSessions(rs.scope, start, end, structureId),
     enabled: !!structureId,
   });
   const homeworksQuery = useQuery({
-    queryKey: ['diary', 'calendar', 'homeworks', structureId, start, end],
-    queryFn: () => (personnel ? api.getExternalHomeworks(start, end, ctx.userId) : api.getOwnHomeworks(start, end, structureId)),
+    queryKey: ['diary', 'calendar', 'homeworks', structureId, start, end, scopeKey(rs.scope)],
+    queryFn: () => api.readHomeworks(rs.scope, start, end, structureId),
     enabled: !!structureId,
   });
   const coursesQuery = useQuery({
-    queryKey: ['diary', 'calendar', 'courses', structureId, start, end, ctx.userId],
-    queryFn: () => api.getCourses(structureId, start, end, { teacherIds: [ctx.userId] }),
+    queryKey: ['diary', 'calendar', 'courses', structureId, start, end, JSON.stringify(rs.courses)],
+    queryFn: () => api.getCourses(structureId, start, end, rs.courses),
     enabled: !!structureId && !!ctx.userId,
   });
   const subjectsQuery = useQuery({ queryKey: ['diary', 'subjects', structureId], queryFn: () => api.getSubjects(structureId), enabled: !!structureId });
@@ -156,6 +159,8 @@ export function Calendar() {
           {t('diary.calendar.legend', { defaultValue: 'Légende' })}
         </button>
       </div>
+
+      {rs.canSearch && <SearchBar structureId={structureId} teacher={rs.teacher} onTeacher={rs.setTeacher} classes={rs.classes} onClasses={rs.setClasses} />}
 
       <div className="d-flex gap-8 flex-wrap align-items-center mb-12">
         <button type="button" className="btn btn-secondary" onClick={() => setAnchor((a) => step(mode, a, -1))}>← {t('diary.calendar.prev', { defaultValue: 'Précédent' })}</button>

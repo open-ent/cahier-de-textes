@@ -474,5 +474,12 @@
   "diary.list.period.invalid": "La date de début doit précéder la date de fin.",
   "diary.list.homeworks.count": "[[count]] devoir(s)",
   "diary.list.hide": "Masquer le contenu",
-  "diary.list.show": "Voir le contenu"
+  "diary.list.show": "Voir le contenu",
+  "diary.search.label": "Recherche",
+  "diary.search.teacher.placeholder": "Rechercher un enseignant…",
+  "diary.search.class": "Classe ou groupe",
+  "diary.search.class.placeholder": "Rechercher une classe…",
+  "diary.search.remove": "Retirer",
+  "diary.child": "Enfant",
+  "diary.child.none": "Aucun enfant rattaché à votre compte dans cet établissement."
 }

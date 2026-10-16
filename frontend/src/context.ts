@@ -77,6 +77,8 @@ export type Tab = 'calendar' | 'list' | 'homeworks' | 'sessions' | 'progressions
 
 export function navTabs(has: (k: WorkflowKey) => boolean, profile: Profile): Tab[] {
   const tabs: Tab[] = [];
+  // Parent : uniquement la liste de son enfant (ni calendrier, ni création, comme l'AngularJS).
+  if (profile === 'relative') return has('listView') ? ['list'] : [];
   // Calendrier : accueil de l'AngularJS, sauf élève et parent (renvoyés vers la liste, main.ts:249).
   if (has('calendarView') && !isStudentOrRelative(profile)) tabs.push('calendar');
   // Liste : accueil de l'élève et du parent (main.ts:249), au choix pour les autres (droit listView).

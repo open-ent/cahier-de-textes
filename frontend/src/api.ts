@@ -1,6 +1,7 @@
 // Client REST du module Cahier-de-textes (diary) — session ENT, même origine. XSRF sur mutations.
 import type { CalendarCourse } from './calendarItems';
 import type { CalendarOptions } from './period';
+import { externalQuery, ownQuery, type Scope, type SearchClass, type SearchTeacher } from './searchScope';
 
 /** Matière ; `exceptional` : intitulé libre de l'établissement (id « exceptional »). */
 export interface Subject {
@@ -225,6 +226,49 @@ export const saveCalendarOptions = async (options: CalendarOptions): Promise<voi
 export const publishHomework = async (id: number): Promise<void> => {
   const res = await fetch(`/diary/homework/publish/${id}`, { ...base, method: 'POST', headers: mutHeaders(), body: '{}' });
   if (!res.ok) throw new Error(String(res.status));
+};
+
+// ── Lecture par périmètre (own / external / child), recherches et enfants ──────────────────
+/** Enfant d'un parent (GET /diary/children/list). */
+export interface Child {
+  id: string;
+  displayName: string;
+  classId?: string;
+  className?: string;
+  structureId?: string;
+}
+export const getChildren = async (): Promise<Child[]> => json<Child[]>(await fetch('/diary/children/list', base)).then((a) => a ?? []).catch(() => []);
+
+/** Recherche d'enseignants (`/diary/search/users`) : nom ou prénom. Ex. « bat » → BATTISTI001 Anic. */
+export const searchTeachers = async (structureId: string, q: string): Promise<SearchTeacher[]> =>
+  json<SearchTeacher[]>(await fetch(`/diary/search/users?structureId=${structureId}&profile=Teacher&q=${encodeURIComponent(q.toLowerCase())}&field=firstName&field=lastName`, base)).then((a) => a ?? []).catch(() => []);
+
+/** Recherche de classes et groupes (`/diary/search/groups`) par nom. Ex. « 40 » → 401, 402. */
+export const searchClasses = async (structureId: string, q: string): Promise<SearchClass[]> =>
+  json<SearchClass[]>(await fetch(`/diary/search/groups?structureId=${structureId}&q=${encodeURIComponent(q.toLowerCase())}&field=name`, base)).then((a) => a ?? []).catch(() => []);
+
+/** Séances du périmètre : own, external, child ; rien si aucun enfant n'est choisi (parent). */
+export const readSessions = async (scope: Scope, start: string, end: string, structureId: string, subjectId?: string): Promise<Session[]> => {
+  if (scope.mode === 'none') return [];
+  const url =
+    scope.mode === 'child'
+      ? `/diary/sessions/child/${start}/${end}/${scope.childId}${subjectId ? `?subjectId=${encodeURIComponent(subjectId)}` : ''}`
+      : scope.mode === 'external'
+        ? `/diary/sessions/external/${start}/${end}?${externalQuery(scope.teacherId, scope.audienceIds, subjectId)}`
+        : `/diary/sessions/own/${start}/${end}/${structureId}?${ownQuery(scope.audienceIds, subjectId)}`;
+  return json<Session[]>(await fetch(url, base)).then((a) => a ?? []).catch(() => []);
+};
+
+/** Devoirs du périmètre : own, external, child (enfant + établissement). */
+export const readHomeworks = async (scope: Scope, start: string, end: string, structureId: string, subjectId?: string): Promise<Homework[]> => {
+  if (scope.mode === 'none') return [];
+  const url =
+    scope.mode === 'child'
+      ? `/diary/homeworks/child/${start}/${end}/${scope.childId}/${structureId}${subjectId ? `?subjectId=${encodeURIComponent(subjectId)}` : ''}`
+      : scope.mode === 'external'
+        ? `/diary/homeworks/external/${start}/${end}?${externalQuery(scope.teacherId, scope.audienceIds, subjectId)}`
+        : `/diary/homeworks/own/${start}/${end}/${structureId}?${ownQuery(scope.audienceIds, subjectId)}`;
+  return json<Homework[]>(await fetch(url, base)).then((a) => a ?? []);
 };
 
 // ── Devoirs ────────────────────────────────────────────────────────────────────
@@ -455,6 +499,11 @@ export const createProgression = async (body: ProgressionInput): Promise<{ id: n
   json<{ id: number }>(await fetch('/diary/progression/create', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
 
 export const api = {
+  getChildren,
+  searchTeachers,
+  searchClasses,
+  readSessions,
+  readHomeworks,
   getHomework,
   setHomeworkProgress,
   saveHomework,

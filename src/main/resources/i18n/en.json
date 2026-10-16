@@ -452,5 +452,12 @@
   "diary.list.period.invalid": "The start date must be before the end date.",
   "diary.list.homeworks.count": "[[count]] homework(s)",
   "diary.list.hide": "Hide content",
-  "diary.list.show": "Show content"
+  "diary.list.show": "Show content",
+  "diary.search.label": "Search",
+  "diary.search.teacher.placeholder": "Search a teacher…",
+  "diary.search.class": "Class or group",
+  "diary.search.class.placeholder": "Search a class…",
+  "diary.search.remove": "Remove",
+  "diary.child": "Child",
+  "diary.child.none": "No child linked to your account in this school."
 }
