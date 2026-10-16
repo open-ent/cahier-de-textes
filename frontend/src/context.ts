@@ -73,7 +73,7 @@ export function initialStructureId(structures: StructureRef[], preferredId: stri
 }
 
 /** Onglets de navigation selon les droits, comme le menu latéral de l'AngularJS (side-navbar). */
-export type Tab = 'calendar' | 'list' | 'homeworks' | 'sessions' | 'progressions';
+export type Tab = 'calendar' | 'list' | 'homeworks' | 'sessions' | 'progressions' | 'consult';
 
 export function navTabs(has: (k: WorkflowKey) => boolean, profile: Profile): Tab[] {
   const tabs: Tab[] = [];
@@ -87,5 +87,7 @@ export function navTabs(has: (k: WorkflowKey) => boolean, profile: Profile): Tab
   if (has('readSession') || has('manageSession')) tabs.push('sessions');
   // Progressions : outil de l'enseignant (gestion des séances), comme progressions/view.
   if (profile === 'teacher' && has('manageSession')) tabs.push('progressions');
+  // Direction : consultation des progressions d'un enseignant, en lecture seule (side-navbar).
+  if (profile === 'personnel') tabs.push('consult');
   return tabs;
 }

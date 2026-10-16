@@ -6,7 +6,7 @@ import { navTabs } from '../context';
 import { setLanguage } from '../locale';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 
-const TAB_ROUTE = { calendar: '/', list: '/liste', homeworks: '/devoirs', sessions: '/seances', progressions: '/progressions' } as const;
+const TAB_ROUTE = { calendar: '/', list: '/liste', homeworks: '/devoirs', sessions: '/seances', progressions: '/progressions', consult: '/progressions/consultation' } as const;
 
 /**
  * Gabarit commun : bandeau ENT, choix de l'établissement (si plusieurs, mémorisé comme
@@ -32,6 +32,7 @@ export function Root() {
     homeworks: t('diary.tab.homeworks', { defaultValue: 'Devoirs' }),
     sessions: t('diary.tab.sessions', { defaultValue: 'Séances' }),
     progressions: t('diary.tab.progressions', { defaultValue: 'Progressions' }),
+    consult: t('diary.tab.progressions', { defaultValue: 'Progressions' }),
   };
 
   return (

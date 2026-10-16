@@ -4,7 +4,9 @@ import { Home } from './screens/Home';
 import { List } from './screens/List';
 import { HomeworkForm } from './screens/HomeworkForm';
 import { Homeworks } from './screens/Homeworks';
+import { ProgressionForm } from './screens/ProgressionForm';
 import { Progressions } from './screens/Progressions';
+import { ProgressionsConsult } from './screens/ProgressionsConsult';
 import { Root } from './screens/Root';
 import { SessionForm } from './screens/SessionForm';
 import { Sessions } from './screens/Sessions';
@@ -32,6 +34,8 @@ export const routes: RouteObject[] = [
       { path: 'seances', element: <Sessions /> },
       { path: 'seance/:id', element: <Keyed>{(k) => <SessionForm key={k} />}</Keyed> },
       { path: 'progressions', element: <Progressions /> },
+      { path: 'progressions/consultation', element: <ProgressionsConsult /> },
+      { path: 'progression/:id', element: <Keyed>{(k) => <ProgressionForm key={k} />}</Keyed> },
     ],
   },
 ];

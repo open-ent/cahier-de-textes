@@ -28,6 +28,8 @@ describe('contexte du cahier de textes', () => {
     // Liste : avec le droit listView, pour tous les profils ; l'élève y arrive par défaut.
     expect(navTabs(has(['calendarView', 'listView']), 'teacher')).toEqual(['calendar', 'list']);
     expect(navTabs(has(['listView', 'readHomework']), 'student')).toEqual(['list', 'homeworks']);
+    // Direction : consultation des progressions d'un enseignant (lecture seule).
+    expect(navTabs(has(['calendarView', 'readSession']), 'personnel')).toEqual(['calendar', 'sessions', 'consult']);
     expect(navTabs(has([]), 'other')).toEqual([]);
   });
 });

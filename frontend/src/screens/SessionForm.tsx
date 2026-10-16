@@ -25,9 +25,14 @@ import {
 } from '../sessionForm';
 import { draftFromHomework, futureSessions as pickFutureSessions, HomeworkDraft, homeworkPayload } from '../homeworkForm';
 import { MediacentrePicker } from './MediacentrePicker';
+import { SaveAsProgression } from './SaveAsProgression';
 import { SessionHomeworks } from './SessionHomeworks';
 
 /** Une chaîne VIDE fait planter l'éditeur du socle (erreur React #321) : paragraphe vide à la place. */
+/** Libellé de la matière choisie : intitulé libre, ou nom de la matière de l'établissement. */
+const subjectLabelOf = (key: string, subjects: Array<{ id: string; name: string }>): string =>
+  exceptionalLabelOf(key) ?? subjects.find((s) => s.id === key)?.name ?? '';
+
 const editorContent = (html: string) => (html && html.trim() ? html : '<p></p>');
 
 /**
@@ -384,6 +389,16 @@ export function SessionForm() {
             readOnly={!editable || !ctx.has('manageHomework')}
           />
         </fieldset>
+
+        {canManage && (
+          <SaveAsProgression
+            ownerId={ctx.userId}
+            title={draft.title}
+            description={draft.description}
+            subjectLabel={subjectLabelOf(draft.subjectKey, subjects)}
+            homeworks={((sessionQuery.data?.homeworks ?? []) as Array<{ description: string; estimatedTime?: number; estimatedtime?: number }>).map((h) => ({ description: h.description, estimatedTime: h.estimatedTime ?? h.estimatedtime ?? 0 }))}
+          />
+        )}
 
         {submitted && errors.length > 0 && (
           <div className="alert alert-warning" role="alert">

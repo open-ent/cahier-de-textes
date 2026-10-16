@@ -37,7 +37,7 @@ export function SearchBar({ structureId, teacher, onTeacher, classes, onClasses 
         <label htmlFor="sb-teacher" className="form-label" style={{ fontWeight: 700 }}>{t('diary.search.teacher', { defaultValue: 'Enseignant' })}</label>
         {teacher ? (
           <div className="d-flex align-items-center gap-8" data-chosen-teacher>
-            <span className="badge bg-secondary">{teacher.displayName}</span>
+            <span className="badge bg-secondary" style={{ color: "#fff" }}>{teacher.displayName}</span>
             <button type="button" className="btn btn-link p-0" aria-label={t('diary.search.remove', { defaultValue: 'Retirer' })} onClick={() => onTeacher(null)}>×</button>
           </div>
         ) : (
@@ -70,7 +70,7 @@ export function SearchBar({ structureId, teacher, onTeacher, classes, onClasses 
         {classes.length > 0 && (
           <ul className="list-inline mt-4 mb-0" data-chosen-classes>
             {classes.map((c) => (
-              <li key={c.id} className="d-inline-flex align-items-center gap-4 me-8 badge bg-secondary">
+              <li key={c.id} className="d-inline-flex align-items-center gap-4 me-8 badge bg-secondary" style={{ color: '#fff' }}>
                 {c.name}
                 <button type="button" className="btn btn-link p-0 text-white" aria-label={`${t('diary.search.remove', { defaultValue: 'Retirer' })} ${c.name}`} onClick={() => onClasses(classes.filter((x) => x.id !== c.id))}>×</button>
               </li>

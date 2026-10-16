@@ -1,6 +1,7 @@
 // Client REST du module Cahier-de-textes (diary) — session ENT, même origine. XSRF sur mutations.
 import type { CalendarCourse } from './calendarItems';
 import type { CalendarOptions } from './period';
+import type { RawFolder } from './progressions';
 import { externalQuery, ownQuery, type Scope, type SearchClass, type SearchTeacher } from './searchScope';
 
 /** Matière ; `exceptional` : intitulé libre de l'établissement (id « exceptional »). */
@@ -498,6 +499,48 @@ export const getProgressions = async (ownerId: string): Promise<Progression[]> =
 export const createProgression = async (body: ProgressionInput): Promise<{ id: number }> =>
   json<{ id: number }>(await fetch('/diary/progression/create', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
 
+/** Dossiers et séances modèles d'un enseignant (GET /diary/progressions/:ownerId), lignes brutes. */
+export const getProgressionFolders = async (ownerId: string): Promise<RawFolder[]> => json<RawFolder[]>(await fetch(`/diary/progressions/${ownerId}`, base));
+
+/** Une séance modèle avec ses devoirs (GET /diary/progression/:id) ; le serveur renvoie un tableau d'une ligne. */
+export const getProgression = async (id: number): Promise<Record<string, unknown> | null> =>
+  json<Array<Record<string, unknown>>>(await fetch(`/diary/progression/${id}`, base)).then((a) => a?.[0] ?? null);
+
+/** Crée (sans `id`) ou met à jour (avec `id`) une séance modèle ; renvoie son identifiant. */
+export const saveProgression = async (id: number | null, body: unknown): Promise<{ id: number }> =>
+  json<{ id: number }>(
+    await fetch(id ? `/diary/progression/update/${id}` : '/diary/progression/create', { ...base, method: id ? 'PUT' : 'POST', headers: mutHeaders(), body: JSON.stringify(body) }),
+  );
+
+/** Supprime des séances modèles — DELETE /diary/progressions. */
+export const deleteProgressions = async (ownerId: string, ids: number[]): Promise<void> => {
+  const res = await fetch('/diary/progressions', { ...base, method: 'DELETE', headers: mutHeaders(), body: JSON.stringify({ owner_id: ownerId, session_ids: ids }) });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
+/** Supprime des dossiers — DELETE /diary/progression/folders. */
+export const deleteProgressionFolders = async (ownerId: string, ids: number[]): Promise<void> => {
+  const res = await fetch('/diary/progression/folders', { ...base, method: 'DELETE', headers: mutHeaders(), body: JSON.stringify({ owner_id: ownerId, folder_ids: ids }) });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
+/** Crée (sans `id`) ou modifie un dossier ; `parentId` nul = à la racine. */
+export const saveProgressionFolder = async (id: number | null, ownerId: string, title: string, parentId: number | null): Promise<{ id: number }> =>
+  json<{ id: number }>(
+    await fetch(id ? `/diary/progression/folder/update/${id}` : '/diary/progression/folder/create', {
+      ...base,
+      method: id ? 'PUT' : 'POST',
+      headers: mutHeaders(),
+      body: JSON.stringify({ owner_id: ownerId, title, parent_id: parentId }),
+    }),
+  );
+
+/** Supprime un devoir d'une séance modèle — DELETE /diary/progression/homework/:id. */
+export const deleteProgressionHomework = async (id: number): Promise<void> => {
+  const res = await fetch(`/diary/progression/homework/${id}`, { ...base, method: 'DELETE', headers: mutHeaders() });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
 export const api = {
   getChildren,
   searchTeachers,
@@ -538,5 +581,12 @@ export const api = {
   publishSession,
   unpublishSession,
   getProgressions,
+  getProgressionFolders,
+  getProgression,
+  saveProgression,
+  deleteProgressions,
+  deleteProgressionFolders,
+  saveProgressionFolder,
+  deleteProgressionHomework,
   createProgression,
 };
