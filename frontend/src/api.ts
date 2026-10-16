@@ -541,6 +541,41 @@ export const deleteProgressionHomework = async (id: number): Promise<void> => {
   if (!res.ok) throw new Error(String(res.status));
 };
 
+/** Proposition de modification d'une séance par un collègue (statut 1 en attente, 2 acceptée, 3 refusée). */
+export interface SessionModificationItem {
+  id: number;
+  session_id: number | null;
+  teacher_id: string;
+  proposed_by: string;
+  status: number;
+  refusal_reason?: string | null;
+  created?: string;
+}
+
+/**
+ * Propose une modification de la séance d'un collègue. `teacherId` est aussi passé dans l'adresse :
+ * le filtre serveur le lit dans les paramètres de la requête, pas dans le corps (sans cela : 403).
+ */
+export const proposeSessionModification = async (v: { sessionId: number; date: string; structureId: string; teacherId: string; payload: Record<string, unknown> }): Promise<{ id: number }> =>
+  json<{ id: number }>(
+    await fetch(`/diary/session/modification?teacherId=${encodeURIComponent(v.teacherId)}`, { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify({ sessionId: v.sessionId, courseId: null, date: v.date, structureId: v.structureId, teacherId: v.teacherId, payload: v.payload }) }),
+  );
+
+/** Propositions faites sur une séance, les plus récentes d'abord. */
+export const getSessionModifications = async (sessionId: number): Promise<SessionModificationItem[]> =>
+  json<SessionModificationItem[]>(await fetch(`/diary/session/${sessionId}/modifications`, base)).then((a) => a ?? []);
+
+/** Accepte (statut 2, la séance est mise à jour) ou refuse (statut 3, motif facultatif) une proposition. */
+export const processSessionModification = async (id: number, accept: boolean, reason?: string): Promise<void> => {
+  const res = await fetch(`/diary/session/modification/${id}/process`, {
+    ...base,
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(accept ? { status: 2 } : { status: 3, refusalReason: reason?.trim() || null }),
+  });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
 export const api = {
   getChildren,
   searchTeachers,
@@ -581,6 +616,9 @@ export const api = {
   publishSession,
   unpublishSession,
   getProgressions,
+  proposeSessionModification,
+  getSessionModifications,
+  processSessionModification,
   getProgressionFolders,
   getProgression,
   saveProgression,

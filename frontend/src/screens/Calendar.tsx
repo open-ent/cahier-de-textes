@@ -307,7 +307,11 @@ export function Calendar() {
             )}
             {selected.kind === 'session' && (
               <button type="button" className="btn btn-primary" onClick={() => navigate(`/seance/${selected.session!.id}`)}>
-                {selected.session?.teacher_id === ctx.userId && ctx.has('manageSession') ? t('diary.calendar.edit', { defaultValue: 'Modifier' }) : t('diary.calendar.open', { defaultValue: 'Consulter' })}
+                {ctx.has('manageSession')
+                  ? selected.session?.teacher_id === ctx.userId
+                    ? t('diary.calendar.edit', { defaultValue: 'Modifier' })
+                    : t('diary.calendar.propose', { defaultValue: 'Proposer une modification' })
+                  : t('diary.calendar.open', { defaultValue: 'Consulter' })}
               </button>
             )}
             {selected.kind === 'session' && !selected.published && ctx.has('publishSession') && selected.session?.teacher_id === ctx.userId && (

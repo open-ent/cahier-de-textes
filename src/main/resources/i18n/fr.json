@@ -540,5 +540,6 @@
   "diary.progression.created": "Progression créée",
   "diary.progression.from.session.warning1": "Attention, seuls les devoirs liés à cette séance seront sauvegardés.",
   "diary.progression.from.session.warning2": "Ceux saisis pour une séance prochaine ne seront pas sauvegardés.",
-  "diary.progression.from.session.incomplete": "Le titre et le contenu de la séance doivent être renseignés."
+  "diary.progression.from.session.incomplete": "Le titre et le contenu de la séance doivent être renseignés.",
+  "diary.calendar.propose": "Proposer une modification"
 }

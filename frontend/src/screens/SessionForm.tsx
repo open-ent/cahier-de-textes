@@ -12,6 +12,7 @@ import { addResources, PickedFile, SessionResource, workspaceResource } from '..
 import {
   canDeleteSession,
   canEditSession,
+  canProposeSession,
   draftFromCourse,
   draftFromSession,
   emptyDraft,
@@ -25,6 +26,7 @@ import {
 } from '../sessionForm';
 import { draftFromHomework, futureSessions as pickFutureSessions, HomeworkDraft, homeworkPayload } from '../homeworkForm';
 import { MediacentrePicker } from './MediacentrePicker';
+import { PendingModifications } from './PendingModifications';
 import { SaveAsProgression } from './SaveAsProgression';
 import { SessionHomeworks } from './SessionHomeworks';
 
@@ -126,7 +128,11 @@ export function SessionForm() {
   }, [loaded, draft.typeId, types]);
 
   const fromCourse = !!draft.courseId;
-  const editable = loaded && canEditSession(draft, ctx.userId, canManage);
+  // Propriétaire : il enregistre directement. Collègue avec droit de gestion : il propose, le
+  // propriétaire accepte ou refuse (les devoirs et la suppression restent au propriétaire).
+  const owner = loaded && canEditSession(draft, ctx.userId, canManage);
+  const propose = loaded && canProposeSession(draft, ctx.userId, canManage);
+  const editable = owner || propose;
   const errors = useMemo(() => validateSession(draft), [draft]);
   const errorText: Record<SessionError, string> = {
     subject: t('diary.session.error.subject', { defaultValue: 'Choisissez une matière.' }),
@@ -142,6 +148,10 @@ export function SessionForm() {
   const save = useMutation({
     mutationFn: async () => {
       const body = sessionPayload(draft, structureId);
+      if (propose) {
+        await api.proposeSessionModification({ sessionId: sessionId!, date: draft.date, structureId, teacherId: draft.teacherId!, payload: body });
+        return { conflicts: [], proposed: true };
+      }
       let savedId = sessionId;
       let conflicts: number[] = [];
       if (sessionId) conflicts = (await api.updateSession(sessionId, body)).rbsConflictResourceIds ?? [];
@@ -172,10 +182,14 @@ export function SessionForm() {
         if (h.id) await api.updateHomework(h.id, original.get(h.id) !== h.published, hw);
         else await api.saveHomework(hw);
       }
-      return { conflicts };
+      return { conflicts, proposed: false };
     },
-    onSuccess: ({ conflicts }) => {
+    onSuccess: ({ conflicts, proposed }) => {
       qc.invalidateQueries({ queryKey: ['diary'] });
+      if (proposed) {
+        setNotice({ ok: true, text: t('diary.session.modification.propose.success', { defaultValue: 'Votre proposition a été envoyée.' }) });
+        return;
+      }
       if (conflicts.length) {
         const names = conflicts.map((rid) => rbs.find((r) => r.id === rid)?.name ?? String(rid)).join(', ');
         setNotice({ ok: false, text: `${t('diary.notify.rbs.conflict', { defaultValue: "La séance est enregistrée, mais ces ressources n'ont pas pu être réservées (déjà prises sur ce créneau) : " })}${names}` });
@@ -214,7 +228,9 @@ export function SessionForm() {
   if (!loaded) return <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>;
   const title = !sessionId
     ? t('diary.session.new', { defaultValue: 'Nouvelle séance' })
-    : editable
+    : propose
+      ? t('diary.session.modification.propose.title', { defaultValue: 'Proposer une modification' })
+      : editable
       ? t('diary.session.edit', { defaultValue: 'Modifier la séance' })
       : t('diary.session.view', { defaultValue: 'Consulter la séance' });
 
@@ -225,7 +241,7 @@ export function SessionForm() {
       </p>
       <h1 className="mb-16">{title}</h1>
       {notice && (
-        <div className={`alert ${notice.ok ? 'alert-success' : 'alert-warning'}`} role={notice.ok ? 'status' : 'alert'}>
+        <div className={`alert ${notice.ok ? 'alert-success' : 'alert-warning'}`} role={notice.ok ? 'status' : 'alert'} data-notice>
           {notice.text}
           {!notice.ok && (
             <div className="mt-8">
@@ -234,11 +250,12 @@ export function SessionForm() {
           )}
         </div>
       )}
-      {sessionId && !editable && canManage && (
-        <div className="alert alert-info" role="status">
-          {t('diary.session.propose.hint', { defaultValue: "Cette séance appartient à un collègue : vous pouvez la consulter." })}
+      {propose && (
+        <div className="alert alert-info" role="status" data-propose-info>
+          {t('diary.session.modification.propose.info', { defaultValue: "Cette séance appartient à un autre enseignant. Votre modification lui sera envoyée sous forme de proposition : elle ne sera appliquée qu'après son acceptation." })}
         </div>
       )}
+      {sessionId && draft.teacherId === ctx.userId && canManage && <PendingModifications sessionId={sessionId} onDone={async (accepted, text) => { if (accepted) { await qc.refetchQueries({ queryKey: ['diary', 'session', sessionId] }); setLoaded(false); } setNotice({ ok: true, text }); }} />}
 
       <form className="card p-16 mb-16" onSubmit={(e) => { e.preventDefault(); if (editable) onSubmit(); }}>
         <fieldset disabled={!editable} className="border-0 p-0 m-0">
@@ -386,7 +403,7 @@ export function SessionForm() {
             audienceId={draft.audienceId}
             futureSessions={futureSessions}
             canPublish={ctx.has('publishHomework')}
-            readOnly={!editable || !ctx.has('manageHomework')}
+            readOnly={!owner || !ctx.has('manageHomework')}
           />
         </fieldset>
 
@@ -408,7 +425,7 @@ export function SessionForm() {
         <div className="d-flex gap-8 flex-wrap">
           {editable && (
             <button type="submit" className="btn btn-primary" disabled={save.isPending}>
-              {sessionId ? t('diary.save', { defaultValue: 'Enregistrer' }) : t('diary.session.add', { defaultValue: 'Créer' })}
+              {propose ? t('diary.session.modification.propose.submit', { defaultValue: 'Envoyer la proposition' }) : sessionId ? t('diary.save', { defaultValue: 'Enregistrer' }) : t('diary.session.add', { defaultValue: 'Créer' })}
             </button>
           )}
           <Link to="/" className="btn btn-secondary">{t('diary.cancel', { defaultValue: 'Annuler' })}</Link>
@@ -416,7 +433,7 @@ export function SessionForm() {
             <button type="button" className="btn btn-outline-danger ms-auto" onClick={() => setConfirmDelete(true)}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
           )}
         </div>
-        {sessionId && editable && draft.hasVisa && (
+        {sessionId && owner && draft.hasVisa && (
           <p className="text-muted mt-8 mb-0" role="note">{t('diary.session.visa.warning', { defaultValue: 'Un visa est posé sur cette séance : elle ne peut plus être supprimée.' })}</p>
         )}
       </form>

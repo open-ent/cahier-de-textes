@@ -518,5 +518,6 @@
   "diary.progression.created": "Progression created",
   "diary.progression.from.session.warning1": "Warning: only the homework linked to this session will be saved.",
   "diary.progression.from.session.warning2": "Homework set for an upcoming session will not be saved.",
-  "diary.progression.from.session.incomplete": "The session title and content must be filled in."
+  "diary.progression.from.session.incomplete": "The session title and content must be filled in.",
+  "diary.calendar.propose": "Propose a change"
 }
