@@ -1,6 +1,7 @@
 import { RouteObject, createHashRouter, useLocation, useParams } from 'react-router-dom';
 
 import { Home } from './screens/Home';
+import { List } from './screens/List';
 import { HomeworkForm } from './screens/HomeworkForm';
 import { Homeworks } from './screens/Homeworks';
 import { Progressions } from './screens/Progressions';
@@ -25,6 +26,7 @@ export const routes: RouteObject[] = [
     element: <Root />,
     children: [
       { index: true, element: <Home /> },
+      { path: 'liste', element: <List /> },
       { path: 'devoirs', element: <Homeworks /> },
       { path: 'devoir/:id', element: <Keyed>{(k) => <HomeworkForm key={k} />}</Keyed> },
       { path: 'seances', element: <Sessions /> },

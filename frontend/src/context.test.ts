@@ -22,6 +22,9 @@ describe('contexte du cahier de textes', () => {
     expect(navTabs(has(['calendarView', 'readHomework']), 'teacher')).toEqual(['calendar', 'homeworks']);
     // Élève : jamais le calendrier, même avec le droit (liste seulement, comme l'AngularJS).
     expect(navTabs(has(['calendarView', 'readHomework']), 'student')).toEqual(['homeworks']);
+    // Liste : avec le droit listView, pour tous les profils ; l'élève y arrive par défaut.
+    expect(navTabs(has(['calendarView', 'listView']), 'teacher')).toEqual(['calendar', 'list']);
+    expect(navTabs(has(['listView', 'readHomework']), 'student')).toEqual(['list', 'homeworks']);
     expect(navTabs(has([]), 'other')).toEqual([]);
   });
 });

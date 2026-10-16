@@ -440,5 +440,17 @@
   "diary.homework.past": "The due date has passed: this homework can no longer be edited.",
   "diary.homework.done": "Done",
   "diary.homework.todo": "To do",
-  "diary.homework": "Homework"
+  "diary.homework": "Homework",
+  "diary.tab.list": "List",
+  "diary.list.title": "List",
+  "diary.list.filters": "Filters",
+  "diary.list.from": "From",
+  "diary.list.to": "to",
+  "diary.list.all.subjects": "All subjects",
+  "diary.list.sessions": "Sessions",
+  "diary.list.homeworks": "Homework",
+  "diary.list.period.invalid": "The start date must be before the end date.",
+  "diary.list.homeworks.count": "[[count]] homework(s)",
+  "diary.list.hide": "Hide content",
+  "diary.list.show": "Show content"
 }

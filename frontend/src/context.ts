@@ -73,12 +73,14 @@ export function initialStructureId(structures: StructureRef[], preferredId: stri
 }
 
 /** Onglets de navigation selon les droits, comme le menu latéral de l'AngularJS (side-navbar). */
-export type Tab = 'calendar' | 'homeworks' | 'sessions' | 'progressions';
+export type Tab = 'calendar' | 'list' | 'homeworks' | 'sessions' | 'progressions';
 
 export function navTabs(has: (k: WorkflowKey) => boolean, profile: Profile): Tab[] {
   const tabs: Tab[] = [];
   // Calendrier : accueil de l'AngularJS, sauf élève et parent (renvoyés vers la liste, main.ts:249).
   if (has('calendarView') && !isStudentOrRelative(profile)) tabs.push('calendar');
+  // Liste : accueil de l'élève et du parent (main.ts:249), au choix pour les autres (droit listView).
+  if (has('listView')) tabs.push('list');
   if (has('readHomework') || has('manageHomework')) tabs.push('homeworks');
   if (has('readSession') || has('manageSession')) tabs.push('sessions');
   // Progressions : outil de l'enseignant (gestion des séances), comme progressions/view.
