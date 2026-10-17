@@ -100,7 +100,27 @@ buildNode () {
   fi
 }
 
+# Interface React (frontend/, Vite) : construite sur l'hôte puis rangée dans les ressources du module, pour que
+# `./build.sh install` produise à lui seul le jar complet (AngularJS + React) — plus aucune copie à la main.
+# Échec franc plutôt qu'un vieux bundle embarqué en silence. Prérequis : NODE_AUTH_TOKEN (paquets @open-ent privés).
+buildReact () {
+  if [ ! -f frontend/package.json ]; then
+    return 0
+  fi
+  echo "[buildReact] Construction de l'interface React (frontend/)"
+  (
+    cd frontend || exit 1
+    rm -rf dist
+    corepack pnpm install --frozen-lockfile || exit 1
+    corepack pnpm build || exit 1
+    [ -f dist/public/index.js ] || { echo "[buildReact] dist/public/index.js absent : build React invalide"; exit 1; }
+  ) || { echo "[buildReact] ÉCHEC"; exit 1; }
+  mkdir -p src/main/resources/public
+  cp -r frontend/dist/public/. src/main/resources/public/
+}
+
 install () {
+  buildReact
   docker compose run --rm maven mvn $MVN_OPTS install -DskipTests
 }
 
