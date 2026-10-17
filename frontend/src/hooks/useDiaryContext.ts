@@ -11,6 +11,8 @@ export interface DiaryContext {
   userId: string;
   /** Nom affiché de l'usager (inscrit sur les visas). */
   userName: string;
+  firstName: string;
+  lastName: string;
   profile: Profile;
   /** A le droit de workflow (ex. `has('manageSession')`). */
   has: (k: WorkflowKey) => boolean;
@@ -70,6 +72,8 @@ export function useDiaryContext(): DiaryContext {
     ready: init && !preferenceQuery.isLoading && (structureId !== '' || structures.length === 0),
     userId: user?.userId ?? '',
     userName: user?.username ?? '',
+    firstName: user?.firstName ?? '',
+    lastName: user?.lastName ?? '',
     profile: profileOf(user?.type),
     has: (k) => rights[k] === true,
     structures,

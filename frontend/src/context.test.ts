@@ -30,6 +30,9 @@ describe('contexte du cahier de textes', () => {
     expect(navTabs(has(['listView', 'readHomework']), 'student')).toEqual(['list', 'homeworks']);
     // Direction : consultation des progressions d'un enseignant (lecture seule).
     expect(navTabs(has(['calendarView', 'readSession']), 'personnel')).toEqual(['calendar', 'sessions', 'consult']);
+    // Archives : droit dédié, enseignant ou direction.
+    expect(navTabs(has(['readNotebookArchives']), 'teacher')).toEqual(['archives']);
+    expect(navTabs(has(['readNotebookArchives']), 'student')).toEqual([]);
     expect(navTabs(has([]), 'other')).toEqual([]);
   });
 });

@@ -1,6 +1,7 @@
 // Client REST du module Cahier-de-textes (diary) — session ENT, même origine. XSRF sur mutations.
 import type { CalendarCourse } from './calendarItems';
 import type { CalendarOptions } from './period';
+import type { ArchivePage } from './archives';
 import type { Notebook, NotebookContent, NotebookPage } from './notebooks';
 import type { RawFolder } from './progressions';
 import { externalQuery, ownQuery, type Scope, type SearchClass, type SearchTeacher } from './searchScope';
@@ -614,6 +615,19 @@ export const visaToPdf = async (visa: unknown): Promise<{ blob: Blob; filename: 
   return { blob: await res.blob(), filename: name ? decodeURIComponent(name) : 'cahier-de-textes.pdf' };
 };
 
+// ── Archives des cahiers de textes ──────────────────────────────────────────────────
+/** Années scolaires archivées de l'établissement, la plus récente d'abord. */
+export const getArchiveYears = async (structureId: string): Promise<string[]> =>
+  json<{ archiveSchoolYears?: string[] }>(await fetch(`/diary/structures/${structureId}/notebooks/archives/periods`, base)).then((r) => r?.archiveSchoolYears ?? []);
+
+export const getArchives = async (structureId: string, query: string): Promise<ArchivePage> => json<ArchivePage>(await fetch(`/diary/structures/${structureId}/notebooks/archives?${query}`, base));
+
+/** Enseignants (droit de recherche d'enseignants) et classes ayant des archives, par fragment de nom. */
+export const searchArchiveTeachers = async (structureId: string, q: string): Promise<string[]> =>
+  json<{ teacherNames?: string[] }>(await fetch(`/diary/structures/${structureId}/notebooks/archives/teachers/${encodeURIComponent(q)}`, base)).then((r) => r?.teacherNames ?? []).catch(() => []);
+export const searchArchiveAudiences = async (structureId: string, q: string): Promise<string[]> =>
+  json<{ audienceNames?: string[] }>(await fetch(`/diary/structures/${structureId}/notebooks/archives/audiences/${encodeURIComponent(q)}`, base)).then((r) => r?.audienceNames ?? []).catch(() => []);
+
 export const api = {
   getChildren,
   searchTeachers,
@@ -655,6 +669,10 @@ export const api = {
   unpublishSession,
   getProgressions,
   getNotebooks,
+  getArchiveYears,
+  getArchives,
+  searchArchiveTeachers,
+  searchArchiveAudiences,
   getNotebookContents,
   getVisas,
   createVisas,

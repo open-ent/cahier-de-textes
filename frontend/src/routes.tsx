@@ -3,6 +3,7 @@ import { RouteObject, createHashRouter, useLocation, useParams } from 'react-rou
 import { Home } from './screens/Home';
 import { List } from './screens/List';
 import { Notebooks } from './screens/Notebooks';
+import { Archives } from './screens/Archives';
 import { HomeworkForm } from './screens/HomeworkForm';
 import { Homeworks } from './screens/Homeworks';
 import { ProgressionForm } from './screens/ProgressionForm';
@@ -35,6 +36,7 @@ export const routes: RouteObject[] = [
       { path: 'seances', element: <Sessions /> },
       { path: 'seance/:id', element: <Keyed>{(k) => <SessionForm key={k} />}</Keyed> },
       { path: 'cahiers', element: <Notebooks /> },
+      { path: 'archives', element: <Archives /> },
       { path: 'progressions', element: <Progressions /> },
       { path: 'progressions/consultation', element: <ProgressionsConsult /> },
       { path: 'progression/:id', element: <Keyed>{(k) => <ProgressionForm key={k} />}</Keyed> },

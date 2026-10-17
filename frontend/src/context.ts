@@ -75,7 +75,7 @@ export function initialStructureId(structures: StructureRef[], preferredId: stri
 }
 
 /** Onglets de navigation selon les droits, comme le menu latéral de l'AngularJS (side-navbar). */
-export type Tab = 'calendar' | 'list' | 'homeworks' | 'sessions' | 'progressions' | 'consult' | 'notebooks';
+export type Tab = 'calendar' | 'list' | 'homeworks' | 'sessions' | 'progressions' | 'consult' | 'notebooks' | 'archives';
 
 export function navTabs(has: (k: WorkflowKey) => boolean, profile: Profile): Tab[] {
   const tabs: Tab[] = [];
@@ -91,6 +91,8 @@ export function navTabs(has: (k: WorkflowKey) => boolean, profile: Profile): Tab
   if (profile === 'teacher' && has('manageSession')) tabs.push('progressions');
   // Cahiers de textes (visas, PDF) : enseignant, direction et inspection avec le droit d'accès.
   if ((profile === 'teacher' || profile === 'personnel') && has('adminAccess')) tabs.push('notebooks');
+  // Archives des années passées : droit dédié.
+  if ((profile === 'teacher' || profile === 'personnel') && has('readNotebookArchives')) tabs.push('archives');
   // Direction : consultation des progressions d'un enseignant, en lecture seule (side-navbar).
   if (profile === 'personnel') tabs.push('consult');
   return tabs;
