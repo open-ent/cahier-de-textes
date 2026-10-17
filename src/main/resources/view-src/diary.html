@@ -51,14 +51,6 @@
 		  @media (max-width: 600px) {
 		    .diary-ui-switch { flex-direction: column; align-items: stretch; gap: 12px; }
 		  }
-		  .diary-ui-fab[hidden] { display: none; }
-		  .diary-ui-fab { position: fixed; right: 16px; bottom: 16px; z-index: 9500; font-size: 14px; }
-		  .diary-ui-fab > button { border: 0; border-radius: 20px; padding: 8px 14px; background: #243242; color: #fff; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
-		  .diary-ui-fab-menu { position: absolute; right: 0; bottom: 44px; min-width: 200px; background: #fff; color: #243242; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.3); padding: 6px; }
-		  .diary-ui-fab-menu[hidden] { display: none; }
-		  .diary-ui-fab-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 6px; cursor: pointer; color: inherit; font-size: 14px; }
-		  .diary-ui-fab-menu button:hover { background: #eef1f4; }
-		  .diary-ui-fab-menu button[aria-current="true"] { font-weight: 700; }
 		</style>
 	<script type="text/ng-template" id="empty"></script>
 </head>
@@ -92,16 +84,9 @@
 		</div>
 	</div>
 
-	<!-- Bascule permanente entre les deux interfaces, sans compteur : affichée tant que l'usager n'a fait
-	     AUCUN choix dans les paramètres du compte (« Choix de la plateforme ») ; ui-switch.js la révèle. -->
-	<div id="diary-ui-fab" class="diary-ui-fab" hidden>
-		<div class="diary-ui-fab-menu" hidden>
-			<button type="button" data-ui="react">{{#i18n}}diary.switch.fab.new{{/i18n}}</button>
-			<button type="button" data-ui="angular" aria-current="true">{{#i18n}}diary.switch.fab.old{{/i18n}} ({{#i18n}}diary.switch.fab.current{{/i18n}})</button>
-		</div>
-		<button type="button" data-action="toggle" aria-haspopup="true">&#8644; {{#i18n}}diary.switch.fab.label{{/i18n}}</button>
-	</div>
+	<!-- Bascule permanente ancienne / nouvelle interface, générique (ui-fab.js, identique dans chaque module à double interface). -->
 	<script type="text/javascript" src="/diary/public/ui-switch.js?v=@@VERSION"></script>
+	<script type="text/javascript" src="/diary/public/ui-fab.js?v=@@VERSION"></script>
 </body>
 
 </html>
