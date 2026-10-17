@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import { navTabs } from '../context';
+import { UiSwitchBanner } from '../features/UiSwitchBanner';
 import { setLanguage } from '../locale';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 
@@ -76,6 +77,7 @@ export function Root() {
           </div>
         </div>
       </Layout>
+      <UiSwitchBanner />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Modal } from '@open-ent/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId, useMemo, useState } from 'react';
+import { DragEvent, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,6 +12,7 @@ import { useDiaryContext } from '../hooks/useDiaryContext';
 import { useReadScope } from '../hooks/useReadScope';
 import { dateLocale } from '../locale';
 import { daysPerWeek, initialAnchor, periodOf, step, ViewMode, VIEW_MODES, visibleDays } from '../period';
+import { buildTree, flatten, ProgressionSession } from '../progressions';
 import { scopeKey } from '../searchScope';
 import { stripHtml, ymd } from '../utils';
 
@@ -96,6 +97,20 @@ export function Calendar() {
   const daily = useMemo(() => dailyHomeworks(homeworks, false), [homeworks]);
   const range = hourRange(items, slotsQuery.data ?? []);
 
+  // Progressions de l'enseignant : proposées en glisser-déposer sur un cours ou une séance.
+  const canUseProgressions = ctx.has('manageSession') && (ctx.profile === 'teacher' || ctx.profile === 'personnel');
+  const progressionsQuery = useQuery({ queryKey: ['diary', 'progression-folders', ctx.userId], queryFn: () => api.getProgressionFolders(ctx.userId), enabled: canUseProgressions && !!ctx.userId });
+  const progressionList: Array<{ folder: string; p: ProgressionSession }> = useMemo(
+    () => flatten(buildTree(progressionsQuery.data ?? [], t('diary.progressions.root', { defaultValue: 'Mes dossiers' }))).flatMap((f) => f.sessions.map((p) => ({ folder: f.title, p }))),
+    [progressionsQuery.data, t],
+  );
+  const [pickProgression, setPickProgression] = useState('');
+  // Infobulle au survol ou au focus d'un élément (comme l'AngularJS) : détail sans ouvrir la fenêtre.
+  const [tip, setTip] = useState<{ item: CalendarItem; x: number; y: number } | null>(null);
+  const showTip = (it: CalendarItem, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setTip({ item: it, x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6 });
+  };
   const [selected, setSelected] = useState<CalendarItem | null>(null);
   const [selectedHomework, setSelectedHomework] = useState<CalendarHomework | null>(null);
   const [legend, setLegend] = useState(false);
@@ -121,6 +136,18 @@ export function Calendar() {
   const loadError = sessionsQuery.isError || homeworksQuery.isError || coursesQuery.isError;
   const timeGrid = mode === 'day' || mode === 'week';
 
+  /** Cours → nouvelle séance pré-remplie ; séance → sa modification avec la progression appliquée. */
+  const applyProgression = (it: CalendarItem, progressionId: string) => {
+    if (!progressionId) return;
+    if (it.kind === 'course') navigate(`/seance/nouvelle?course=${it.course!._id}&date=${it.day}&progression=${progressionId}`);
+    else navigate(`/seance/${it.session!.id}?progression=${progressionId}`);
+  };
+  const dropProgression = (e: DragEvent, it: CalendarItem) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('application/x-diary-progression-id');
+    if (id && ctx.has('manageSession')) applyProgression(it, id);
+  };
+
   const itemBox = (it: CalendarItem, compact: boolean) => (
     <button
       type="button"
@@ -128,7 +155,13 @@ export function Calendar() {
       data-item={it.key}
       data-kind={it.kind}
       onClick={() => setSelected(it)}
-      title={`${hhmm(it.start)}–${hhmm(it.end)} ${label(it)}`}
+      onMouseEnter={(e) => showTip(it, e.currentTarget)}
+      onMouseLeave={() => setTip(null)}
+      onFocus={(e) => showTip(it, e.currentTarget)}
+      onBlur={() => setTip(null)}
+      aria-describedby={tip?.item.key === it.key ? 'cal-tip' : undefined}
+      onDragOver={canUseProgressions ? (e) => e.preventDefault() : undefined}
+      onDrop={canUseProgressions ? (e) => dropProgression(e, it) : undefined}
       className="text-start w-100 border-0"
       style={{
         background: it.color,
@@ -197,6 +230,28 @@ export function Calendar() {
           </>
         )}
       </div>
+
+      {canUseProgressions && progressionList.length > 0 && (
+        <details className="mb-12" data-progressions-panel>
+          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{t('diary.calendar.progressions', { defaultValue: 'Mes progressions : glissez-en une sur un cours ou une séance' })}</summary>
+          <ul className="list-unstyled d-flex flex-wrap gap-8 mt-8 mb-0">
+            {progressionList.map(({ folder, p }) => (
+              <li
+                key={p.id}
+                className="card p-8"
+                draggable
+                data-progression={p.id}
+                title={`${folder} › ${p.title}`}
+                onDragStart={(e) => { e.dataTransfer.setData('application/x-diary-progression-id', String(p.id)); e.dataTransfer.effectAllowed = 'copy'; }}
+                style={{ cursor: 'grab', fontSize: 13 }}
+              >
+                <strong>{p.title}</strong>
+                {(p.className || p.subjectLabel) && <span className="text-muted"> · {[p.subjectLabel, p.className].filter(Boolean).join(' · ')}</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {loading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
       {loadError && <div className="alert alert-warning" role="alert">{t('diary.calendar.error', { defaultValue: 'Le calendrier n’a pas pu être chargé.' })}</div>}
@@ -278,6 +333,31 @@ export function Calendar() {
         </div>
       )}
 
+      {tip && (
+        <div
+          id="cal-tip"
+          role="tooltip"
+          data-tooltip
+          style={{ position: 'fixed', left: Math.max(8, tip.x), top: tip.y, zIndex: 2000, maxWidth: 270, background: '#243242', color: '#fff', borderRadius: 6, padding: '8px 10px', fontSize: 13, lineHeight: 1.4, boxShadow: '0 4px 16px rgba(0,0,0,.25)', pointerEvents: 'none' }}
+        >
+          <strong>{label(tip.item) || t('diary.session', { defaultValue: 'Séance' })}</strong>
+          <div>{hhmm(tip.item.start)} – {hhmm(tip.item.end)}</div>
+          {audience(tip.item) && <div>{audience(tip.item)}</div>}
+          {tip.item.kind === 'course' && (tip.item.course?.roomLabels ?? []).filter(Boolean).length > 0 && (
+            <div>{t('diary.tooltip.room', { defaultValue: 'Salle' })} : {(tip.item.course?.roomLabels ?? []).filter(Boolean).join(', ')}</div>
+          )}
+          {tip.item.kind === 'course' ? (
+            <div style={{ opacity: 0.85 }}>{t('diary.calendar.course.empty', { defaultValue: "Cours de l'emploi du temps : séance pas encore renseignée." })}</div>
+          ) : (
+            <div style={{ opacity: 0.85 }}>
+              {tip.item.published ? t('diary.published', { defaultValue: 'Publiée' }) : t('diary.unpublished', { defaultValue: 'Non publiée' })}
+              {' · '}
+              {t('diary.calendar.homeworks.count', { defaultValue: '[[count]] devoir(s)', count: tip.item.homeworks.published + tip.item.homeworks.draft })}
+            </div>
+          )}
+        </div>
+      )}
+
       {selected && (
         <Modal id={dialogId} isOpen onModalClose={() => setSelected(null)} size="md">
           <Modal.Header onModalClose={() => setSelected(null)}>{label(selected) || t('diary.session', { defaultValue: 'Séance' })}</Modal.Header>
@@ -296,6 +376,20 @@ export function Calendar() {
                   {t('diary.calendar.homeworks.count', { defaultValue: '[[count]] devoir(s)', count: selected.homeworks.published + selected.homeworks.draft })}
                 </p>
               </>
+            )}
+            {canUseProgressions && progressionList.length > 0 && (
+              <div className="d-flex gap-8 align-items-end mt-12 flex-wrap" data-use-progression>
+                <div style={{ flex: '1 1 220px' }}>
+                  <label htmlFor="cal-progression" className="form-label">{t('diary.calendar.use.progression', { defaultValue: 'Utiliser une progression' })}</label>
+                  <select id="cal-progression" className="form-select" value={pickProgression} onChange={(e) => setPickProgression(e.target.value)}>
+                    <option value="">—</option>
+                    {progressionList.map(({ folder, p }) => <option key={p.id} value={p.id}>{`${folder} › ${p.title}`}</option>)}
+                  </select>
+                </div>
+                <button type="button" className="btn btn-secondary" disabled={!pickProgression} onClick={() => applyProgression(selected, pickProgression)}>
+                  {t('diary.calendar.use.progression.go', { defaultValue: 'Appliquer' })}
+                </button>
+              </div>
             )}
           </Modal.Body>
           <Modal.Footer>

@@ -9,6 +9,49 @@
 	<script src="/assets/js/entcore/ng-app.js?v=@@VERSION" id="context" type="text/javascript"></script>
 	<script type="text/javascript" src="/diary/public/dist/application.js?v=@@VERSION"></script>
 	
+	<!-- Styles du bandeau de bascule (échafaudage de migration, supprimé avec l'IHM AngularJS). -->
+		<style type="text/css">
+		  .diary-ui-switch {
+		    position: fixed;
+		    left: 50%;
+		    bottom: 16px;
+		    transform: translateX(-50%);
+		    z-index: 9000;
+		    max-width: calc(100vw - 32px);
+		    display: flex;
+		    align-items: center;
+		    gap: 24px;
+		    padding: 12px 16px;
+		    border-radius: 8px;
+		    background: #243242;
+		    color: #fff;
+		    box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
+		    font-size: 14px;
+		  }
+		  .diary-ui-switch[hidden] { display: none; }
+		  .diary-ui-switch-text { display: flex; flex-direction: column; gap: 2px; }
+		  .diary-ui-switch-text span { opacity: .8; }
+		  .diary-ui-switch-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+		  .diary-ui-switch-actions button {
+		    border: 0;
+		    border-radius: 6px;
+		    padding: 8px 14px;
+		    font-size: 14px;
+		    cursor: pointer;
+		    background: transparent;
+		    color: #fff;
+		    text-decoration: underline;
+		  }
+		  .diary-ui-switch-actions button.primary {
+		    background: #fff;
+		    color: #243242;
+		    font-weight: 600;
+		    text-decoration: none;
+		  }
+		  @media (max-width: 600px) {
+		    .diary-ui-switch { flex-direction: column; align-items: stretch; gap: 12px; }
+		  }
+		</style>
 	<script type="text/ng-template" id="empty"></script>
 </head>
 
@@ -27,6 +70,20 @@
 		<!-- main templates -->
 		<container template="main"></container>
 	</portal>
+
+	<!-- Invitation à essayer la nouvelle IHM React ; masquée par défaut, ui-switch.js décide de l'afficher
+	     d'après la préférence `diaryUi`. Hors de <portal>, en position fixe. -->
+	<div id="diary-ui-switch" class="diary-ui-switch" hidden>
+		<div class="diary-ui-switch-text">
+			<strong>{{#i18n}}diary.switch.invitation.title{{/i18n}}</strong>
+			<span>{{#i18n}}diary.switch.invitation.body{{/i18n}}</span>
+		</div>
+		<div class="diary-ui-switch-actions">
+			<button type="button" data-action="later">{{#i18n}}diary.switch.invitation.later{{/i18n}}</button>
+			<button type="button" data-action="try" class="primary">{{#i18n}}diary.switch.invitation.try{{/i18n}}</button>
+		</div>
+	</div>
+	<script type="text/javascript" src="/diary/public/ui-switch.js?v=@@VERSION"></script>
 </body>
 
 </html>

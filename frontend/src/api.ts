@@ -628,6 +628,39 @@ export const searchArchiveTeachers = async (structureId: string, q: string): Pro
 export const searchArchiveAudiences = async (structureId: string, q: string): Promise<string[]> =>
   json<{ audienceNames?: string[] }>(await fetch(`/diary/structures/${structureId}/notebooks/archives/audiences/${encodeURIComponent(q)}`, base)).then((r) => r?.audienceNames ?? []).catch(() => []);
 
+// ── Choix d'IHM (bascule AngularJS → React) ──────────────────────────────────────────
+/**
+ * Préférence `diaryUi` : choix d'interface + état des bandeaux qui le proposent. Le serveur lit `ui`
+ * pour servir la bonne vue (DiaryController#preferredUi). Pas de tiret dans la clé : entcore retire
+ * les caractères non alphanumériques. Ex. `{ ui: 'react', invitationShown: 2, returnShown: 1 }`.
+ */
+export interface UiPreference {
+  ui?: 'react' | 'angular';
+  invitationDismissed?: boolean;
+  invitationShown?: number;
+  returnDismissed?: boolean;
+  returnShown?: number;
+  feedback?: string;
+  feedbackAt?: string;
+}
+
+export const getUiPreference = async (): Promise<UiPreference> => {
+  const res = await fetch('/userbook/preference/diaryUi', base);
+  if (!res.ok) return {};
+  // L'enveloppe est `{ preference: "<json>" }` — une chaîne, pas un objet.
+  const body = (await res.json().catch(() => null)) as { preference?: string } | null;
+  if (!body?.preference) return {};
+  try {
+    return (JSON.parse(body.preference) as UiPreference) ?? {};
+  } catch {
+    return {};
+  }
+};
+
+export const saveUiPreference = async (preference: UiPreference): Promise<void> => {
+  await fetch('/userbook/preference/diaryUi', { ...base, method: 'PUT', headers: mutHeaders(), body: JSON.stringify(preference) });
+};
+
 export const api = {
   getChildren,
   searchTeachers,
@@ -668,6 +701,8 @@ export const api = {
   publishSession,
   unpublishSession,
   getProgressions,
+  getUiPreference,
+  saveUiPreference,
   getNotebooks,
   getArchiveYears,
   getArchives,

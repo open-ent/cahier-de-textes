@@ -1,7 +1,7 @@
 import { MediaLibrary, Modal, useEdificeClient, useMediaLibrary } from '@open-ent/react';
 import { Editor, type EditorInstance } from '@open-ent/react/editor';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -26,6 +26,8 @@ import {
 } from '../sessionForm';
 import { draftFromHomework, futureSessions as pickFutureSessions, HomeworkDraft, homeworkPayload } from '../homeworkForm';
 import { MediacentrePicker } from './MediacentrePicker';
+import { homeworksFrom, sessionFieldsFrom } from '../progressionApply';
+import { buildTree, flatten } from '../progressions';
 import { PendingModifications } from './PendingModifications';
 import { SaveAsProgression } from './SaveAsProgression';
 import { SessionHomeworks } from './SessionHomeworks';
@@ -50,6 +52,7 @@ export function SessionForm() {
   const [params] = useSearchParams();
   const courseParam = params.get('course');
   const dateParam = params.get('date');
+  const progressionParam = params.get('progression');
   const { t } = useTranslation(['diary', 'common']);
   const ctx = useDiaryContext();
   const { appCode } = useEdificeClient();
@@ -121,6 +124,24 @@ export function SessionForm() {
       setLoaded(true);
     }
   }, [loaded, sessionId, sessionQuery.data, courseParam, courseQuery.data, classes, dateParam]);
+
+  // Progression glissée sur le cours ou la séance (`?progression=12`) : son titre et son contenu
+  // remplacent ceux du formulaire, ses devoirs s'ajoutent aux devoirs de la séance. Rien n'est
+  // enregistré avant « Enregistrer », comme l'AngularJS. Appliquée une seule fois.
+  const progressionApplied = useRef(false);
+  const progressionFolders = useQuery({ queryKey: ['diary', 'progression-folders', ctx.userId], queryFn: () => api.getProgressionFolders(ctx.userId), enabled: !!progressionParam && !!ctx.userId });
+  useEffect(() => {
+    if (!progressionParam || progressionApplied.current || !loaded || !progressionFolders.data || !homeworkTypesQuery.data) return;
+    progressionApplied.current = true;
+    const p = flatten(buildTree(progressionFolders.data, '')).flatMap((f) => f.sessions).find((x) => x.id === Number(progressionParam));
+    if (!p) {
+      setNotice({ ok: false, text: t('diary.progression.apply.missing', { defaultValue: "Cette progression n'existe plus." }) });
+      return;
+    }
+    setDraft((d) => ({ ...d, ...sessionFieldsFrom(p) }));
+    setHomeworks((h) => [...h, ...homeworksFrom(p, { typeId: String(homeworkTypesQuery.data?.[0]?.id ?? ''), sessionDate: draft.date, existing: h })]);
+    setNotice({ ok: true, text: t('diary.progression.applied', { defaultValue: 'Progression « [[title]] » appliquée : vérifiez le contenu puis enregistrez.', title: p.title }) });
+  }, [progressionParam, loaded, progressionFolders.data, homeworkTypesQuery.data, draft.date, t]);
 
   // Type par défaut : le premier de rang > 0.
   useEffect(() => {
