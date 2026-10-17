@@ -4,6 +4,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 import { navTabs } from '../context';
 import { UiSwitchBanner } from '../features/UiSwitchBanner';
+import { UiSwitchFab } from '../features/UiSwitchFab';
 import { setLanguage } from '../locale';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 
@@ -78,6 +79,7 @@ export function Root() {
         </div>
       </Layout>
       <UiSwitchBanner />
+      <UiSwitchFab />
     </div>
   );
 }

@@ -19,3 +19,18 @@
   width: min(640px, calc(100vw - 32px));
   background: var(--openent-white, #fff);
 }
+
+/* Bascule permanente entre les deux interfaces : bouton flottant en bas à droite, au-dessus du contenu. */
+.diary-ui-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1040;
+}
+.diary-ui-fab-menu {
+  position: absolute;
+  right: 0;
+  bottom: 48px;
+  min-width: 220px;
+  background: var(--openent-white, #fff);
+}

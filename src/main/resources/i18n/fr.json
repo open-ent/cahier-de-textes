@@ -579,5 +579,9 @@
   "diary.switch.feedback.placeholder": "En une phrase (facultatif)",
   "diary.switch.feedback.send": "Envoyer et revenir",
   "diary.switch.feedback.skip": "Revenir sans répondre",
-  "diary.tooltip.room": "Salle"
+  "diary.tooltip.room": "Salle",
+  "diary.switch.fab.label": "Version de l'interface",
+  "diary.switch.fab.new": "Nouvelle version",
+  "diary.switch.fab.old": "Ancienne version",
+  "diary.switch.fab.current": "actuelle"
 }

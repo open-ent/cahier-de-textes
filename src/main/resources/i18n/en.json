@@ -564,5 +564,9 @@
   "diary.switch.feedback.placeholder": "In one sentence (optional)",
   "diary.switch.feedback.send": "Send and go back",
   "diary.switch.feedback.skip": "Go back without answering",
-  "diary.tooltip.room": "Room"
+  "diary.tooltip.room": "Room",
+  "diary.switch.fab.label": "Interface version",
+  "diary.switch.fab.new": "New version",
+  "diary.switch.fab.old": "Previous version",
+  "diary.switch.fab.current": "current"
 }

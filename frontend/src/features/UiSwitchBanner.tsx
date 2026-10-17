@@ -4,9 +4,8 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { api, UiPreference } from '../api';
+import { bannerEligible } from './uiSwitchState';
 
-/** Au-delà, l'information a été transmise : continuer à occuper le bas de l'écran serait pénible. */
-const MAX_DISPLAYS = 5;
 
 /**
  * Réglage durable du choix d'interface, dans le dashboard (entrée `diaryUi` de la page
@@ -47,8 +46,7 @@ export function UiSwitchBanner() {
   });
 
   const preference = preferenceQuery.data;
-  const visible =
-    !!preference && !hidden && !preference.returnDismissed && (preference.returnShown ?? 0) < MAX_DISPLAYS;
+  const visible = !hidden && bannerEligible(preference);
 
   // Un affichage compté une seule fois par chargement de page, jamais pendant le rendu.
   const counted = useRef(false);

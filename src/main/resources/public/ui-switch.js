@@ -20,7 +20,7 @@
   var MAX_INVITATIONS = 5;
 
   var banner = document.getElementById('diary-ui-switch');
-  if (!banner) return;
+  var fab = document.getElementById('diary-ui-fab');
 
   function xsrfHeaders() {
     var headers = { 'Content-Type': 'application/json' };
@@ -49,6 +49,29 @@
     }).catch(function () { /* un choix d'habillage ne justifie pas d'alerter l'usager */ });
   }
 
+  // Bascule permanente (bouton flottant), sans compteur : on peut aller et venir autant qu'on veut.
+  // Elle n'écrit AUCUNE préférence (dérogation d'URL `?ui=` seule) et n'est montrée que si l'usager n'a
+  // fait aucun choix dans les paramètres du compte : dès qu'une préférence y est affichée (nouvelle ou
+  // ancienne version), la page de réglages gouverne et ce bouton disparaît.
+  if (fab) {
+    var menu = fab.querySelector('.diary-ui-fab-menu');
+    fab.querySelector('[data-action="toggle"]').addEventListener('click', function () { menu.hidden = !menu.hidden; });
+    Array.prototype.forEach.call(menu.querySelectorAll('[data-ui]'), function (item) {
+      item.addEventListener('click', function () {
+        window.location.href = '/diary?ui=' + item.getAttribute('data-ui');
+      });
+    });
+    read().then(function (preference) {
+      var explicit = preference.ui === 'react' || preference.ui === 'angular';
+      var shown = typeof preference.invitationShown === 'number' ? preference.invitationShown : 0;
+      // Le bouton laisse la place à l'invitation tant qu'elle est affichée, et prend le relais après.
+      var invitationVisible = !!banner && !preference.invitationDismissed && shown < MAX_INVITATIONS;
+      if (!explicit && !invitationVisible) fab.hidden = false;
+    });
+  }
+
+  if (!banner) return;
+
   read().then(function (preference) {
     // Un choix explicite, dans un sens comme dans l'autre, clôt le sujet : quelqu'un qui est
     // REVENU à l'ancienne IHM a déjà tranché, le réinviter à chaque visite serait insistant.
@@ -72,6 +95,7 @@
       preference.invitationDismissed = true;
       write(preference);
       banner.hidden = true;
+      if (fab) fab.hidden = false;
     });
   });
 })();
