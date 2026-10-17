@@ -72,7 +72,7 @@ export function SearchBar({ structureId, teacher, onTeacher, classes, onClasses 
             {classes.map((c) => (
               <li key={c.id} className="d-inline-flex align-items-center gap-4 me-8 badge bg-secondary" style={{ color: '#fff' }}>
                 {c.name}
-                <button type="button" className="btn btn-link p-0 text-white" aria-label={`${t('diary.search.remove', { defaultValue: 'Retirer' })} ${c.name}`} onClick={() => onClasses(classes.filter((x) => x.id !== c.id))}>×</button>
+                <button type="button" className="btn btn-link p-0 text-white" style={{ background: 'none', color: '#fff' }} aria-label={`${t('diary.search.remove', { defaultValue: 'Retirer' })} ${c.name}`} onClick={() => onClasses(classes.filter((x) => x.id !== c.id))}>×</button>
               </li>
             ))}
           </ul>

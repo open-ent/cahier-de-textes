@@ -9,6 +9,8 @@ export interface DiaryContext {
   /** Session chargée et établissement initial résolu. */
   ready: boolean;
   userId: string;
+  /** Nom affiché de l'usager (inscrit sur les visas). */
+  userName: string;
   profile: Profile;
   /** A le droit de workflow (ex. `has('manageSession')`). */
   has: (k: WorkflowKey) => boolean;
@@ -40,6 +42,7 @@ export function useDiaryContext(): DiaryContext {
     settingTypesRead: useHasWorkflow(WORKFLOW.settingTypesRead),
     settingTypesManage: useHasWorkflow(WORKFLOW.settingTypesManage),
     adminAccess: useHasWorkflow(WORKFLOW.adminAccess),
+    adminVisaMassManage: useHasWorkflow(WORKFLOW.adminVisaMassManage),
     manageVisa: useHasWorkflow(WORKFLOW.manageVisa),
     readVisa: useHasWorkflow(WORKFLOW.readVisa),
     readNotebookArchives: useHasWorkflow(WORKFLOW.readNotebookArchives),
@@ -66,6 +69,7 @@ export function useDiaryContext(): DiaryContext {
   return {
     ready: init && !preferenceQuery.isLoading && (structureId !== '' || structures.length === 0),
     userId: user?.userId ?? '',
+    userName: user?.username ?? '',
     profile: profileOf(user?.type),
     has: (k) => rights[k] === true,
     structures,

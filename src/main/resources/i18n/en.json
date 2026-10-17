@@ -519,5 +519,16 @@
   "diary.progression.from.session.warning1": "Warning: only the homework linked to this session will be saved.",
   "diary.progression.from.session.warning2": "Homework set for an upcoming session will not be saved.",
   "diary.progression.from.session.incomplete": "The session title and content must be filled in.",
-  "diary.calendar.propose": "Propose a change"
+  "diary.calendar.propose": "Propose a change",
+  "diary.notebooks.pdf.error": "The PDF could not be created.",
+  "diary.notebooks.filters": "Filters",
+  "diary.visa.mass.select": "Select the whole filter result",
+  "diary.visa.mass.selected.count": "selected across the whole filtered period",
+  "diary.visa.mass.viser": "Sign off the selection",
+  "diary.notebooks.actions": "Actions on the selection",
+  "diary.notebooks.error": "The notebooks could not be loaded.",
+  "diary.notebooks.pagination": "Pagination",
+  "diary.notebooks.previous": "Previous",
+  "diary.notebooks.next": "Next",
+  "diary.notebooks.content": "Content"
 }

@@ -344,7 +344,7 @@ export function SessionForm() {
                 <li key={rid} className="d-inline-flex align-items-center gap-4 me-8 badge bg-secondary">
                   {rbsLabel(rid)}
                   {editable && !fromCourse && (
-                    <button type="button" className="btn btn-link p-0 text-white" aria-label={`${t('diary.remove', { defaultValue: 'Retirer' })} ${rbsLabel(rid)}`} onClick={() => set('rbsResourceIds', draft.rbsResourceIds.filter((x) => x !== rid))}>×</button>
+                    <button type="button" className="btn btn-link p-0 text-white" style={{ background: 'none', color: '#fff' }} aria-label={`${t('diary.remove', { defaultValue: 'Retirer' })} ${rbsLabel(rid)}`} onClick={() => set('rbsResourceIds', draft.rbsResourceIds.filter((x) => x !== rid))}>×</button>
                   )}
                 </li>
               ))}

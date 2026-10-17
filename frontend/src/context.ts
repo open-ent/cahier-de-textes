@@ -22,6 +22,8 @@ export const WORKFLOW = {
   settingTypesRead: 'fr.openent.diary.controllers.HomeworkController|workflow4',
   settingTypesManage: 'fr.openent.diary.controllers.HomeworkController|workflow5',
   adminAccess: 'fr.openent.diary.controllers.VisaController|workflow1',
+  /** Visa de toute la sélection d'un filtre, droit distinct du visa unitaire (jamais accordé par défaut). */
+  adminVisaMassManage: 'fr.openent.diary.controllers.FakeRight|adminVisaMassManage',
   manageVisa: 'fr.openent.diary.controllers.VisaController|workflow2',
   readVisa: 'fr.openent.diary.controllers.FakeRight|adminVisaRead',
   readNotebookArchives: 'fr.openent.diary.controllers.NotebookArchiveController|readArchives',
@@ -73,7 +75,7 @@ export function initialStructureId(structures: StructureRef[], preferredId: stri
 }
 
 /** Onglets de navigation selon les droits, comme le menu latéral de l'AngularJS (side-navbar). */
-export type Tab = 'calendar' | 'list' | 'homeworks' | 'sessions' | 'progressions' | 'consult';
+export type Tab = 'calendar' | 'list' | 'homeworks' | 'sessions' | 'progressions' | 'consult' | 'notebooks';
 
 export function navTabs(has: (k: WorkflowKey) => boolean, profile: Profile): Tab[] {
   const tabs: Tab[] = [];
@@ -87,6 +89,8 @@ export function navTabs(has: (k: WorkflowKey) => boolean, profile: Profile): Tab
   if (has('readSession') || has('manageSession')) tabs.push('sessions');
   // Progressions : outil de l'enseignant (gestion des séances), comme progressions/view.
   if (profile === 'teacher' && has('manageSession')) tabs.push('progressions');
+  // Cahiers de textes (visas, PDF) : enseignant, direction et inspection avec le droit d'accès.
+  if ((profile === 'teacher' || profile === 'personnel') && has('adminAccess')) tabs.push('notebooks');
   // Direction : consultation des progressions d'un enseignant, en lecture seule (side-navbar).
   if (profile === 'personnel') tabs.push('consult');
   return tabs;

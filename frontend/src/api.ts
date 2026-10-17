@@ -1,6 +1,7 @@
 // Client REST du module Cahier-de-textes (diary) — session ENT, même origine. XSRF sur mutations.
 import type { CalendarCourse } from './calendarItems';
 import type { CalendarOptions } from './period';
+import type { Notebook, NotebookContent, NotebookPage } from './notebooks';
 import type { RawFolder } from './progressions';
 import { externalQuery, ownQuery, type Scope, type SearchClass, type SearchTeacher } from './searchScope';
 
@@ -576,6 +577,43 @@ export const processSessionModification = async (id: number, accept: boolean, re
   if (!res.ok) throw new Error(String(res.status));
 };
 
+// ── Cahiers de textes, visas et PDF ─────────────────────────────────────────────────
+/** Cahiers (page `page` du filtre, ou tous si la requête n'a pas de page) — GET /diary/notebooks. */
+export const getNotebooks = async (query: string): Promise<NotebookPage> => json<NotebookPage>(await fetch(`/diary/notebooks?${query}`, base));
+
+/** Séances et devoirs d'un cahier — GET /diary/notebooks/sessions/homeworks. */
+export const getNotebookContents = async (query: string): Promise<NotebookContent[]> =>
+  json<NotebookContent[]>(await fetch(`/diary/notebooks/sessions/homeworks?${query}`, base)).then((a) => a ?? []);
+
+/** Visa existants sur des séances et devoirs — GET /diary/visas. */
+export interface VisaRow {
+  id: number;
+  comment?: string | null;
+  created: string;
+  owner_name?: string | null;
+}
+export const getVisas = async (structureId: string, sessionIds: number[], homeworkIds: number[]): Promise<VisaRow[]> => {
+  const p = new URLSearchParams({ structure_id: structureId });
+  sessionIds.forEach((id) => p.append('session_id', String(id)));
+  homeworkIds.forEach((id) => p.append('homework_id', String(id)));
+  return json<VisaRow[]>(await fetch(`/diary/visas?${p.toString()}`, base)).then((a) => a ?? []);
+};
+
+/** Crée des visas (un par cahier) ; `mass` : sélection de tout le filtre, droit distinct. */
+export const createVisas = async (mass: boolean, structureId: string, visas: unknown[]): Promise<void> => {
+  const res = await fetch(mass ? '/diary/visas/mass' : '/diary/visas', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify({ structure_id: structureId, visas }) });
+  if (!res.ok) throw new Error(String(res.status));
+};
+
+/** PDF d'un cahier (sans l'enregistrer) — POST /diary/visas/topdf ; renvoie le fichier et son nom. */
+export const visaToPdf = async (visa: unknown): Promise<{ blob: Blob; filename: string }> => {
+  const res = await fetch('/diary/visas/topdf', { ...base, method: 'POST', headers: { ...mutHeaders(), Accept: 'application/pdf' }, body: JSON.stringify({ visas: visa }) });
+  if (!res.ok) throw new Error(String(res.status));
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const name = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1];
+  return { blob: await res.blob(), filename: name ? decodeURIComponent(name) : 'cahier-de-textes.pdf' };
+};
+
 export const api = {
   getChildren,
   searchTeachers,
@@ -616,6 +654,11 @@ export const api = {
   publishSession,
   unpublishSession,
   getProgressions,
+  getNotebooks,
+  getNotebookContents,
+  getVisas,
+  createVisas,
+  visaToPdf,
   proposeSessionModification,
   getSessionModifications,
   processSessionModification,
