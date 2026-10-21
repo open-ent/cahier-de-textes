@@ -11,6 +11,7 @@ import { buildDays, dayLabel, defaultDisplay, defaultPeriod, isDone, isValidPeri
 import { dateLocale } from '../locale';
 import { scopeKey } from '../searchScope';
 import { stripHtml } from '../utils';
+import { LoadError } from '../components/LoadError';
 
 const COLOR = { green: '#00ab6f', yellow: '#f5b700', red: '#e13a3a' } as const;
 
@@ -140,8 +141,9 @@ export function List() {
       </div>
       {!valid && <div className="alert alert-warning" role="alert">{t('diary.list.period.invalid', { defaultValue: 'La date de début doit précéder la date de fin.' })}</div>}
       {loading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
+      <LoadError failed={sessionsQuery.isError || homeworksQuery.isError} />
       {(sessionsQuery.isError || homeworksQuery.isError) && <div className="alert alert-warning" role="alert">{t('diary.calendar.error', { defaultValue: 'La liste n’a pas pu être chargée.' })}</div>}
-      {valid && !loading && days.length === 0 && <p className="text-muted" data-empty>{emptyText}</p>}
+      {valid && !loading && !sessionsQuery.isError && !homeworksQuery.isError && days.length === 0 && <p className="text-muted" data-empty>{emptyText}</p>}
 
       <ol className="list-unstyled" data-days>
         {days.map((d) => (

@@ -7,6 +7,7 @@ import { api } from '../api';
 import { isStudentOrRelative } from '../context';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 import { formatDate, hhmm, sortKey, stripHtml } from '../utils';
+import { LoadError } from '../components/LoadError';
 
 /**
  * Séances (leçons) du cahier de textes (parité IHM AngularJS) : liste des séances de l'enseignant
@@ -67,7 +68,8 @@ export function Sessions() {
       {/* Liste des séances */}
       <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.sessions.list', { defaultValue: 'Mes séances' })} <span className="text-muted" style={{ fontSize: 14 }}>({sessions.length})</span></h2>
       {sessionsQuery.isLoading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
-      {!sessionsQuery.isLoading && sessions.length === 0 && <p className="text-muted">{t('diary.sessions.empty', { defaultValue: 'Aucune séance.' })}</p>}
+      <LoadError failed={sessionsQuery.isError} />
+      {!sessionsQuery.isLoading && !sessionsQuery.isError && sessions.length === 0 && <p className="text-muted">{t('diary.sessions.empty', { defaultValue: 'Aucune séance.' })}</p>}
       {sessions.length > 0 && (
         <div style={{ overflowX: 'auto' }}>
           <table className="table table-bordered mb-0">

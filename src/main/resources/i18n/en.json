@@ -483,6 +483,7 @@
   "diary.progression.move": "Move",
   "diary.progression.delete": "Delete",
   "diary.progression.select": "Select",
+  "diary.load.error": "Loading failed. The data shown may be incomplete, please try again.",
   "diary.loading": "Loading…",
   "diary.progressions.empty": "No progression in this folder.",
   "diary.progression.select.all": "Select all",

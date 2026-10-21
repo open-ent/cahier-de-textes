@@ -505,6 +505,7 @@
   "diary.progression.move": "Déplacer",
   "diary.progression.delete": "Supprimer",
   "diary.progression.select": "Sélectionner",
+  "diary.load.error": "Le chargement a échoué. Les données affichées peuvent être incomplètes, réessayez.",
   "diary.loading": "Chargement…",
   "diary.progressions.empty": "Aucune progression dans ce dossier.",
   "diary.progression.select.all": "Tout sélectionner",

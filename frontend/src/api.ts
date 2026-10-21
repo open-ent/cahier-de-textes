@@ -240,7 +240,7 @@ export interface Child {
   className?: string;
   structureId?: string;
 }
-export const getChildren = async (): Promise<Child[]> => json<Child[]>(await fetch('/diary/children/list', base)).then((a) => a ?? []).catch(() => []);
+export const getChildren = async (): Promise<Child[]> => json<Child[]>(await fetch('/diary/children/list', base)).then((a) => a ?? []);
 
 /** Recherche d'enseignants (`/diary/search/users`) : nom ou prénom. Ex. « bat » → BATTISTI001 Anic. */
 export const searchTeachers = async (structureId: string, q: string): Promise<SearchTeacher[]> =>
@@ -259,7 +259,7 @@ export const readSessions = async (scope: Scope, start: string, end: string, str
       : scope.mode === 'external'
         ? `/diary/sessions/external/${start}/${end}?${externalQuery(scope.teacherId, scope.audienceIds, subjectId)}`
         : `/diary/sessions/own/${start}/${end}/${structureId}?${ownQuery(scope.audienceIds, subjectId)}`;
-  return json<Session[]>(await fetch(url, base)).then((a) => a ?? []).catch(() => []);
+  return json<Session[]>(await fetch(url, base)).then((a) => a ?? []);
 };
 
 /** Devoirs du périmètre : own, external, child (enfant + établissement). */
@@ -283,7 +283,7 @@ export const getOwnHomeworks = async (start: string, end: string, structureId: s
  * l'AngularJS. La route « own » ne renvoie rien à ce profil. Ex. le chef lit ses propres devoirs.
  */
 export const getExternalHomeworks = async (start: string, end: string, teacherId: string, subjectId?: string): Promise<Homework[]> =>
-  json<Homework[]>(await fetch(`/diary/homeworks/external/${start}/${end}?teacherId=${teacherId}${subjectId ? `&subjectId=${encodeURIComponent(subjectId)}` : ''}`, base)).then((a) => a ?? []).catch(() => []);
+  json<Homework[]>(await fetch(`/diary/homeworks/external/${start}/${end}?teacherId=${teacherId}${subjectId ? `&subjectId=${encodeURIComponent(subjectId)}` : ''}`, base)).then((a) => a ?? []);
 
 export const createHomework = async (body: HomeworkInput): Promise<{ id: number }> =>
   json<{ id: number }>(await fetch('/diary/homework', { ...base, method: 'POST', headers: mutHeaders(), body: JSON.stringify(body) }));
@@ -304,7 +304,7 @@ export const updateHomework = async (id: number, publicationStateChanged: boolea
 
 /** Charge de travail de la semaine de `dueDate` pour une classe : une entrée par jour {day, count, total}. */
 export const getWorkload = async (structureId: string, audienceId: string, dueDate: string, published: boolean): Promise<Array<{ day: string; count: number | string; total: number | string }>> =>
-  json<Array<{ day: string; count: number | string; total: number | string }>>(await fetch(`/diary/workload/${structureId}/${audienceId}/${dueDate}/${published}`, base)).then((a) => a ?? []).catch(() => []);
+  json<Array<{ day: string; count: number | string; total: number | string }>>(await fetch(`/diary/workload/${structureId}/${audienceId}/${dueDate}/${published}`, base)).then((a) => a ?? []);
 
 /**
  * Devoir complet. Pour un élève, `/diary/homework/:id/:studentId` : seule cette route renvoie son
@@ -369,11 +369,11 @@ export interface SessionInput {
 
 /** Séances de l'enseignant courant sur une période (GET /diary/sessions/own/:start/:end/:structureId). */
 export const getOwnSessions = async (start: string, end: string, structureId: string, subjectId?: string): Promise<Session[]> =>
-  json<Session[]>(await fetch(`/diary/sessions/own/${start}/${end}/${structureId}${subjectId ? `?subjectId=${encodeURIComponent(subjectId)}` : ''}`, base)).then((a) => a ?? []).catch(() => []);
+  json<Session[]>(await fetch(`/diary/sessions/own/${start}/${end}/${structureId}${subjectId ? `?subjectId=${encodeURIComponent(subjectId)}` : ''}`, base)).then((a) => a ?? []);
 
 /** Séances d'un enseignant pour un personnel (route « external », comme l'AngularJS). */
 export const getExternalSessions = async (start: string, end: string, teacherId: string, subjectId?: string): Promise<Session[]> =>
-  json<Session[]>(await fetch(`/diary/sessions/external/${start}/${end}?teacherId=${teacherId}${subjectId ? `&subjectId=${encodeURIComponent(subjectId)}` : ''}`, base)).then((a) => a ?? []).catch(() => []);
+  json<Session[]>(await fetch(`/diary/sessions/external/${start}/${end}?teacherId=${teacherId}${subjectId ? `&subjectId=${encodeURIComponent(subjectId)}` : ''}`, base)).then((a) => a ?? []);
 
 /** Crée une séance (POST /diary/session). */
 export const createSession = async (body: SessionInput): Promise<{ id: number }> =>
@@ -494,8 +494,7 @@ export function flattenProgressions(folders: Array<{ title?: string | null; prog
 /** Progressions de l'utilisateur (GET /diary/progressions/:ownerId), aplaties. */
 export const getProgressions = async (ownerId: string): Promise<Progression[]> =>
   json<Array<{ title?: string | null; progressions?: string | null }>>(await fetch(`/diary/progressions/${ownerId}`, base))
-    .then((folders) => flattenProgressions(folders ?? []))
-    .catch(() => []);
+    .then((folders) => flattenProgressions(folders ?? []));
 
 /** Crée une progression (POST /diary/progression/create). */
 export const createProgression = async (body: ProgressionInput): Promise<{ id: number }> =>

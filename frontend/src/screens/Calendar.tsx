@@ -15,6 +15,7 @@ import { daysPerWeek, initialAnchor, periodOf, step, ViewMode, VIEW_MODES, visib
 import { buildTree, flatten, ProgressionSession } from '../progressions';
 import { scopeKey } from '../searchScope';
 import { stripHtml, ymd } from '../utils';
+import { LoadError } from '../components/LoadError';
 
 const HOUR_PX = 48;
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
@@ -254,6 +255,7 @@ export function Calendar() {
       )}
 
       {loading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
+      <LoadError failed={sessionsQuery.isError || homeworksQuery.isError || coursesQuery.isError} />
       {loadError && <div className="alert alert-warning" role="alert">{t('diary.calendar.error', { defaultValue: 'Le calendrier n’a pas pu être chargé.' })}</div>}
 
       {timeGrid ? (

@@ -8,6 +8,7 @@ import { isStudentOrRelative } from '../context';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 import { dayLabels } from '../locale';
 import { addDays, formatDate, mondayOf, sortKey, stripHtml, weekLabel, ymd } from '../utils';
+import { LoadError } from '../components/LoadError';
 
 /** Écran devoirs : vue calendrier/liste des devoirs + création + gestion des types. */
 export function Homeworks() {
@@ -187,6 +188,7 @@ export function Homeworks() {
       </div>
 
       {homeworksQuery.isLoading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
+      <LoadError failed={homeworksQuery.isError} />
 
       {/* Vue CALENDRIER : « Travail à faire » (devoirs par jour) + créneaux horaires */}
       {view === 'calendar' && (
@@ -235,7 +237,7 @@ export function Homeworks() {
       {/* Vue LISTE */}
       {view === 'list' && (
         <>
-          {!homeworksQuery.isLoading && homeworks.length === 0 && (
+          {!homeworksQuery.isLoading && !homeworksQuery.isError && homeworks.length === 0 && (
             <p className="text-muted">{t('diary.homeworks.empty', { defaultValue: 'Aucun devoir sur la période.' })}</p>
           )}
           {homeworks.length > 0 && (

@@ -18,6 +18,7 @@ import {
   toBody,
 } from '../progressions';
 import { Modal } from './Modal';
+import { LoadError } from '../components/LoadError';
 
 type Dialog = { kind: 'folder'; folder: ProgressionFolder | null } | { kind: 'delete' } | { kind: 'move' } | null;
 
@@ -205,7 +206,8 @@ export function Progressions() {
           )}
 
           {query.isLoading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
-          {!query.isLoading && sessionsShown.length === 0 && foldersShown.length === 0 && <p className="text-muted">{t('diary.progressions.empty', { defaultValue: 'Aucune progression dans ce dossier.' })}</p>}
+          <LoadError failed={query.isError} />
+          {!query.isLoading && !query.isError && sessionsShown.length === 0 && foldersShown.length === 0 && <p className="text-muted">{t('diary.progressions.empty', { defaultValue: 'Aucune progression dans ce dossier.' })}</p>}
           {sessionsShown.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
               <table className="table table-bordered mb-0" data-sessions>
