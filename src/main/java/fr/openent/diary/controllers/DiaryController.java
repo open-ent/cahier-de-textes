@@ -90,7 +90,7 @@ public class DiaryController extends BaseController {
     private Future<String> preferredUi(String userId, String forcedUi) {
         if (forcedUi != null) return Future.succeededFuture(forcedUi);
         final Promise<String> promise = Promise.promise();
-        final String query = "MATCH (:User {id:{userId}})-[:PREFERS]->(uac:UserAppConf) RETURN uac." + UI_PREFERENCE + " AS preference";
+        final String query = "MATCH (:User {id:$userId})-[:PREFERS]->(uac:UserAppConf) RETURN uac." + UI_PREFERENCE + " AS preference";
         Neo4j.getInstance().execute(query, new JsonObject().put("userId", userId), message -> promise.complete(readUi(message.body())));
         return promise.future();
     }

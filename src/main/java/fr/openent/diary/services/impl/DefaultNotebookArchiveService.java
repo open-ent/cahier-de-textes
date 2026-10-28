@@ -399,7 +399,7 @@ public class DefaultNotebookArchiveService extends DBService implements Notebook
     }
 
     private void getStructure(String id, Handler<Either<String, JsonObject>> handler) {
-        String query = "MATCH (s:Structure) WHERE s.id = {id} RETURN s";
+        String query = "MATCH (s:Structure) WHERE s.id = $id RETURN s";
         neo4j.execute(query, new JsonObject().put("id", id), Neo4jResult.validUniqueResultHandler(handler));
     }
 

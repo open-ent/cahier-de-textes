@@ -67,7 +67,7 @@ public class DefaultAudienceSettingsService implements AudienceSettingsService {
     /** Groupes manuels (ManualGroup), non couverts par l'action bus "groupe.search". */
     private Future<JsonArray> fetchAllManualGroups(String structureId) {
         Promise<JsonArray> promise = Promise.promise();
-        String query = "MATCH (g:ManualGroup)-[:BELONGS|:DEPENDS]->(s:Structure {id: {structureId}}) " +
+        String query = "MATCH (g:ManualGroup)-[:BELONGS|:DEPENDS]->(s:Structure {id: $structureId}) " +
                 "RETURN DISTINCT g.id as id, g.name as name";
         Neo4j.getInstance().execute(query, new JsonObject().put("structureId", structureId),
                 Neo4jResult.validResultHandler(either -> {

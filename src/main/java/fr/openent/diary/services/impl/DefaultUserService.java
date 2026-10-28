@@ -21,7 +21,7 @@ public class DefaultUserService implements UserService {
 
     @Override
     public void getTeachers(JsonArray teachers, Handler<AsyncResult<List<User>>> handler) {
-        String teacherQuery = "MATCH (u:User) WHERE u.id IN {teacherIds} RETURN u.id as id, " +
+        String teacherQuery = "MATCH (u:User) WHERE u.id IN $teacherIds RETURN u.id as id, " +
                 "u.firstName as firstName, u.lastName as lastName, (u.lastName + ' ' + u.firstName) as displayName";
 
         Neo4j.getInstance().execute(teacherQuery, new JsonObject().put("teacherIds", teachers), Neo4jResult.validResultHandler(event -> {

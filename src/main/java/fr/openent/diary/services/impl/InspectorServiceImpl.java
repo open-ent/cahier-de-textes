@@ -95,7 +95,7 @@ public class InspectorServiceImpl implements InspectorService {
 
             // Les noms d'établissement vivent dans l'annuaire, pas dans le schéma du module : le
             // tableau des habilitations ne porte que des identifiants.
-            String neoQuery = "MATCH (s:Structure) WHERE s.id IN {structureIds} " +
+            String neoQuery = "MATCH (s:Structure) WHERE s.id IN $structureIds " +
                     "RETURN s.id AS id, s.name AS name ORDER BY name";
             neo.execute(neoQuery, new JsonObject().put("structureIds", structureIds),
                     Neo4jResult.validResultHandler(handler));

@@ -44,7 +44,7 @@ public class SessionModificationPropose implements ResourcesProvider {
         }
 
         resourceRequest.pause();
-        String query = "MATCH (owner:User {id:{teacherId}})-[:IN]->(:ProfileGroup)-[:DEPENDS]->(s:Structure) " +
+        String query = "MATCH (owner:User {id:$teacherId})-[:IN]->(:ProfileGroup)-[:DEPENDS]->(s:Structure) " +
                 "RETURN collect(DISTINCT s.id) as structureIds";
         JsonObject params = new JsonObject().put("teacherId", teacherId);
         Neo4j.getInstance().execute(query, params, Neo4jResult.validUniqueResultHandler(result -> {
