@@ -38,3 +38,11 @@ target
 .flattened-pom.xml
 */.flattened-pom.xml
 edifice
+# Sorties du build frontend, deposees a plat dans public/ : jamais versionnees.
+/src/main/resources/public/*
+!/src/main/resources/public/img
+!/src/main/resources/public/sass
+!/src/main/resources/public/template
+!/src/main/resources/public/ts
+!/src/main/resources/public/ui-fab.js
+!/src/main/resources/public/ui-switch.js
