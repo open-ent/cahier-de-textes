@@ -232,13 +232,8 @@ public class HomeworkServiceImplTest {
     public void testCreateHomework(TestContext ctx) {
         Async async = ctx.async();
 
-        String expectedQuery = "INSERT INTO diary.homework (subject_id, exceptional_label, structure_id, teacher_id," +
-                " audience_id, estimatedTime, color, description, is_published, from_session_id, session_id, due_date," +
-                " type_id, owner_id , created, modified , publish_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, to_date(?,'YYYY-MM-DD')," +
-                " ?, ?, NOW(), NOW() , NOW())  RETURNING id";
-        JsonArray expectedParams = new JsonArray(Arrays.asList(
-                "subject_id", "exceptional_label", "structure_id", "userId", "audience_id", 1, "color", "description", true, 5, 4, "due_date", 3, "userId"
-        ));
+        String expectedQuery = "INSERT INTO diary.homework (subject_id, exceptional_label, structure_id, teacher_id, audience_id, estimatedTime, color, description, is_published, from_session_id, session_id, due_date, type_id, resources, owner_id , created, modified , publish_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, to_date(?,'YYYY-MM-DD'), ?, ?::jsonb, ?, NOW(), NOW() , NOW())  RETURNING id";
+        JsonArray expectedParams = new JsonArray("[\"subject_id\",\"exceptional_label\",\"structure_id\",\"userId\",\"audience_id\",1,\"color\",\"description\",true,5,4,\"due_date\",3,\"[]\",\"userId\"]");
 
         vertx.eventBus().consumer("fr.openent.diary", message -> {
             JsonObject body = (JsonObject) message.body();
@@ -261,10 +256,8 @@ public class HomeworkServiceImplTest {
     public void testUpdateHomework(TestContext ctx) {
         Async async = ctx.async();
 
-        String expectedQuery = "UPDATE diary.homework SET subject_id = ?, exceptional_label = ?, structure_id = ?, audience_id =" +
-                " ?, estimatedTime = ?, color = ?, description = ?, type_id = ?, modified = NOW() , session_id = ?, is_published =" +
-                " ?, due_date = ?,publish_date = NOW ()   WHERE id = ?;";
-        JsonArray expectedParams = new JsonArray(Arrays.asList("subject_id","exceptional_label","structure_id","audience_id",1,"color","description",3,4,true,"due_date",1));
+        String expectedQuery = "UPDATE diary.homework SET subject_id = ?, exceptional_label = ?, structure_id = ?, audience_id = ?, estimatedTime = ?, color = ?, description = ?, type_id = ?, resources = ?::jsonb, modified = NOW() , session_id = ?, is_published = ?, due_date = ?,publish_date = NOW ()   WHERE id = ?;";
+        JsonArray expectedParams = new JsonArray("[\"subject_id\",\"exceptional_label\",\"structure_id\",\"audience_id\",1,\"color\",\"description\",3,\"[]\",4,true,\"due_date\",1]");
 
         vertx.eventBus().consumer("fr.openent.diary", message -> {
             JsonObject body = (JsonObject) message.body();
@@ -287,10 +280,8 @@ public class HomeworkServiceImplTest {
     public void testUpdateHomeworkWithNullSessionId(TestContext ctx) {
         Async async = ctx.async();
 
-        String expectedQuery = "UPDATE diary.homework SET subject_id = ?, exceptional_label = ?, structure_id = ?, audience_id" +
-                " = ?, estimatedTime = ?, color = ?, description = ?, type_id = ?, modified = NOW() , is_published = ?, due_date" +
-                " = ?,publish_date = NOW ()   WHERE id = ?;";
-        JsonArray expectedParams = new JsonArray(Arrays.asList("subject_id","exceptional_label","structure_id","audience_id",1,"color","description",3,true,"due_date",1));
+        String expectedQuery = "UPDATE diary.homework SET subject_id = ?, exceptional_label = ?, structure_id = ?, audience_id = ?, estimatedTime = ?, color = ?, description = ?, type_id = ?, resources = ?::jsonb, modified = NOW() , is_published = ?, due_date = ?,publish_date = NOW ()   WHERE id = ?;";
+        JsonArray expectedParams = new JsonArray("[\"subject_id\",\"exceptional_label\",\"structure_id\",\"audience_id\",1,\"color\",\"description\",3,\"[]\",true,\"due_date\",1]");
 
         vertx.eventBus().consumer("fr.openent.diary", message -> {
             JsonObject body = (JsonObject) message.body();
@@ -313,10 +304,8 @@ public class HomeworkServiceImplTest {
     public void testUpdateHomeworkDetachSession(TestContext ctx) {
         Async async = ctx.async();
 
-        String expectedQuery = "UPDATE diary.homework SET subject_id = ?, exceptional_label = ?, structure_id = ?, audience_id" +
-                " = ?, estimatedTime = ?, color = ?, description = ?, type_id = ?, modified = NOW() , session_id = ?, is_published" +
-                " = ?, due_date = ?,publish_date = NOW ()   WHERE id = ?;";
-        JsonArray expectedParams = new JsonArray(Arrays.asList("subject_id","exceptional_label","structure_id","audience_id",1,"color","description",3,null,true,"due_date",1));
+        String expectedQuery = "UPDATE diary.homework SET subject_id = ?, exceptional_label = ?, structure_id = ?, audience_id = ?, estimatedTime = ?, color = ?, description = ?, type_id = ?, resources = ?::jsonb, modified = NOW() , session_id = ?, is_published = ?, due_date = ?,publish_date = NOW ()   WHERE id = ?;";
+        JsonArray expectedParams = new JsonArray("[\"subject_id\",\"exceptional_label\",\"structure_id\",\"audience_id\",1,\"color\",\"description\",3,\"[]\",null,true,\"due_date\",1]");
 
         vertx.eventBus().consumer("fr.openent.diary", message -> {
             JsonObject body = (JsonObject) message.body();
@@ -341,8 +330,8 @@ public class HomeworkServiceImplTest {
         Async async = ctx.async();
 
         List<String> expectedQuery = Arrays.asList(
-                "SELECT s.id AS sessionId, s.is_empty AS isEmpty FROM diary.homework h INNER JOIN diary.session" +
-                        " s ON h.session_id = s.id WHERE h.id = ? AND h.archive_school_year IS NULL AND s.archive_school_year IS NULL");
+                "SELECT h.id AS homeworkId, s.id AS sessionId, s.is_empty AS isEmpty FROM diary.homework h LEFT JOIN diary.session" +
+                        " s ON h.session_id = s.id WHERE h.id = ? AND h.archive_school_year IS NULL AND (s.id IS NULL OR s.archive_school_year IS NULL)");
         List<JsonArray> expectedParams = Arrays.asList(new JsonArray(Collections.singletonList(1)));
         List<String> actionList = Arrays.asList("prepared");
 
