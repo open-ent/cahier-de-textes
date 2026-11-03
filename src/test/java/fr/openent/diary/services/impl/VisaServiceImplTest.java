@@ -87,15 +87,7 @@ public class VisaServiceImplTest {
                 .put("created", "created")
                 .put("modified", "modified");
         JsonObject result = Whitebox.invokeMethod(this.visaService, "get_VisaSession_Statement", visa);
-        String expected = "{\"statement\":\"INSERT INTO diary.visa (comment, structure_id, teacher_id, nb_sessions, pdf_details, " +
-                "owner_id, created, modified) VALUES (?, ?, ?, ?, ?, ?, ?, ?);INSERT INTO diary.session_visa (session_id, visa_id) " +
-                "VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', 'id'))));INSERT INTO diary.session_visa (session_id, " +
-                "visa_id) VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', 'id'))));INSERT INTO diary.session_visa " +
-                "(session_id, visa_id) VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', 'id'))));INSERT INTO " +
-                "diary.homework_visa (homework_id, visa_id) VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', " +
-                "'id'))));INSERT INTO diary.homework_visa (homework_id, visa_id) VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', " +
-                "'id'))));\",\"values\":[\"comment\",\"structure_id\",\"teacher_id\",3,\"pdf_details\",\"owner_id\",\"created\"," +
-                "\"modified\",21,22,23,10,11],\"action\":\"prepared\"}";
+        String expected = "{\"statement\":\"INSERT INTO diary.visa (comment, structure_id, teacher_id, nb_sessions, pdf_details, owner_id, owner_name, owner_type, created, modified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);INSERT INTO diary.session_visa (session_id, visa_id) VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', 'id'))));INSERT INTO diary.session_visa (session_id, visa_id) VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', 'id'))));INSERT INTO diary.session_visa (session_id, visa_id) VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', 'id'))));INSERT INTO diary.homework_visa (homework_id, visa_id) VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', 'id'))));INSERT INTO diary.homework_visa (homework_id, visa_id) VALUES (?, (SELECT currval(pg_get_serial_sequence('diary.visa', 'id'))));\",\"values\":[\"comment\",\"structure_id\",\"teacher_id\",3,\"pdf_details\",\"owner_id\",null,null,\"created\",\"modified\",21,22,23,10,11],\"action\":\"prepared\"}";
 
         ctx.assertEquals(expected, result.toString());
     }

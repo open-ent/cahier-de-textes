@@ -89,6 +89,23 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!--
+                        Mockito 2 / PowerMock inspectent par réflexion des classes du JDK ; depuis
+                        JDK 17 le module java.base ne les ouvre plus au classpath, et les tests
+                        échouaient d'emblée en InaccessibleObjectException. Les paquets listés sont
+                        ceux que la suite atteint réellement.
+                    -->
+                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.stream=ALL-UNNAMED</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
     <profiles>
         <!--
             org.entcore:tests ne fournit QUE les scénarios Gatling/Scala (src/test/scala/**),

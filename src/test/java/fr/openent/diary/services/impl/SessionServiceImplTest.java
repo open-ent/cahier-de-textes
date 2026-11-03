@@ -3,6 +3,8 @@ package fr.openent.diary.services.impl;
 import fr.openent.diary.db.DB;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
+import io.vertx.core.Handler;
+import fr.wseduc.webutils.Either;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -20,6 +22,7 @@ import org.powermock.reflect.Whitebox;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(VertxUnitRunner.class)
 public class SessionServiceImplTest {
@@ -86,6 +89,10 @@ public class SessionServiceImplTest {
 
     @Test
     public void testGetOwnSessions(TestContext ctx) {
+        // getOwnSessions répond lui-même pour les profils autres que Student et Teacher :
+        // un handler nul y provoquerait un NPE.
+        Handler<Either<String, JsonArray>> noop = event -> {};
+        AtomicReference<Either<String, JsonArray>> answer = new AtomicReference<>();
         Mockito.doNothing()
                 .when(this.sessionService)
                 .getSessions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
@@ -96,22 +103,25 @@ public class SessionServiceImplTest {
         List<String> audienceIds = Arrays.asList("audienceId1", "audienceId2");
         UserInfos user = Mockito.mock(UserInfos.class);
         Mockito.doReturn("Student").when(user).getType();
-        this.sessionService.getOwnSessions("structureId", "startDate", "endDate", audienceIds, "subjectId", user, null);
+        this.sessionService.getOwnSessions("structureId", "startDate", "endDate", audienceIds, "subjectId", user, noop);
 
         Mockito.verify(this.sessionService, Mockito.times(1)).getChildSessions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         Mockito.verify(this.sessionService, Mockito.times(0)).getSessions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.any());
 
         Mockito.doReturn("Teacher").when(user).getType();
-        this.sessionService.getOwnSessions("structureId", "startDate", "endDate", audienceIds, "subjectId", user, null);
+        this.sessionService.getOwnSessions("structureId", "startDate", "endDate", audienceIds, "subjectId", user, noop);
 
         Mockito.verify(this.sessionService, Mockito.times(1)).getChildSessions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         Mockito.verify(this.sessionService, Mockito.times(1)).getSessions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.any());
 
         Mockito.doReturn("").when(user).getType();
-        this.sessionService.getOwnSessions("structureId", "startDate", "endDate", audienceIds, "subjectId", user, null);
+        this.sessionService.getOwnSessions("structureId", "startDate", "endDate", audienceIds, "subjectId", user, answer::set);
 
         Mockito.verify(this.sessionService, Mockito.times(1)).getChildSessions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         Mockito.verify(this.sessionService, Mockito.times(1)).getSessions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.any());
+        ctx.assertNotNull(answer.get());
+        ctx.assertTrue(answer.get().isRight());
+        ctx.assertEquals(new JsonArray(), answer.get().right().getValue());
     }
 
     @Test
@@ -339,12 +349,8 @@ public class SessionServiceImplTest {
     public void testCreateSession(TestContext ctx) {
         Async async = ctx.async();
 
-        String expectedQuery = "INSERT INTO diary.session (subject_id, type_id, exceptional_label, structure_id, teacher_id," +
-                " audience_id, title, room, color, description, annotation, is_published, is_empty, course_id, owner_id, date," +
-                " start_time, end_time, created, modified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, to_timestamp(?," +
-                " 'hh24:mi:ss'), to_timestamp(?, 'hh24:mi:ss'), NOW(), NOW()) RETURNING id";
-        JsonArray expectedParams = new JsonArray(Arrays.asList("subject_id", 1, "exceptional_label", "structure_id", "3", "audience_id",
-                "title", "room", "color", "description", "annotation", true, true, "course_id", "3", "2000-01-01", "start_time", "end_time"));
+        String expectedQuery = "INSERT INTO diary.session (subject_id, type_id, exceptional_label, structure_id, teacher_id, audience_id, title, room, color, description, annotation, is_published, is_empty, course_id, owner_id, date, start_time, end_time, resources, rbs_resource_ids, rbs_booking_ids, created, modified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, to_date(?,'YYYY-MM-DD'), to_timestamp(?, 'hh24:mi:ss'), to_timestamp(?, 'hh24:mi:ss'), ?::jsonb, ?::jsonb, '[]'::jsonb, NOW(), NOW()) RETURNING id";
+        JsonArray expectedParams = new JsonArray("[\"subject_id\",1,\"exceptional_label\",\"structure_id\",\"3\",\"audience_id\",\"title\",\"room\",\"color\",\"description\",\"annotation\",true,true,\"course_id\",\"3\",\"2000-01-01\",\"start_time\",\"end_time\",\"[]\",\"[]\"]");
 
         vertx.eventBus().consumer("fr.openent.diary", message -> {
             JsonObject body = (JsonObject) message.body();
@@ -382,12 +388,8 @@ public class SessionServiceImplTest {
     public void testUpdateSession(TestContext ctx) {
         Async async = ctx.async();
 
-        String expectedQuery = "UPDATE diary.session SET subject_id = ?, type_id = ?, exceptional_label = ?, structure_id = ?," +
-                " audience_id = ?, title = ?,  room = ?, color = ?, description = ?, annotation = ?, is_published = ?, is_empty" +
-                " = ?, course_id = ?,  date = to_date(?,'YYYY-MM-DD'), start_time = to_timestamp(?, 'hh24:mi:ss'), end_time =" +
-                " to_timestamp(?, 'hh24:mi:ss'), modified = NOW() WHERE id = ?;";
-        JsonArray expectedParams = new JsonArray(Arrays.asList("subject_id", 1, "exceptional_label", "structure_id", "audience_id",
-                "title", "room", "color", "description", "annotation", true, true, "course_id", "2000-01-01", "start_time", "end_time", 1));
+        String expectedQuery = "UPDATE diary.session SET subject_id = ?, type_id = ?, exceptional_label = ?, structure_id = ?, audience_id = ?, title = ?,  room = ?, color = ?, description = ?, annotation = ?, is_published = ?, is_empty = ?, course_id = ?,  date = to_date(?,'YYYY-MM-DD'), start_time = to_timestamp(?, 'hh24:mi:ss'), end_time = to_timestamp(?, 'hh24:mi:ss'), resources = ?::jsonb, rbs_resource_ids = ?::jsonb, modified = NOW() WHERE id = ?;";
+        JsonArray expectedParams = new JsonArray("[\"subject_id\",1,\"exceptional_label\",\"structure_id\",\"audience_id\",\"title\",\"room\",\"color\",\"description\",\"annotation\",true,true,\"course_id\",\"2000-01-01\",\"start_time\",\"end_time\",\"[]\",\"[]\",1]");
 
         vertx.eventBus().consumer("fr.openent.diary", message -> {
             JsonObject body = (JsonObject) message.body();
