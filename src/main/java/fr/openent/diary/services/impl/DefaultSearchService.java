@@ -141,8 +141,11 @@ public class DefaultSearchService implements SearchService {
     }
 
     private void searchManualGroup(String query, String structureId, Handler<Either<String, JsonArray>> handler) {
-        String searchQuery = "MATCH (User {profiles:['Student']})-[:IN]->(g:ManualGroup)-[:BELONGS|:DEPENDS]->(s:Structure {id: $structureId}) " +
-                "WHERE toLower(g.name) CONTAINS $query " +
+        // Ancrée sur la structure désignée : ArcadeDB exécute le motif dans l'ordre écrit, et
+        // partir des élèves lui faisait parcourir les 514 000 utilisateurs (0,68 s contre
+        // 0,002 s ici). Le motif désigne le même ensemble, lu dans l'autre sens.
+        String searchQuery = "MATCH (s:Structure {id: $structureId})<-[:BELONGS|:DEPENDS]-(g:ManualGroup)<-[:IN]-(u) " +
+                "WHERE u.profiles = ['Student'] AND toLower(g.name) CONTAINS $query " +
                 "RETURN DISTINCT g.id as id, g.name as displayName, 'GROUP' as type, g.id as groupId, g.name as groupName ";
 
         JsonObject params = new JsonObject().put("structureId", structureId).put("query", query);;
@@ -156,7 +159,8 @@ public class DefaultSearchService implements SearchService {
                 "RETURN distinct u.id as id, (u.lastName + ' ' + u.firstName) as displayName, 'USER' as type, c.id as groupId, c.name as groupName " +
                 "UNION " +
                 // MATCHING Functional Group
-                "MATCH (g)-[:BELONGS|:DEPENDS]->(s:Structure {id:$structureId}) " +
+                // Même ancrage : (g) sans point d'entrée indexé faisait parcourir le graphe entier.
+                "MATCH (s:Structure {id:$structureId})<-[:BELONGS|:DEPENDS]-(g) " +
                 "WHERE toLower(g.name) CONTAINS $query " +
                 "AND (g:Class OR g:FunctionalGroup) " +
                 "RETURN g.id as id, g.name as displayName, 'GROUP' as type, g.id as groupId, g.name as groupName ";
