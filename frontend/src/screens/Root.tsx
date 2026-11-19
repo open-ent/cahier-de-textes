@@ -1,8 +1,10 @@
-import { AppHeader, Breadcrumb, Layout, LoadingScreen, useEdificeClient } from '@open-ent/react';
+import { Alert, AppHeader, Breadcrumb, Layout, LoadingScreen, useEdificeClient } from '@open-ent/react';
 import { useTranslation } from 'react-i18next';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
+import { RouteTabs } from '../components/NavTabs';
 import { navTabs } from '../context';
+import { screenTitleKey, TitleKey } from '../screenTitle';
 import { UiSwitchBanner } from '../features/UiSwitchBanner';
 import { setLanguage } from '../locale';
 import { useDiaryContext } from '../hooks/useDiaryContext';
@@ -24,6 +26,7 @@ export function Root() {
   setLanguage(currentLanguage);
 
   const ctx = useDiaryContext();
+  const { pathname } = useLocation();
   if (!init || !ctx.ready) return <LoadingScreen />;
 
   const tabs = navTabs(ctx.has, ctx.profile);
@@ -38,28 +41,53 @@ export function Root() {
     archives: t('archives', { defaultValue: 'Archives' }),
   };
 
+  // Le fil d'Ariane du socle porte le <h1> de la page : il nomme l'écran courant plutôt que de
+  // répéter le nom de l'application, que l'icône dit déjà.
+  const screenName: Record<TitleKey, string> = {
+    calendar: label.calendar,
+    list: label.list,
+    homeworks: label.homeworks,
+    homeworkNew: t('diary.homework.new', { defaultValue: 'Nouveau devoir' }),
+    homework: t('diary.homework', { defaultValue: 'Devoir' }),
+    sessions: label.sessions,
+    sessionNew: t('diary.session.new', { defaultValue: 'Nouvelle séance' }),
+    session: t('diary.session', { defaultValue: 'Séance' }),
+    notebooks: label.notebooks,
+    archives: label.archives,
+    progressions: label.progressions,
+    progressionNew: t('diary.progression.new', { defaultValue: 'Nouvelle progression' }),
+    progression: t('diary.progression.edit', { defaultValue: 'Modifier la progression' }),
+  };
+  const home: TitleKey = tabs[0] === 'calendar' ? 'calendar' : tabs[0] === 'list' ? 'list' : 'homeworks';
+
   return (
     <div className="d-flex flex-column vh-100">
       <Layout>
         <div className="d-print-none">
-          <AppHeader>{currentApp && <Breadcrumb app={currentApp} />}</AppHeader>
+          <AppHeader>
+            {currentApp && <Breadcrumb app={currentApp} name={screenName[screenTitleKey(pathname, home)]} />}
+          </AppHeader>
         </div>
         <div className="flex-grow-1 overflow-auto">
           <div className="container py-16">
-            <div className="d-flex align-items-center justify-content-between gap-12 flex-wrap mb-16">
-              <nav className="btn-group" aria-label={t('diary.nav', { defaultValue: 'Navigation cahier de textes' })}>
-                {tabs.map((tab) => (
-                  <NavLink key={tab} to={TAB_ROUTE[tab]} end={tab === 'calendar'} className={({ isActive }) => `btn btn-${isActive ? 'primary' : 'secondary'}`}>
-                    {label[tab]}
-                  </NavLink>
-                ))}
-              </nav>
+            {/* Onglets du socle : l'onglet courant se marque par la couleur secondaire et son
+                filet, comme dans l'agenda — plus de pavé de boutons pleins. */}
+            <div className="d-flex align-items-center justify-content-between gap-16 flex-wrap mb-24">
+              <RouteTabs
+                label={t('diary.nav', { defaultValue: 'Navigation cahier de textes' })}
+                tabs={tabs.map((tab) => ({ to: TAB_ROUTE[tab], label: label[tab], end: tab === 'calendar' }))}
+              />
               {ctx.structures.length > 1 && (
-                <div className="d-flex align-items-center gap-8">
-                  <label htmlFor="diary-structure" className="m-0" style={{ fontWeight: 700 }}>
+                <div className="d-flex align-items-center gap-8 pb-8">
+                  <label htmlFor="diary-structure" className="form-label m-0 text-nowrap">
                     {t('diary.structure', { defaultValue: 'Établissement' })}
                   </label>
-                  <select id="diary-structure" className="form-select" style={{ width: 'auto' }} value={ctx.structure?.id ?? ''} onChange={(e) => ctx.selectStructure(e.target.value)}>
+                  <select
+                    id="diary-structure"
+                    className="form-select w-auto"
+                    value={ctx.structure?.id ?? ''}
+                    onChange={(e) => ctx.selectStructure(e.target.value)}
+                  >
                     {ctx.structures.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
@@ -68,9 +96,9 @@ export function Root() {
               )}
             </div>
             {tabs.length === 0 ? (
-              <div className="alert alert-info" role="alert">
+              <Alert type="info">
                 {t('diary.no.rights', { defaultValue: "Vous n'avez pas accès aux devoirs ni aux séances du cahier de textes." })}
-              </div>
+              </Alert>
             ) : (
               <Outlet />
             )}

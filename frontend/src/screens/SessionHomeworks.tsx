@@ -1,3 +1,4 @@
+import { Alert, Badge, Checkbox, Radio } from '@open-ent/react';
 import { Editor, type EditorInstance } from '@open-ent/react/editor';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -8,7 +9,8 @@ import { dayWorkload, emptyHomework, HomeworkDraft, HomeworkError, validateHomew
 import { stripHtml } from '../utils';
 
 const editorContent = (html: string) => (html && html.trim() ? html : '<p></p>');
-const COLOR = { green: '#00ab6f', yellow: '#f5b700', red: '#e13a3a' } as const;
+/** Charge de travail du jour : niveaux de pastille du socle (vert / orange / rouge). */
+const WORKLOAD_LEVEL = { green: 'success', yellow: 'warning', red: 'danger' } as const;
 
 interface Props {
   drafts: HomeworkDraft[];
@@ -65,18 +67,18 @@ export function SessionHomeworks({ drafts, onChange, types, structureId, audienc
   return (
     <section className="mb-12" aria-labelledby="ss-homeworks" data-homeworks>
       <div className="d-flex align-items-center justify-content-between gap-8 mb-8">
-        <div id="ss-homeworks" className="form-label m-0" style={{ fontSize: 15, fontWeight: 700 }}>
+        <div id="ss-homeworks" className="form-label m-0">
           {t('diary.session.homeworks', { defaultValue: 'Devoirs donnés pendant la séance' })}
         </div>
         {!readOnly && !editing && (
-          <button type="button" className="btn btn-sm btn-secondary" onClick={() => { setErrors([]); setEditing(emptyHomework()); }}>
+          <button type="button" className="btn btn-outline-tertiary btn-sm" onClick={() => { setErrors([]); setEditing(emptyHomework()); }}>
             {t('diary.homework.create', { defaultValue: 'Créer un devoir' })}
           </button>
         )}
       </div>
 
       {visible.length === 0 ? (
-        <p className="text-muted mb-8">{t('diary.session.homeworks.none', { defaultValue: 'Aucun devoir donné pendant cette séance.' })}</p>
+        <p className="text-gray-700 mb-8">{t('diary.session.homeworks.none', { defaultValue: 'Aucun devoir donné pendant cette séance.' })}</p>
       ) : (
         <table className="table mb-8" data-homeworks-table>
           <thead>
@@ -99,8 +101,8 @@ export function SessionHomeworks({ drafts, onChange, types, structureId, audienc
                 <td>{d.published ? t('diary.published', { defaultValue: 'Publiée' }) : t('diary.unpublished', { defaultValue: 'Non publiée' })}</td>
                 {!readOnly && (
                   <td className="text-end">
-                    <button type="button" className="btn btn-link p-0 me-8" onClick={() => { setErrors([]); setEditing(d); }}>{t('diary.calendar.edit', { defaultValue: 'Modifier' })}</button>
-                    <button type="button" className="btn btn-link p-0 text-danger" onClick={() => remove(d)}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
+                    <button type="button" className="btn btn-ghost-tertiary btn-sm px-0 me-8" onClick={() => { setErrors([]); setEditing(d); }}>{t('diary.calendar.edit', { defaultValue: 'Modifier' })}</button>
+                    <button type="button" className="btn btn-ghost-danger btn-sm px-0" onClick={() => remove(d)}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
                   </td>
                 )}
               </tr>
@@ -113,28 +115,34 @@ export function SessionHomeworks({ drafts, onChange, types, structureId, audienc
         <div className="card p-12" data-homework-form>
           <div className="d-flex gap-16 flex-wrap mb-12">
             <div style={{ minWidth: 200 }}>
-              <label htmlFor="hw-type" className="form-label" style={{ fontWeight: 700 }}>{t('diary.homework.type', { defaultValue: 'Type' })} *</label>
+              <label htmlFor="hw-type" className="form-label">{t('diary.homework.type', { defaultValue: 'Type' })} *</label>
               <select id="hw-type" className="form-select" value={editing.typeId} onChange={(e) => setEditing({ ...editing, typeId: e.target.value })}>
                 <option value="">—</option>
                 {types.map((ty) => <option key={ty.id} value={ty.id}>{ty.label}</option>)}
               </select>
             </div>
             <fieldset>
-              <legend className="form-label" style={{ fontSize: 14, fontWeight: 700 }}>{t('diary.homework.due', { defaultValue: 'À rendre pour' })} *</legend>
-              <div className="d-flex gap-12">
-                <label className="d-flex gap-4 align-items-center m-0">
-                  <input type="radio" name="hw-due-mode" checked={editing.dueMode === 'session'} onChange={() => setEditing({ ...editing, dueMode: 'session' })} />
-                  {t('diary.homework.due.session', { defaultValue: 'Une séance' })}
-                </label>
-                <label className="d-flex gap-4 align-items-center m-0">
-                  <input type="radio" name="hw-due-mode" checked={editing.dueMode === 'date'} onChange={() => setEditing({ ...editing, dueMode: 'date' })} />
-                  {t('diary.homework.due.date', { defaultValue: 'Une date' })}
-                </label>
+              <legend className="form-label">{t('diary.homework.due', { defaultValue: 'À rendre pour' })} *</legend>
+              <div className="d-flex gap-16">
+                <Radio
+                  name="hw-due-mode"
+                  model="session"
+                  label={t('diary.homework.due.session', { defaultValue: 'Une séance' })}
+                  checked={editing.dueMode === 'session'}
+                  onChange={() => setEditing({ ...editing, dueMode: 'session' })}
+                />
+                <Radio
+                  name="hw-due-mode"
+                  model="date"
+                  label={t('diary.homework.due.date', { defaultValue: 'Une date' })}
+                  checked={editing.dueMode === 'date'}
+                  onChange={() => setEditing({ ...editing, dueMode: 'date' })}
+                />
               </div>
             </fieldset>
             {editing.dueMode === 'session' ? (
               <div style={{ minWidth: 220 }}>
-                <label htmlFor="hw-session" className="form-label" style={{ fontWeight: 700 }}>{t('diary.homework.due.session', { defaultValue: 'Séance' })}</label>
+                <label htmlFor="hw-session" className="form-label">{t('diary.homework.due.session', { defaultValue: 'Séance' })}</label>
                 <select id="hw-session" className="form-select" value={editing.dueSessionId} onChange={(e) => setEditing({ ...editing, dueSessionId: e.target.value })}>
                   <option value="">—</option>
                   {futureSessions.map((s) => <option key={s.id} value={s.id}>{sessionLabel(String(s.id))} — {s.title}</option>)}
@@ -142,29 +150,32 @@ export function SessionHomeworks({ drafts, onChange, types, structureId, audienc
               </div>
             ) : (
               <div>
-                <label htmlFor="hw-date" className="form-label" style={{ fontWeight: 700 }}>{t('diary.due', { defaultValue: 'À rendre le' })}</label>
+                <label htmlFor="hw-date" className="form-label">{t('diary.due', { defaultValue: 'À rendre le' })}</label>
                 <input id="hw-date" type="date" className="form-control" value={editing.dueDate} onChange={(e) => setEditing({ ...editing, dueDate: e.target.value })} />
               </div>
             )}
             <div style={{ maxWidth: 130 }}>
-              <label htmlFor="hw-time" className="form-label" style={{ fontWeight: 700 }}>{t('diary.homework.time', { defaultValue: 'Durée (min)' })}</label>
+              <label htmlFor="hw-time" className="form-label">{t('diary.homework.time', { defaultValue: 'Durée (min)' })}</label>
               <input id="hw-time" type="number" min={0} className="form-control" value={editing.estimatedTime} onChange={(e) => setEditing({ ...editing, estimatedTime: Math.max(0, Number(e.target.value) || 0) })} />
             </div>
             {canPublish && (
-              <label className="d-flex align-items-center gap-4 m-0 align-self-end">
-                <input type="checkbox" checked={editing.published} onChange={(e) => setEditing({ ...editing, published: e.target.checked })} />
-                {t('diary.publish', { defaultValue: 'Publier' })}
-              </label>
+              <div className="align-self-end pb-8">
+                <Checkbox
+                  label={t('diary.publish', { defaultValue: 'Publier' })}
+                  checked={editing.published}
+                  onChange={(e) => setEditing({ ...editing, published: e.target.checked })}
+                />
+              </div>
             )}
           </div>
           {dueDay && load && (
             <p className="mb-12" data-workload role="status">
-              <span aria-hidden style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 6, background: COLOR[workloadColor(load.count)], marginRight: 6 }} />
+              <Badge variant={{ type: 'notification', level: WORKLOAD_LEVEL[workloadColor(load.count)] }} className="me-8" />
               {t('diary.homework.workload', { defaultValue: 'Charge de travail ce jour-là : [[count]] devoir(s), [[total]] min', count: load.count, total: load.total })}
             </p>
           )}
           <div className="mb-12">
-            <div className="form-label" style={{ fontSize: 14, fontWeight: 700 }}>{t('diary.description', { defaultValue: 'Contenu' })} *</div>
+            <div className="form-label">{t('diary.description', { defaultValue: 'Contenu' })} *</div>
             <Editor
               key={editing.key}
               content={editorContent(editing.description)}
@@ -176,13 +187,15 @@ export function SessionHomeworks({ drafts, onChange, types, structureId, audienc
             />
           </div>
           {errors.length > 0 && (
-            <div className="alert alert-warning" role="alert">
-              <ul className="m-0">{errors.map((e) => <li key={e}>{errorText[e]}</li>)}</ul>
+            <div className="mb-16">
+              <Alert type="warning">
+                <ul className="m-0">{errors.map((e) => <li key={e}>{errorText[e]}</li>)}</ul>
+              </Alert>
             </div>
           )}
           <div className="d-flex gap-8">
-            <button type="button" className="btn btn-primary" onClick={commit}>{t('diary.homework.validate', { defaultValue: 'Valider' })}</button>
-            <button type="button" className="btn btn-secondary" onClick={() => { setEditing(null); setErrors([]); }}>{t('diary.cancel', { defaultValue: 'Annuler' })}</button>
+            <button type="button" className="btn btn-filled btn-primary btn-md" onClick={commit}>{t('diary.homework.validate', { defaultValue: 'Valider' })}</button>
+            <button type="button" className="btn btn-outline-tertiary btn-md" onClick={() => { setEditing(null); setErrors([]); }}>{t('diary.cancel', { defaultValue: 'Annuler' })}</button>
           </div>
         </div>
       )}

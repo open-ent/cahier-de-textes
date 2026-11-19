@@ -115,7 +115,7 @@ export function UiSwitchBanner() {
         <div className="d-flex align-items-center gap-16 flex-wrap">
           <div className="flex-fill">
             <div>{t('diary.switch.return.title', { defaultValue: 'Vous utilisez la nouvelle version du Cahier de textes.' })}</div>
-            <small className="text-muted">
+            <small className="text-gray-700">
               {t('diary.switch.return.where', { defaultValue: 'Ce choix reste modifiable à tout moment depuis les' })} <a href={SETTINGS_URL}>{t('diary.switch.return.settings', { defaultValue: 'paramètres de votre compte' })}</a>.
             </small>
           </div>

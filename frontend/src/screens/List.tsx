@@ -1,9 +1,11 @@
+import { Alert, Badge, Button, Checkbox, Loading } from '@open-ent/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { CSSProperties, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { api } from '../api';
+import { Empty } from '../components/Empty';
 import { SearchBar } from '../components/SearchBar';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 import { useReadScope } from '../hooks/useReadScope';
@@ -13,7 +15,10 @@ import { scopeKey } from '../searchScope';
 import { stripHtml } from '../utils';
 import { LoadError } from '../components/LoadError';
 
-const COLOR = { green: '#00ab6f', yellow: '#f5b700', red: '#e13a3a' } as const;
+/** Charge de travail du jour : la pastille reprend les niveaux du socle, pas des couleurs à soi. */
+const BADGE_LEVEL = { green: 'success', yellow: 'warning', red: 'danger' } as const;
+/** Filet des cartes : orange pour un devoir, couleur de l'application pour une séance. */
+const HOMEWORK_COLOR = '#ff9700';
 
 /**
  * Liste du cahier de textes, comme l'AngularJS (list/list-view.html) : une frise par jour avec, en
@@ -76,24 +81,30 @@ export function List() {
   };
   const subjectOf = (id?: string, label?: string) => label || subjectName.get(id ?? '') || '';
   const loading = sessionsQuery.isLoading || homeworksQuery.isLoading;
-  const emptyText = !display.sessions && !display.homeworks
-    ? t('diary.filter.none', { defaultValue: 'Aucun filtre sélectionné : cochez « Séances » ou « Devoirs ».' })
-    : display.sessions && !display.homeworks
-      ? t('diary.empty.viewlist.session', { defaultValue: 'Aucune séance sur cette période.' })
-      : !display.sessions && display.homeworks
-        ? t('diary.empty.viewlist.homework', { defaultValue: 'Aucun devoir sur cette période.' })
-        : t('diary.empty.on.period', { defaultValue: 'Aucune séance ni aucun devoir sur cette période.' });
+  const failed = sessionsQuery.isError || homeworksQuery.isError;
+  // L'écran vide dit quoi faire, pas seulement qu'il n'y a rien.
+  const empty = !display.sessions && !display.homeworks
+    ? {
+        title: t('diary.filter.none', { defaultValue: 'Aucun filtre sélectionné' }),
+        text: t('diary.filter.none.hint', { defaultValue: 'Cochez « Séances » ou « Devoirs » pour afficher le cahier de textes.' }),
+      }
+    : {
+        title: display.sessions && !display.homeworks
+          ? t('diary.empty.viewlist.session', { defaultValue: 'Aucune séance sur cette période.' })
+          : !display.sessions && display.homeworks
+            ? t('diary.empty.viewlist.homework', { defaultValue: 'Aucun devoir sur cette période.' })
+            : t('diary.empty.on.period', { defaultValue: 'Aucune séance ni aucun devoir sur cette période.' }),
+        text: t('diary.empty.period.hint', { defaultValue: 'Élargissez la période ou changez de matière.' }),
+      };
 
   return (
     <div>
-      <h1 className="mb-16">{t('diary.list.title', { defaultValue: 'Liste' })}</h1>
-
       {rs.canSearch && <SearchBar structureId={structureId} teacher={rs.teacher} onTeacher={rs.setTeacher} classes={rs.classes} onClasses={rs.setClasses} />}
       {ctx.profile === 'relative' && (
-        <div className="mb-12" style={{ maxWidth: 320 }}>
-          <label htmlFor="ls-child" className="form-label" style={{ fontWeight: 700 }}>{t('diary.child', { defaultValue: 'Enfant' })}</label>
+        <div className="mb-16" style={{ maxWidth: '32rem' }}>
+          <label htmlFor="ls-child" className="form-label">{t('diary.child', { defaultValue: 'Enfant' })}</label>
           {rs.children.length === 0 ? (
-            <p className="text-muted m-0" data-no-child>{t('diary.child.none', { defaultValue: 'Aucun enfant rattaché à votre compte dans cet établissement.' })}</p>
+            <p className="text-gray-700 m-0" data-no-child>{t('diary.child.none', { defaultValue: 'Aucun enfant rattaché à votre compte dans cet établissement.' })}</p>
           ) : (
             <select id="ls-child" className="form-select" value={rs.childId} onChange={(e) => rs.setChildId(e.target.value)}>
               {rs.children.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}
@@ -102,75 +113,94 @@ export function List() {
         </div>
       )}
 
-      <div className="d-flex gap-16 flex-wrap align-items-end mb-12" role="group" aria-label={t('diary.list.filters', { defaultValue: 'Filtres' })}>
+      <div className="d-flex gap-16 flex-wrap align-items-end mb-16" role="group" aria-label={t('diary.list.filters', { defaultValue: 'Filtres' })}>
         <div>
-          <label htmlFor="ls-start" className="form-label" style={{ fontWeight: 700 }}>{t('diary.list.from', { defaultValue: 'Du' })}</label>
+          <label htmlFor="ls-start" className="form-label">{t('diary.list.from', { defaultValue: 'Du' })}</label>
           <input id="ls-start" type="date" className="form-control" value={start} onChange={(e) => setStart(e.target.value)} />
         </div>
         <div>
-          <label htmlFor="ls-end" className="form-label" style={{ fontWeight: 700 }}>{t('diary.list.to', { defaultValue: 'au' })}</label>
+          <label htmlFor="ls-end" className="form-label">{t('diary.list.to', { defaultValue: 'au' })}</label>
           <input id="ls-end" type="date" className="form-control" value={end} onChange={(e) => setEnd(e.target.value)} />
         </div>
-        <div style={{ minWidth: 200 }}>
-          <label htmlFor="ls-subject" className="form-label" style={{ fontWeight: 700 }}>{t('diary.subject', { defaultValue: 'Matière' })}</label>
+        <div style={{ minWidth: '20rem' }}>
+          <label htmlFor="ls-subject" className="form-label">{t('diary.subject', { defaultValue: 'Matière' })}</label>
           <select id="ls-subject" className="form-select" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
             <option value="">{t('diary.list.all.subjects', { defaultValue: 'Toutes les matières' })}</option>
             {(subjectsQuery.data ?? []).filter((s) => !s.exceptional).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
-        <label className="d-flex align-items-center gap-4 m-0">
-          <input type="checkbox" checked={display.sessions} onChange={(e) => setDisplay({ ...display, sessions: e.target.checked })} />
-          {t('diary.list.sessions', { defaultValue: 'Séances' })}
-        </label>
-        <label className="d-flex align-items-center gap-4 m-0">
-          <input type="checkbox" checked={display.homeworks} onChange={(e) => setDisplay({ ...display, homeworks: e.target.checked })} />
-          {t('diary.list.homeworks', { defaultValue: 'Devoirs' })}
-        </label>
-        {pupilView && display.homeworks && (
-          <>
-            <label className="d-flex align-items-center gap-4 m-0">
-              <input type="checkbox" checked={display.todo} onChange={(e) => setDisplay({ ...display, todo: e.target.checked })} />
-              {t('diary.homework.todo', { defaultValue: 'À faire' })}
-            </label>
-            <label className="d-flex align-items-center gap-4 m-0">
-              <input type="checkbox" checked={display.done} onChange={(e) => setDisplay({ ...display, done: e.target.checked })} />
-              {t('diary.homework.done', { defaultValue: 'Fait' })}
-            </label>
-          </>
-        )}
+        <div className="d-flex gap-16 flex-wrap align-items-center pb-8">
+          <Checkbox
+            label={t('diary.list.sessions', { defaultValue: 'Séances' })}
+            checked={display.sessions}
+            onChange={(e) => setDisplay({ ...display, sessions: e.target.checked })}
+          />
+          <Checkbox
+            label={t('diary.list.homeworks', { defaultValue: 'Devoirs' })}
+            checked={display.homeworks}
+            onChange={(e) => setDisplay({ ...display, homeworks: e.target.checked })}
+          />
+          {pupilView && display.homeworks && (
+            <>
+              <Checkbox
+                label={t('diary.homework.todo', { defaultValue: 'À faire' })}
+                checked={display.todo}
+                onChange={(e) => setDisplay({ ...display, todo: e.target.checked })}
+              />
+              <Checkbox
+                label={t('diary.homework.done', { defaultValue: 'Fait' })}
+                checked={display.done}
+                onChange={(e) => setDisplay({ ...display, done: e.target.checked })}
+              />
+            </>
+          )}
+        </div>
       </div>
-      {!valid && <div className="alert alert-warning" role="alert">{t('diary.list.period.invalid', { defaultValue: 'La date de début doit précéder la date de fin.' })}</div>}
-      {loading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
-      <LoadError failed={sessionsQuery.isError || homeworksQuery.isError} />
-      {(sessionsQuery.isError || homeworksQuery.isError) && <div className="alert alert-warning" role="alert">{t('diary.calendar.error', { defaultValue: 'La liste n’a pas pu être chargée.' })}</div>}
-      {valid && !loading && !sessionsQuery.isError && !homeworksQuery.isError && days.length === 0 && <p className="text-muted" data-empty>{emptyText}</p>}
 
-      <ol className="list-unstyled" data-days>
+      {!valid && (
+        <div className="mb-16">
+          <Alert type="warning">{t('diary.list.period.invalid', { defaultValue: 'La date de début doit précéder la date de fin.' })}</Alert>
+        </div>
+      )}
+      {loading && <Loading isLoading />}
+      <LoadError failed={failed} />
+      {valid && !loading && !failed && days.length === 0 && (
+        <Empty illustration="search" title={empty.title} text={empty.text} />
+      )}
+
+      <ol className="list-unstyled m-0" data-days>
         {days.map((d) => (
-          <li key={d.day} data-day={d.day} className="d-flex gap-12 mb-16">
-            <div style={{ width: 210, flexShrink: 0 }} className="text-end">
-              <button type="button" className="btn btn-link p-0 fw-bold" aria-expanded={!collapsed.has(d.day)} onClick={() => toggle(collapsed, d.day, setCollapsed)}>
+          <li key={d.day} data-day={d.day} className="d-flex gap-16 mb-16">
+            <div className="diary-day-label text-end">
+              <Button
+                type="button"
+                color="tertiary"
+                variant="ghost"
+                className="fw-bold"
+                aria-expanded={!collapsed.has(d.day)}
+                onClick={() => toggle(collapsed, d.day, setCollapsed)}
+              >
                 {dayLabel(d.day, dateLocale())}
-              </button>
+              </Button>
             </div>
-            <div style={{ flexShrink: 0 }}>
-              <span
+            <div className="flex-shrink-0 pt-8">
+              <Badge
+                variant={{ type: 'notification', level: BADGE_LEVEL[d.color] }}
                 data-count={d.homeworkCount}
                 title={t('diary.list.homeworks.count', { defaultValue: '[[count]] devoir(s)', count: d.homeworkCount })}
-                style={{ display: 'inline-flex', width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, background: COLOR[d.color] }}
               >
                 {d.homeworkCount}
-              </span>
+              </Badge>
             </div>
             {!collapsed.has(d.day) && (
               <div className="flex-grow-1">
                 {d.items.map((it) =>
                   it.kind === 'session' ? (
-                    <article key={it.key} data-item={it.key} className="mb-8 p-8 border rounded">
+                    <article key={it.key} data-item={it.key} className="card diary-item-card bg-white p-12 mb-8">
                       <div className="d-flex gap-8 flex-wrap align-items-baseline">
                         <strong>{subjectOf(it.session.subject_id, it.session.exceptional_label)}</strong>
                         <strong>{className.get(it.session.audience_id ?? '') ?? ''}</strong>
-                        {it.session.start_time && <span className="text-muted">{it.session.start_time.slice(0, 5)} – {(it.session.end_time ?? '').slice(0, 5)}</span>}
+                        {it.session.start_time && <span className="small text-gray-700">{it.session.start_time.slice(0, 5)} – {(it.session.end_time ?? '').slice(0, 5)}</span>}
                         <Link to={`/seance/${it.session.id}`} className="ms-auto">{t('diary.calendar.open', { defaultValue: 'Consulter' })}</Link>
                       </div>
                       {(it.session.title || it.session.room) && (
@@ -181,41 +211,65 @@ export function List() {
                       )}
                       {it.session.description && (
                         <>
-                          <button type="button" className="btn btn-link p-0 small" aria-expanded={opened.has(it.key)} onClick={() => toggle(opened, it.key, setOpened)}>
+                          <Button
+                            type="button"
+                            color="tertiary"
+                            variant="ghost"
+                            size="sm"
+                            className="align-self-start px-0"
+                            aria-expanded={opened.has(it.key)}
+                            onClick={() => toggle(opened, it.key, setOpened)}
+                          >
                             {opened.has(it.key) ? t('diary.list.hide', { defaultValue: 'Masquer le contenu' }) : t('diary.list.show', { defaultValue: 'Voir le contenu' })}
-                          </button>
+                          </Button>
                           {opened.has(it.key) && <div className="mt-4" data-description>{stripHtml(it.session.description)}</div>}
                         </>
                       )}
                     </article>
                   ) : (
-                    <article key={it.key} data-item={it.key} className="mb-8 p-8 border rounded" style={{ borderLeft: '4px solid #ff9700' }}>
+                    <article
+                      key={it.key}
+                      data-item={it.key}
+                      className="card diary-item-card bg-white p-12 mb-8"
+                      style={{ '--diary-color': HOMEWORK_COLOR } as CSSProperties}
+                    >
                       <div className="d-flex gap-8 flex-wrap align-items-baseline">
                         <strong>{subjectOf(it.homework.subject_id, it.homework.exceptional_label)}</strong>
                         <strong>{className.get(it.homework.audience_id ?? '') ?? ''}</strong>
-                        <span>{typeLabel.get(it.homework.type_id ?? -1) ?? ''}</span>
-                        {pupilView && (
-                          <span style={{ color: isDone(it.homework) ? '#00ab6f' : '#e13a3a' }} data-state>
-                            {isDone(it.homework) ? t('diary.homework.done', { defaultValue: 'Fait' }) : t('diary.homework.todo', { defaultValue: 'À faire' })}
-                          </span>
-                        )}
-                        {student && ctx.has('setProgressHomework') && (
-                          <label className="d-flex align-items-center gap-4 m-0">
-                            <input
-                              type="checkbox"
+                        <span className="small text-gray-700">{typeLabel.get(it.homework.type_id ?? -1) ?? ''}</span>
+                        {student && ctx.has('setProgressHomework') ? (
+                          <span data-state>
+                            <Checkbox
+                              label={t('diary.homework.done', { defaultValue: 'Fait' })}
                               aria-label={`${t('diary.homework.done', { defaultValue: 'Fait' })} : ${stripHtml(it.homework.description)}`}
                               checked={isDone(it.homework)}
                               onChange={(e) => progress.mutate({ id: it.homework.id, done: e.target.checked })}
                             />
-                          </label>
+                          </span>
+                        ) : (
+                          pupilView && (
+                            <span data-state>
+                              <Badge variant={{ type: 'content', level: isDone(it.homework) ? 'success' : 'danger', background: true }}>
+                                {isDone(it.homework) ? t('diary.homework.done', { defaultValue: 'Fait' }) : t('diary.homework.todo', { defaultValue: 'À faire' })}
+                              </Badge>
+                            </span>
+                          )
                         )}
                         <Link to={`/devoir/${it.homework.id}`} className="ms-auto">{t('diary.calendar.open', { defaultValue: 'Consulter' })}</Link>
                       </div>
                       {it.homework.description && (
                         <>
-                          <button type="button" className="btn btn-link p-0 small" aria-expanded={opened.has(it.key)} onClick={() => toggle(opened, it.key, setOpened)}>
+                          <Button
+                            type="button"
+                            color="tertiary"
+                            variant="ghost"
+                            size="sm"
+                            className="align-self-start px-0"
+                            aria-expanded={opened.has(it.key)}
+                            onClick={() => toggle(opened, it.key, setOpened)}
+                          >
                             {opened.has(it.key) ? t('diary.list.hide', { defaultValue: 'Masquer le contenu' }) : t('diary.list.show', { defaultValue: 'Voir le contenu' })}
-                          </button>
+                          </Button>
                           {opened.has(it.key) && <div className="mt-4" data-description>{stripHtml(it.homework.description)}</div>}
                         </>
                       )}

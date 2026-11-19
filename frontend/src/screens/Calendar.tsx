@@ -1,13 +1,15 @@
-import { Modal } from '@open-ent/react';
+import { Alert, Badge, Button, Checkbox, Loading, Modal, SegmentedControl, Tooltip } from '@open-ent/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DragEvent, useId, useMemo, useState } from 'react';
+import { CSSProperties, DragEvent, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { api } from '../api';
 import { buildItems, CalendarHomework, CalendarItem, COLORS, dailyHomeworks, hourRange } from '../calendarItems';
 import { useCalendarOptions } from '../hooks/useCalendarOptions';
+import { LoadError } from '../components/LoadError';
 import { SearchBar } from '../components/SearchBar';
+import { PeriodNav } from '../components/PeriodNav';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 import { useReadScope } from '../hooks/useReadScope';
 import { dateLocale } from '../locale';
@@ -15,7 +17,6 @@ import { daysPerWeek, initialAnchor, periodOf, step, ViewMode, VIEW_MODES, visib
 import { buildTree, flatten, ProgressionSession } from '../progressions';
 import { scopeKey } from '../searchScope';
 import { stripHtml, ymd } from '../utils';
-import { LoadError } from '../components/LoadError';
 
 const HOUR_PX = 48;
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
@@ -68,6 +69,7 @@ export function Calendar() {
   const days = useMemo(() => visibleDays(period.days, mode, options), [period, mode, options]);
   const start = ymd(period.first);
   const end = ymd(period.last);
+  const today = ymd(new Date());
 
   const sessionsQuery = useQuery({
     queryKey: ['diary', 'calendar', 'sessions', structureId, start, end, scopeKey(rs.scope)],
@@ -106,12 +108,6 @@ export function Calendar() {
     [progressionsQuery.data, t],
   );
   const [pickProgression, setPickProgression] = useState('');
-  // Infobulle au survol ou au focus d'un élément (comme l'AngularJS) : détail sans ouvrir la fenêtre.
-  const [tip, setTip] = useState<{ item: CalendarItem; x: number; y: number } | null>(null);
-  const showTip = (it: CalendarItem, el: HTMLElement) => {
-    const r = el.getBoundingClientRect();
-    setTip({ item: it, x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6 });
-  };
   const [selected, setSelected] = useState<CalendarItem | null>(null);
   const [selectedHomework, setSelectedHomework] = useState<CalendarHomework | null>(null);
   const [legend, setLegend] = useState(false);
@@ -127,6 +123,21 @@ export function Calendar() {
   const audience = (it: CalendarItem): string =>
     it.kind === 'course' ? [...(it.course?.classes ?? []), ...(it.course?.groups ?? [])].join(', ') : className.get(it.session?.audience_id ?? '') ?? '';
   const hwLabel = (h: CalendarHomework) => h.exceptional_label || subjectName.get(h.subject_id ?? '') || t('diary.homework', { defaultValue: 'Devoir' });
+
+  /** Détail d'un élément, lu au survol comme au clavier : une ligne, sans ouvrir la fenêtre. */
+  const tipOf = (it: CalendarItem): string =>
+    [
+      label(it) || t('diary.session', { defaultValue: 'Séance' }),
+      `${hhmm(it.start)} – ${hhmm(it.end)}`,
+      audience(it),
+      it.kind === 'course'
+        ? t('diary.calendar.course.empty', { defaultValue: "Cours de l'emploi du temps : séance pas encore renseignée." })
+        : it.published
+          ? t('diary.published', { defaultValue: 'Publiée' })
+          : t('diary.unpublished', { defaultValue: 'Non publiée' }),
+    ]
+      .filter(Boolean)
+      .join(' · ');
 
   const dayTitle = (d: Date) => d.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: mode === 'month' ? undefined : 'long' });
   const periodLabel =
@@ -150,135 +161,137 @@ export function Calendar() {
   };
 
   const itemBox = (it: CalendarItem, compact: boolean) => (
-    <button
-      type="button"
-      key={it.key}
-      data-item={it.key}
-      data-kind={it.kind}
-      onClick={() => setSelected(it)}
-      onMouseEnter={(e) => showTip(it, e.currentTarget)}
-      onMouseLeave={() => setTip(null)}
-      onFocus={(e) => showTip(it, e.currentTarget)}
-      onBlur={() => setTip(null)}
-      aria-describedby={tip?.item.key === it.key ? 'cal-tip' : undefined}
-      onDragOver={canUseProgressions ? (e) => e.preventDefault() : undefined}
-      onDrop={canUseProgressions ? (e) => dropProgression(e, it) : undefined}
-      className="text-start w-100 border-0"
-      style={{
-        background: it.color,
-        color: it.color === COLORS.course ? '#333' : '#fff',
-        border: it.color === COLORS.course ? '1px dashed #999' : undefined,
-        borderRadius: 4,
-        padding: '2px 4px',
-        fontSize: 12,
-        lineHeight: 1.25,
-        overflow: 'hidden',
-        height: compact ? undefined : '100%',
-      }}
-    >
-      <strong>{compact ? `${hhmm(it.start)} ` : ''}{label(it)}</strong>
-      {!it.published && <span aria-label={t('session.or.homework.not.published', { defaultValue: 'non publié' })} title={t('session.or.homework.not.published', { defaultValue: 'non publié' })}> ⦸</span>}
-      {!compact && <div>{audience(it)}</div>}
-      {!compact && it.homeworks.published + it.homeworks.draft > 0 && (
-        <div>📝 {it.homeworks.published + it.homeworks.draft}</div>
-      )}
-    </button>
+    <Tooltip key={it.key} message={tipOf(it)} placement="bottom">
+      <button
+        type="button"
+        data-item={it.key}
+        data-kind={it.kind}
+        onClick={() => setSelected(it)}
+        onDragOver={canUseProgressions ? (e) => e.preventDefault() : undefined}
+        onDrop={canUseProgressions ? (e) => dropProgression(e, it) : undefined}
+        className={`diary-chip small px-4 py-2 ${it.color === COLORS.course ? 'diary-chip--todo' : ''} ${compact ? 'mb-2' : 'h-100'}`}
+        style={{ '--diary-color': it.color } as CSSProperties}
+      >
+        <strong>{compact ? `${hhmm(it.start)} ` : ''}{label(it)}</strong>
+        {!it.published && <span aria-label={t('session.or.homework.not.published', { defaultValue: 'non publié' })}> ⦸</span>}
+        {!compact && <div className="text-truncate">{audience(it)}</div>}
+        {!compact && it.homeworks.published + it.homeworks.draft > 0 && (
+          <div>📝 {it.homeworks.published + it.homeworks.draft}</div>
+        )}
+      </button>
+    </Tooltip>
   );
 
   return (
     <div>
-      <div className="d-flex align-items-center justify-content-between gap-8 flex-wrap mb-12">
-        <h1 className="m-0">{t('diary.calendar.title', { defaultValue: 'Calendrier' })}</h1>
-        <button type="button" className="btn btn-secondary" onClick={() => setLegend(true)}>
-          {t('diary.calendar.legend', { defaultValue: 'Légende' })}
-        </button>
+      {/* Barre de l'écran : d'abord ce qu'on regarde (la vue), puis quand, puis la légende. */}
+      <div className="d-flex align-items-center justify-content-between gap-16 flex-wrap mb-16">
+        {/* Le choix de vue est subordonné à la navigation du module : un sélecteur segmenté,
+            pas une seconde rangée d'onglets qui lui ressemblerait. */}
+        <SegmentedControl
+          aria-label={t('diary.calendar.view', { defaultValue: 'Affichage' })}
+          value={mode}
+          onChange={(value) => setMode(value as ViewMode)}
+          options={VIEW_MODES.map((m) => ({
+            value: m,
+            label: t(`diary.calendar.mode.${m}`, { defaultValue: { day: 'Jour', week: 'Semaine', fortnight: 'Quinzaine', month: 'Mois' }[m] }),
+          }))}
+        />
+        <PeriodNav
+          label={periodLabel}
+          prevLabel={t('diary.calendar.prev', { defaultValue: 'Précédent' })}
+          nextLabel={t('diary.calendar.next', { defaultValue: 'Suivant' })}
+          onShift={(direction) => setAnchor((a) => step(mode, a, direction))}
+          onToday={() => setAnchor(initialAnchor(new Date()))}
+        >
+          <input
+            type="date"
+            className="form-control w-auto"
+            aria-label={t('diary.calendar.goto', { defaultValue: 'Aller à la date' })}
+            value={ymd(anchor)}
+            onChange={(e) => e.target.value && setAnchor(new Date(`${e.target.value}T12:00:00`))}
+          />
+          <Button type="button" color="tertiary" variant="ghost" size="sm" onClick={() => setLegend(true)}>
+            {t('diary.calendar.legend', { defaultValue: 'Légende' })}
+          </Button>
+        </PeriodNav>
       </div>
 
       {rs.canSearch && <SearchBar structureId={structureId} teacher={rs.teacher} onTeacher={rs.setTeacher} classes={rs.classes} onClasses={rs.setClasses} />}
 
-      <div className="d-flex gap-8 flex-wrap align-items-center mb-12">
-        <button type="button" className="btn btn-secondary" onClick={() => setAnchor((a) => step(mode, a, -1))}>← {t('diary.calendar.prev', { defaultValue: 'Précédent' })}</button>
-        <button type="button" className="btn btn-secondary" onClick={() => setAnchor(initialAnchor(new Date()))}>{t('diary.calendar.today', { defaultValue: "Aujourd'hui" })}</button>
-        <button type="button" className="btn btn-secondary" onClick={() => setAnchor((a) => step(mode, a, 1))}>{t('diary.calendar.next', { defaultValue: 'Suivant' })} →</button>
-        <input
-          type="date"
-          className="form-control"
-          style={{ width: 'auto' }}
-          aria-label={t('diary.calendar.goto', { defaultValue: 'Aller à la date' })}
-          value={ymd(anchor)}
-          onChange={(e) => e.target.value && setAnchor(new Date(`${e.target.value}T12:00:00`))}
-        />
-        <span className="text-muted" role="status" data-period>{periodLabel}</span>
-      </div>
-      <div className="d-flex gap-12 flex-wrap align-items-center mb-12">
-        <div className="btn-group" role="group" aria-label={t('diary.calendar.view', { defaultValue: 'Affichage' })}>
-          {VIEW_MODES.map((m) => (
-            <button key={m} type="button" aria-pressed={mode === m} className={`btn btn-${mode === m ? 'primary' : 'secondary'}`} onClick={() => setMode(m)}>
-              {t(`diary.calendar.mode.${m}`, { defaultValue: { day: 'Jour', week: 'Semaine', fortnight: 'Quinzaine', month: 'Mois' }[m] })}
-            </button>
-          ))}
+      {mode !== 'day' && (
+        <div className="d-flex gap-16 flex-wrap align-items-center mb-16">
+          <Checkbox
+            label={t('diary.calendar.show.saturday', { defaultValue: 'Afficher le samedi' })}
+            disabled={!optionsReady}
+            checked={options.displaySaturday}
+            onChange={(e) => setOptions({ displaySaturday: e.target.checked })}
+          />
+          <Checkbox
+            label={t('diary.calendar.show.sunday', { defaultValue: 'Afficher le dimanche' })}
+            disabled={!optionsReady}
+            checked={options.displaySunday}
+            onChange={(e) => setOptions({ displaySunday: e.target.checked })}
+          />
         </div>
-        {mode !== 'day' && (
-          <>
-            <label className="d-flex align-items-center gap-4 m-0">
-              <input type="checkbox" disabled={!optionsReady} checked={options.displaySaturday} onChange={(e) => setOptions({ displaySaturday: e.target.checked })} />
-              {t('diary.calendar.show.saturday', { defaultValue: 'Afficher le samedi' })}
-            </label>
-            <label className="d-flex align-items-center gap-4 m-0">
-              <input type="checkbox" disabled={!optionsReady} checked={options.displaySunday} onChange={(e) => setOptions({ displaySunday: e.target.checked })} />
-              {t('diary.calendar.show.sunday', { defaultValue: 'Afficher le dimanche' })}
-            </label>
-          </>
-        )}
-      </div>
+      )}
 
       {canUseProgressions && progressionList.length > 0 && (
-        <details className="mb-12" data-progressions-panel>
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{t('diary.calendar.progressions', { defaultValue: 'Mes progressions : glissez-en une sur un cours ou une séance' })}</summary>
+        <details className="mb-16" data-progressions-panel>
+          <summary className="diary-draggable fw-bold">{t('diary.calendar.progressions', { defaultValue: 'Mes progressions : glissez-en une sur un cours ou une séance' })}</summary>
           <ul className="list-unstyled d-flex flex-wrap gap-8 mt-8 mb-0">
             {progressionList.map(({ folder, p }) => (
               <li
                 key={p.id}
-                className="card p-8"
+                className="card diary-draggable small p-8"
                 draggable
                 data-progression={p.id}
                 title={`${folder} › ${p.title}`}
                 onDragStart={(e) => { e.dataTransfer.setData('application/x-diary-progression-id', String(p.id)); e.dataTransfer.effectAllowed = 'copy'; }}
-                style={{ cursor: 'grab', fontSize: 13 }}
               >
                 <strong>{p.title}</strong>
-                {(p.className || p.subjectLabel) && <span className="text-muted"> · {[p.subjectLabel, p.className].filter(Boolean).join(' · ')}</span>}
+                {(p.className || p.subjectLabel) && <span className="text-gray-700"> · {[p.subjectLabel, p.className].filter(Boolean).join(' · ')}</span>}
               </li>
             ))}
           </ul>
         </details>
       )}
 
-      {loading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
-      <LoadError failed={sessionsQuery.isError || homeworksQuery.isError || coursesQuery.isError} />
-      {loadError && <div className="alert alert-warning" role="alert">{t('diary.calendar.error', { defaultValue: 'Le calendrier n’a pas pu être chargé.' })}</div>}
+      {loading && <Loading isLoading />}
+      <LoadError failed={loadError} />
 
       {timeGrid ? (
-        <div style={{ overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: `56px repeat(${days.length}, minmax(110px, 1fr))`, minWidth: 56 + 110 * days.length }}>
+        <div className="diary-timegrid">
+          <div className="d-grid diary-timegrid-head" style={{ gridTemplateColumns: `5.6rem repeat(${days.length}, minmax(11rem, 1fr))`, minWidth: 56 + 110 * days.length }}>
             <div />
             {days.map((d) => (
-              <div key={ymd(d)} className="text-center fw-bold p-4" style={{ textTransform: 'capitalize', fontSize: 13, borderBottom: '1px solid #ddd' }}>{dayTitle(d)}</div>
+              <div key={ymd(d)} className={`text-center small fw-bold diary-first-letter p-4 ${ymd(d) === today ? 'diary-day--today' : ''}`}>{dayTitle(d)}</div>
             ))}
-            {/* Travail à faire : devoirs sans séance, au jour d'échéance (masqué en quinzaine et mois, comme l'AngularJS). */}
-            <div className="text-muted" style={{ fontSize: 11, padding: 2 }}>{t('diary.calendar.todo', { defaultValue: 'Travail à faire' })}</div>
+          </div>
+          {/* Travail à faire : devoirs sans séance, au jour d'échéance (masqué en quinzaine et mois, comme l'AngularJS). */}
+          <div className="d-grid diary-timegrid-head" style={{ gridTemplateColumns: `5.6rem repeat(${days.length}, minmax(11rem, 1fr))`, minWidth: 56 + 110 * days.length }}>
+            <div className="small text-gray-700 p-4">{t('diary.calendar.todo', { defaultValue: 'Travail à faire' })}</div>
             {days.map((d) => (
-              <div key={`hw-${ymd(d)}`} data-todo-day={ymd(d)} style={{ borderBottom: '1px solid #ddd', padding: 2, minHeight: 24 }}>
+              <div key={`hw-${ymd(d)}`} data-todo-day={ymd(d)} className="diary-day-col p-2">
                 {(daily.get(ymd(d)) ?? []).map((h) => (
-                  <button key={h.id} type="button" className="btn btn-sm w-100 text-start mb-2" data-homework={h.id} style={{ background: COLORS.emptyWithHomeworks, color: '#fff', fontSize: 11, padding: '1px 4px' }} onClick={() => setSelectedHomework(h)}>
+                  <button
+                    key={h.id}
+                    type="button"
+                    className="diary-chip small text-truncate px-4 mb-2"
+                    data-homework={h.id}
+                    style={{ '--diary-color': COLORS.emptyWithHomeworks } as CSSProperties}
+                    onClick={() => setSelectedHomework(h)}
+                  >
                     {hwLabel(h)}{!h.is_published ? ' ⦸' : ''}
                   </button>
                 ))}
               </div>
             ))}
-            <div style={{ position: 'relative', height: ((range.to - range.from) / 60) * HOUR_PX }}>
+          </div>
+          <div className="d-grid" style={{ gridTemplateColumns: `5.6rem repeat(${days.length}, minmax(11rem, 1fr))`, minWidth: 56 + 110 * days.length }}>
+            <div>
               {Array.from({ length: (range.to - range.from) / 60 }, (_, i) => (
-                <div key={i} style={{ position: 'absolute', top: i * HOUR_PX, right: 4, fontSize: 11, color: '#666' }}>{hhmm(range.from + i * 60)}</div>
+                <div key={i} className="small text-gray-700 text-end pe-4" style={{ height: HOUR_PX }}>{hhmm(range.from + i * 60)}</div>
               ))}
             </div>
             {days.map((d) => {
@@ -286,22 +299,21 @@ export function Calendar() {
               const dayItems = items.filter((i) => i.day === key);
               const lane = lanes(dayItems);
               return (
-                <div key={`g-${key}`} data-day={key} style={{ position: 'relative', height: ((range.to - range.from) / 60) * HOUR_PX, borderLeft: '1px solid #eee' }}>
+                <div key={`g-${key}`} data-day={key} className="diary-day-col position-relative" style={{ height: ((range.to - range.from) / 60) * HOUR_PX }}>
                   {Array.from({ length: (range.to - range.from) / 60 }, (_, i) => (
-                    <div key={i} aria-hidden style={{ position: 'absolute', top: i * HOUR_PX, left: 0, right: 0, borderTop: '1px solid #eee' }} />
+                    <div key={i} aria-hidden className="diary-hour-line" style={{ height: HOUR_PX }} />
                   ))}
                   {dayItems.map((it) => {
                     const l = lane.get(it.key) ?? { lane: 0, count: 1 };
                     return (
                       <div
                         key={it.key}
+                        className="position-absolute px-2"
                         style={{
-                          position: 'absolute',
                           top: ((it.start - range.from) / 60) * HOUR_PX,
                           height: Math.max(18, ((it.end - it.start) / 60) * HOUR_PX - 2),
                           left: `${(l.lane / l.count) * 100}%`,
                           width: `${100 / l.count}%`,
-                          padding: '0 1px',
                         }}
                       >
                         {itemBox(it, false)}
@@ -315,9 +327,9 @@ export function Calendar() {
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${daysPerWeek(options)}, minmax(110px, 1fr))`, minWidth: 110 * daysPerWeek(options), border: '1px solid #e0e0e0' }}>
+          <div className="d-grid diary-monthgrid" style={{ gridTemplateColumns: `repeat(${daysPerWeek(options)}, minmax(11rem, 1fr))`, minWidth: 110 * daysPerWeek(options) }}>
             {days.slice(0, daysPerWeek(options)).map((d) => (
-              <div key={`h-${ymd(d)}`} className="text-center fw-bold p-4" style={{ textTransform: 'capitalize', fontSize: 13, borderBottom: '1px solid #e0e0e0' }}>
+              <div key={`h-${ymd(d)}`} className="diary-weekday text-center small fw-bold diary-first-letter p-4">
                 {d.toLocaleDateString(dateLocale(), { weekday: 'long' })}
               </div>
             ))}
@@ -325,38 +337,13 @@ export function Calendar() {
               const key = ymd(d);
               const outside = mode === 'month' && d.getMonth() !== anchor.getMonth();
               return (
-                <div key={key} data-day={key} style={{ minHeight: 96, padding: 4, borderRight: '1px solid #eee', borderBottom: '1px solid #eee', background: outside ? '#fafafa' : undefined }}>
-                  <div className="text-muted" style={{ fontSize: 12 }}>{d.getDate()}</div>
+                <div key={key} data-day={key} className={`diary-month-day p-4 ${outside ? 'diary-month-day--outside' : ''} ${key === today ? 'diary-day--today' : ''}`}>
+                  <div className="small text-gray-700">{d.getDate()}</div>
                   <div className="d-flex flex-column gap-2">{items.filter((i) => i.day === key).map((it) => itemBox(it, true))}</div>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
-
-      {tip && (
-        <div
-          id="cal-tip"
-          role="tooltip"
-          data-tooltip
-          style={{ position: 'fixed', left: Math.max(8, tip.x), top: tip.y, zIndex: 2000, maxWidth: 270, background: '#243242', color: '#fff', borderRadius: 6, padding: '8px 10px', fontSize: 13, lineHeight: 1.4, boxShadow: '0 4px 16px rgba(0,0,0,.25)', pointerEvents: 'none' }}
-        >
-          <strong>{label(tip.item) || t('diary.session', { defaultValue: 'Séance' })}</strong>
-          <div>{hhmm(tip.item.start)} – {hhmm(tip.item.end)}</div>
-          {audience(tip.item) && <div>{audience(tip.item)}</div>}
-          {tip.item.kind === 'course' && (tip.item.course?.roomLabels ?? []).filter(Boolean).length > 0 && (
-            <div>{t('diary.tooltip.room', { defaultValue: 'Salle' })} : {(tip.item.course?.roomLabels ?? []).filter(Boolean).join(', ')}</div>
-          )}
-          {tip.item.kind === 'course' ? (
-            <div style={{ opacity: 0.85 }}>{t('diary.calendar.course.empty', { defaultValue: "Cours de l'emploi du temps : séance pas encore renseignée." })}</div>
-          ) : (
-            <div style={{ opacity: 0.85 }}>
-              {tip.item.published ? t('diary.published', { defaultValue: 'Publiée' }) : t('diary.unpublished', { defaultValue: 'Non publiée' })}
-              {' · '}
-              {t('diary.calendar.homeworks.count', { defaultValue: '[[count]] devoir(s)', count: tip.item.homeworks.published + tip.item.homeworks.draft })}
-            </div>
-          )}
         </div>
       )}
 
@@ -369,51 +356,50 @@ export function Calendar() {
             </p>
             <p className="mb-8">{audience(selected)}</p>
             {selected.kind === 'course' ? (
-              <div className="alert alert-info mb-0" role="status">{t('diary.calendar.course.empty', { defaultValue: "Cours de l'emploi du temps : séance pas encore renseignée." })}</div>
+              <Alert type="info">{t('diary.calendar.course.empty', { defaultValue: "Cours de l'emploi du temps : séance pas encore renseignée." })}</Alert>
             ) : (
-              <>
-                <p className="mb-8" data-session-status>
+              <p className="d-flex align-items-center gap-8 mb-8" data-session-status>
+                <Badge variant={{ type: 'content', level: selected.published ? 'success' : 'warning', background: true }}>
                   {selected.published ? t('diary.published', { defaultValue: 'Publiée' }) : t('diary.unpublished', { defaultValue: 'Non publiée' })}
-                  {' · '}
-                  {t('diary.calendar.homeworks.count', { defaultValue: '[[count]] devoir(s)', count: selected.homeworks.published + selected.homeworks.draft })}
-                </p>
-              </>
+                </Badge>
+                <span>{t('diary.calendar.homeworks.count', { defaultValue: '[[count]] devoir(s)', count: selected.homeworks.published + selected.homeworks.draft })}</span>
+              </p>
             )}
             {canUseProgressions && progressionList.length > 0 && (
-              <div className="d-flex gap-8 align-items-end mt-12 flex-wrap" data-use-progression>
-                <div style={{ flex: '1 1 220px' }}>
+              <div className="d-flex gap-8 align-items-end mt-16 flex-wrap" data-use-progression>
+                <div style={{ flex: '1 1 22rem' }}>
                   <label htmlFor="cal-progression" className="form-label">{t('diary.calendar.use.progression', { defaultValue: 'Utiliser une progression' })}</label>
                   <select id="cal-progression" className="form-select" value={pickProgression} onChange={(e) => setPickProgression(e.target.value)}>
                     <option value="">—</option>
                     {progressionList.map(({ folder, p }) => <option key={p.id} value={p.id}>{`${folder} › ${p.title}`}</option>)}
                   </select>
                 </div>
-                <button type="button" className="btn btn-secondary" disabled={!pickProgression} onClick={() => applyProgression(selected, pickProgression)}>
+                <Button type="button" color="secondary" variant="outline" disabled={!pickProgression} onClick={() => applyProgression(selected, pickProgression)}>
                   {t('diary.calendar.use.progression.go', { defaultValue: 'Appliquer' })}
-                </button>
+                </Button>
               </div>
             )}
           </Modal.Body>
           <Modal.Footer>
-            <button type="button" className="btn btn-secondary" onClick={() => setSelected(null)}>{t('diary.close', { defaultValue: 'Fermer' })}</button>
+            <Button type="button" color="tertiary" variant="ghost" onClick={() => setSelected(null)}>{t('diary.close', { defaultValue: 'Fermer' })}</Button>
             {selected.kind === 'course' && ctx.has('manageSession') && (
-              <button type="button" className="btn btn-primary" onClick={() => navigate(`/seance/nouvelle?course=${selected.course!._id}&date=${selected.day}`)}>
+              <Button type="button" color="primary" variant="filled" onClick={() => navigate(`/seance/nouvelle?course=${selected.course!._id}&date=${selected.day}`)}>
                 {t('diary.calendar.fill', { defaultValue: 'Renseigner la séance' })}
-              </button>
+              </Button>
+            )}
+            {selected.kind === 'session' && !selected.published && ctx.has('publishSession') && selected.session?.teacher_id === ctx.userId && (
+              <Button type="button" color="secondary" variant="outline" isLoading={publishSession.isPending} onClick={() => publishSession.mutate(selected.session!.id)}>
+                {t('diary.publish', { defaultValue: 'Publier' })}
+              </Button>
             )}
             {selected.kind === 'session' && (
-              <button type="button" className="btn btn-primary" onClick={() => navigate(`/seance/${selected.session!.id}`)}>
+              <Button type="button" color="primary" variant="filled" onClick={() => navigate(`/seance/${selected.session!.id}`)}>
                 {ctx.has('manageSession')
                   ? selected.session?.teacher_id === ctx.userId
                     ? t('diary.calendar.edit', { defaultValue: 'Modifier' })
                     : t('diary.calendar.propose', { defaultValue: 'Proposer une modification' })
                   : t('diary.calendar.open', { defaultValue: 'Consulter' })}
-              </button>
-            )}
-            {selected.kind === 'session' && !selected.published && ctx.has('publishSession') && selected.session?.teacher_id === ctx.userId && (
-              <button type="button" className="btn btn-primary" disabled={publishSession.isPending} onClick={() => publishSession.mutate(selected.session!.id)}>
-                {t('diary.publish', { defaultValue: 'Publier' })}
-              </button>
+              </Button>
             )}
           </Modal.Footer>
         </Modal>
@@ -431,11 +417,11 @@ export function Calendar() {
             <p className="mb-0">{stripHtml(selectedHomework.description)}</p>
           </Modal.Body>
           <Modal.Footer>
-            <button type="button" className="btn btn-secondary" onClick={() => setSelectedHomework(null)}>{t('diary.close', { defaultValue: 'Fermer' })}</button>
+            <Button type="button" color="tertiary" variant="ghost" onClick={() => setSelectedHomework(null)}>{t('diary.close', { defaultValue: 'Fermer' })}</Button>
             {!selectedHomework.is_published && ctx.has('publishHomework') && (
-              <button type="button" className="btn btn-primary" disabled={publishHomework.isPending} onClick={() => publishHomework.mutate(selectedHomework.id)}>
+              <Button type="button" color="primary" variant="filled" isLoading={publishHomework.isPending} onClick={() => publishHomework.mutate(selectedHomework.id)}>
                 {t('diary.publish', { defaultValue: 'Publier' })}
-              </button>
+              </Button>
             )}
           </Modal.Footer>
         </Modal>
@@ -445,26 +431,26 @@ export function Calendar() {
         <Modal id={`${dialogId}-legend`} isOpen onModalClose={() => setLegend(false)} size="md">
           <Modal.Header onModalClose={() => setLegend(false)}>{t('diary.calendar.legend', { defaultValue: 'Légende' })}</Modal.Header>
           <Modal.Body>
-            <ul className="list-unstyled d-flex flex-column gap-8 m-0" data-legend>
+            <ul className="list-unstyled d-flex flex-column gap-12 m-0" data-legend>
               {[
                 [COLORS.course, 'session.official', "Séance issue de l'emploi du temps"],
                 [COLORS.filled, 'session.official.update', "Séance issue de l'emploi du temps remplie"],
                 [COLORS.emptyWithHomeworks, 'session.official.empty', "Séance issue de l'emploi du temps vide avec devoir(s)"],
                 [COLORS.punctual, 'session.punctual', 'Séance hors emploi du temps'],
               ].map(([color, key, def]) => (
-                <li key={key} className="d-flex align-items-center gap-8">
-                  <span aria-hidden style={{ width: 24, height: 16, background: color, border: '1px solid #999', borderRadius: 3 }} />
+                <li key={key} className="d-flex align-items-center gap-12">
+                  <span aria-hidden className="diary-chip flex-shrink-0" style={{ '--diary-color': color, width: '2.4rem', height: '1.6rem' } as CSSProperties} />
                   {t(key, { defaultValue: def })}
                 </li>
               ))}
-              <li className="d-flex align-items-center gap-8">
-                <span aria-hidden style={{ width: 24, textAlign: 'center' }}>⦸</span>
+              <li className="d-flex align-items-center gap-12">
+                <span aria-hidden className="flex-shrink-0 text-center" style={{ width: '2.4rem' }}>⦸</span>
                 {t('session.or.homework.not.published', { defaultValue: 'Travail à faire ou séance non publié(e)' })}
               </li>
             </ul>
           </Modal.Body>
           <Modal.Footer>
-            <button type="button" className="btn btn-secondary" onClick={() => setLegend(false)}>{t('diary.close', { defaultValue: 'Fermer' })}</button>
+            <Button type="button" color="tertiary" variant="ghost" onClick={() => setLegend(false)}>{t('diary.close', { defaultValue: 'Fermer' })}</Button>
           </Modal.Footer>
         </Modal>
       )}

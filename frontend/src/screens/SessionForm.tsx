@@ -1,12 +1,14 @@
-import { MediaLibrary, Modal, useEdificeClient, useMediaLibrary } from '@open-ent/react';
+import { Alert, Badge, Button, Checkbox, MediaLibrary, Modal, useEdificeClient, useMediaLibrary } from '@open-ent/react';
 import { Editor, type EditorInstance } from '@open-ent/react/editor';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IconRafterLeft } from '@open-ent/react/icons';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import { Chips } from '../components/Chips';
 import { api, defaultSessionType } from '../api';
-import { isStudentOrRelative } from '../context';
+import { canWrite, isStudentOrRelative } from '../context';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 import { addResources, PickedFile, SessionResource, workspaceResource } from '../resources';
 import {
@@ -62,8 +64,8 @@ export function SessionForm() {
   const dialogId = useId();
   const structureId = ctx.structure?.id ?? '';
   const pupil = isStudentOrRelative(ctx.profile);
-  const canManage = ctx.has('manageSession');
-  const canPublish = ctx.has('publishSession');
+  const canManage = canWrite(ctx.has, ctx.profile, 'manageSession');
+  const canPublish = canWrite(ctx.has, ctx.profile, 'publishSession');
 
   const [draft, setDraft] = useState<SessionDraft>(emptyDraft());
   const [loaded, setLoaded] = useState(false);
@@ -257,23 +259,30 @@ export function SessionForm() {
 
   return (
     <div>
-      <p>
-        <Link to="/">← {t('diary.back', { defaultValue: 'Retour' })}</Link>
-      </p>
-      <h1 className="mb-16">{title}</h1>
+      <div className="d-flex align-items-center justify-content-between gap-12 flex-wrap mb-16">
+        <Link to="/" className="btn btn-ghost-tertiary btn-sm px-0 d-inline-flex align-items-center gap-4">
+          <IconRafterLeft />
+          {t('diary.back', { defaultValue: 'Retour' })}
+        </Link>
+        <span className="visually-hidden">{title}</span>
+      </div>
       {notice && (
-        <div className={`alert ${notice.ok ? 'alert-success' : 'alert-warning'}`} role={notice.ok ? 'status' : 'alert'} data-notice>
-          {notice.text}
-          {!notice.ok && (
-            <div className="mt-8">
-              <Link to="/" className="btn btn-sm btn-secondary">{t('diary.back', { defaultValue: 'Retour' })}</Link>
-            </div>
-          )}
+        <div className="mb-16" data-notice>
+          <Alert type={notice.ok ? 'success' : 'warning'}>
+            {notice.text}
+            {!notice.ok && (
+              <div className="mt-8">
+                <Link to="/" className="btn btn-outline-tertiary btn-sm">{t('diary.back', { defaultValue: 'Retour' })}</Link>
+              </div>
+            )}
+          </Alert>
         </div>
       )}
       {propose && (
-        <div className="alert alert-info" role="status" data-propose-info>
-          {t('diary.session.modification.propose.info', { defaultValue: "Cette séance appartient à un autre enseignant. Votre modification lui sera envoyée sous forme de proposition : elle ne sera appliquée qu'après son acceptation." })}
+        <div className="mb-16" data-propose-info>
+          <Alert type="info">
+            {t('diary.session.modification.propose.info', { defaultValue: "Cette séance appartient à un autre enseignant. Votre modification lui sera envoyée sous forme de proposition : elle ne sera appliquée qu'après son acceptation." })}
+          </Alert>
         </div>
       )}
       {sessionId && draft.teacherId === ctx.userId && canManage && <PendingModifications sessionId={sessionId} onDone={async (accepted, text) => { if (accepted) { await qc.refetchQueries({ queryKey: ['diary', 'session', sessionId] }); setLoaded(false); } setNotice({ ok: true, text }); }} />}
@@ -281,8 +290,8 @@ export function SessionForm() {
       <form className="card p-16 mb-16" onSubmit={(e) => { e.preventDefault(); if (editable) onSubmit(); }}>
         <fieldset disabled={!editable} className="border-0 p-0 m-0">
           <div className="d-flex gap-16 flex-wrap mb-12">
-            <div style={{ minWidth: 240 }}>
-              <label htmlFor="ss-subject" className="form-label" style={{ fontWeight: 700 }}>{t('diary.subject', { defaultValue: 'Matière' })} *</label>
+            <div style={{ flex: '1 1 22rem', minWidth: '20rem' }}>
+              <label htmlFor="ss-subject" className="form-label">{t('diary.subject', { defaultValue: 'Matière' })} *</label>
               <select id="ss-subject" className="form-select" disabled={fromCourse || !editable} value={draft.subjectKey} onChange={(e) => set('subjectKey', e.target.value)}>
                 <option value="">—</option>
                 {subjects.map((s) =>
@@ -293,15 +302,15 @@ export function SessionForm() {
                 )}
               </select>
             </div>
-            <div style={{ minWidth: 200 }}>
-              <label htmlFor="ss-class" className="form-label" style={{ fontWeight: 700 }}>{t('diary.class', { defaultValue: 'Classe' })} *</label>
+            <div style={{ flex: '1 1 22rem', minWidth: '20rem' }}>
+              <label htmlFor="ss-class" className="form-label">{t('diary.class', { defaultValue: 'Classe' })} *</label>
               <select id="ss-class" className="form-select" disabled={fromCourse || !editable} value={draft.audienceId} onChange={(e) => set('audienceId', e.target.value)}>
                 <option value="">—</option>
                 {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            <div style={{ minWidth: 160 }}>
-              <label htmlFor="ss-type" className="form-label" style={{ fontWeight: 700 }}>{t('diary.session.type', { defaultValue: 'Type de séance' })} *</label>
+            <div style={{ flex: '1 1 22rem', minWidth: '20rem' }}>
+              <label htmlFor="ss-type" className="form-label">{t('diary.session.type', { defaultValue: 'Type de séance' })} *</label>
               <select id="ss-type" className="form-select" value={draft.typeId} onChange={(e) => set('typeId', e.target.value)}>
                 <option value="">—</option>
                 {types.map((ty) => <option key={ty.id} value={ty.id}>{ty.label}</option>)}
@@ -309,29 +318,32 @@ export function SessionForm() {
             </div>
           </div>
 
-          <div className="mb-12" style={{ maxWidth: 520 }}>
-            <label htmlFor="ss-title" className="form-label" style={{ fontWeight: 700 }}>{t('diary.session.label', { defaultValue: 'Titre' })}</label>
+          <div className="mb-12" style={{ maxWidth: '52rem' }}>
+            <label htmlFor="ss-title" className="form-label">{t('diary.session.label', { defaultValue: 'Titre' })}</label>
             <input id="ss-title" className="form-control" maxLength={TITLE_MAX} value={draft.title} placeholder={t('diary.session.title.placeholder', { defaultValue: 'Travail de la séance du jj/mm/aaaa' })} onChange={(e) => set('title', e.target.value)} />
           </div>
 
           <div className="d-flex gap-16 flex-wrap mb-12">
             <div>
-              <label htmlFor="ss-date" className="form-label" style={{ fontWeight: 700 }}>{t('diary.date', { defaultValue: 'Date' })} *</label>
+              <label htmlFor="ss-date" className="form-label">{t('diary.date', { defaultValue: 'Date' })} *</label>
               <input id="ss-date" type="date" className="form-control" disabled={fromCourse || !editable} value={draft.date} onChange={(e) => set('date', e.target.value)} />
             </div>
             <div>
-              <label htmlFor="ss-start" className="form-label" style={{ fontWeight: 700 }}>{t('diary.start', { defaultValue: 'Début' })} *</label>
+              <label htmlFor="ss-start" className="form-label">{t('diary.start', { defaultValue: 'Début' })} *</label>
               <input id="ss-start" type="time" className="form-control" disabled={fromCourse || !editable} value={draft.startTime} onChange={(e) => set('startTime', e.target.value)} />
             </div>
             <div>
-              <label htmlFor="ss-end" className="form-label" style={{ fontWeight: 700 }}>{t('diary.end', { defaultValue: 'Fin' })} *</label>
+              <label htmlFor="ss-end" className="form-label">{t('diary.end', { defaultValue: 'Fin' })} *</label>
               <input id="ss-end" type="time" className="form-control" disabled={fromCourse || !editable} value={draft.endTime} onChange={(e) => set('endTime', e.target.value)} />
             </div>
             {canPublish && (
-              <label className="d-flex align-items-center gap-4 m-0 align-self-end">
-                <input type="checkbox" checked={draft.published} onChange={(e) => set('published', e.target.checked)} />
-                {t('diary.publish', { defaultValue: 'Publier' })}
-              </label>
+              <div className="align-self-end pb-8">
+                <Checkbox
+                  label={t('diary.publish', { defaultValue: 'Publier' })}
+                  checked={draft.published}
+                  onChange={(e) => set('published', e.target.checked)}
+                />
+              </div>
             )}
           </div>
 
@@ -342,8 +354,8 @@ export function SessionForm() {
             </p>
           )}
           {!fromCourse && rbs.length > 0 && (
-            <div className="mb-12" style={{ maxWidth: 520 }}>
-              <label htmlFor="ss-rbs" className="form-label" style={{ fontWeight: 700 }}>{t('diary.session.rbs', { defaultValue: 'Salle ou matériel à réserver' })}</label>
+            <div className="mb-12" style={{ maxWidth: '52rem' }}>
+              <label htmlFor="ss-rbs" className="form-label">{t('diary.session.rbs', { defaultValue: 'Salle ou matériel à réserver' })}</label>
               <select
                 id="ss-rbs"
                 className="form-select"
@@ -360,20 +372,19 @@ export function SessionForm() {
             </div>
           )}
           {draft.rbsResourceIds.length > 0 && (
-            <ul className="list-inline mb-12" data-rbs-list>
-              {draft.rbsResourceIds.map((rid) => (
-                <li key={rid} className="d-inline-flex align-items-center gap-4 me-8 badge bg-secondary">
-                  {rbsLabel(rid)}
-                  {editable && !fromCourse && (
-                    <button type="button" className="btn btn-link p-0 text-white" style={{ background: 'none', color: '#fff' }} aria-label={`${t('diary.remove', { defaultValue: 'Retirer' })} ${rbsLabel(rid)}`} onClick={() => set('rbsResourceIds', draft.rbsResourceIds.filter((x) => x !== rid))}>×</button>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="mb-12">
+              <Chips
+                attrs={{ 'data-rbs-list': true }}
+                items={draft.rbsResourceIds.map((rid) => ({ id: String(rid), label: rbsLabel(rid) }))}
+                onRemove={editable && !fromCourse
+                  ? (id) => set('rbsResourceIds', draft.rbsResourceIds.filter((x) => String(x) !== id))
+                  : () => {}}
+              />
+            </div>
           )}
 
           <div className="mb-12">
-            <div className="form-label" style={{ fontSize: 15, fontWeight: 700 }}>{t('diary.description', { defaultValue: 'Contenu' })}</div>
+            <div className="form-label">{t('diary.description', { defaultValue: 'Contenu' })}</div>
             <Editor
               key={sessionId ?? 'new'}
               content={editorContent(draft.description)}
@@ -386,27 +397,27 @@ export function SessionForm() {
           </div>
 
           <section className="mb-12" aria-labelledby="ss-resources">
-            <div id="ss-resources" className="form-label" style={{ fontSize: 15, fontWeight: 700 }}>{t('diary.session.resources', { defaultValue: 'Documents attachés' })}</div>
+            <div id="ss-resources" className="form-label">{t('diary.session.resources', { defaultValue: 'Documents attachés' })}</div>
             {editable && (
               <div className="d-flex gap-8 mb-8 flex-wrap">
-                <button type="button" className="btn btn-sm btn-secondary" onClick={() => mediaLibraryRef.current?.show('attachment')}>
+                <button type="button" className="btn btn-outline-tertiary btn-sm" onClick={() => mediaLibraryRef.current?.show('attachment')}>
                   {t('diary.resources.add.workspace', { defaultValue: "Ajouter un document de l'espace documentaire" })}
                 </button>
-                <button type="button" className="btn btn-sm btn-secondary" onClick={() => setMediacentre(true)}>
+                <button type="button" className="btn btn-outline-tertiary btn-sm" onClick={() => setMediacentre(true)}>
                   {t('diary.resources.add.mediacentre', { defaultValue: 'Ajouter une ressource du médiacentre' })}
                 </button>
               </div>
             )}
             {draft.resources.length === 0 ? (
-              <p className="text-muted mb-0">{t('diary.session.resources.none', { defaultValue: 'Aucun document attaché.' })}</p>
+              <p className="text-gray-700 mb-0">{t('diary.session.resources.none', { defaultValue: 'Aucun document attaché.' })}</p>
             ) : (
               <ul className="list-unstyled mb-0" data-resources>
                 {draft.resources.map((r) => (
                   <li key={`${r.type}-${r.id}`} className="d-flex align-items-center gap-8 py-4 border-bottom">
                     <a href={r.url} target="_blank" rel="noreferrer">{r.name}</a>
-                    {r.type === 'mediacentre' && <span className="text-muted small">{t('diary.resources.mediacentre', { defaultValue: 'médiacentre' })}</span>}
+                    {r.type === 'mediacentre' && <span className="text-gray-700 small">{t('diary.resources.mediacentre', { defaultValue: 'médiacentre' })}</span>}
                     {editable && (
-                      <button type="button" className="btn btn-link p-0 text-danger ms-auto" onClick={() => set('resources', draft.resources.filter((x) => !(x.type === r.type && x.id === r.id)))}>
+                      <button type="button" className="btn btn-ghost-danger btn-sm px-0 ms-auto" onClick={() => set('resources', draft.resources.filter((x) => !(x.type === r.type && x.id === r.id)))}>
                         {t('diary.remove', { defaultValue: 'Retirer' })}
                       </button>
                     )}
@@ -423,7 +434,7 @@ export function SessionForm() {
             structureId={structureId}
             audienceId={draft.audienceId}
             futureSessions={futureSessions}
-            canPublish={ctx.has('publishHomework')}
+            canPublish={canWrite(ctx.has, ctx.profile, 'publishHomework')}
             readOnly={!owner || !ctx.has('manageHomework')}
           />
         </fieldset>
@@ -439,23 +450,25 @@ export function SessionForm() {
         )}
 
         {submitted && errors.length > 0 && (
-          <div className="alert alert-warning" role="alert">
-            <ul className="m-0">{errors.map((e) => <li key={e}>{errorText[e]}</li>)}</ul>
+          <div className="mb-16">
+            <Alert type="warning">
+              <ul className="m-0">{errors.map((e) => <li key={e}>{errorText[e]}</li>)}</ul>
+            </Alert>
           </div>
         )}
         <div className="d-flex gap-8 flex-wrap">
           {editable && (
-            <button type="submit" className="btn btn-primary" disabled={save.isPending}>
+            <button type="submit" className="btn btn-filled btn-primary btn-md" disabled={save.isPending}>
               {propose ? t('diary.session.modification.propose.submit', { defaultValue: 'Envoyer la proposition' }) : sessionId ? t('diary.save', { defaultValue: 'Enregistrer' }) : t('diary.session.add', { defaultValue: 'Créer' })}
             </button>
           )}
-          <Link to="/" className="btn btn-secondary">{t('diary.cancel', { defaultValue: 'Annuler' })}</Link>
+          <Link to="/" className="btn btn-outline-tertiary btn-md">{t('diary.cancel', { defaultValue: 'Annuler' })}</Link>
           {sessionId && canDeleteSession(draft, ctx.userId, canManage) && (
-            <button type="button" className="btn btn-outline-danger ms-auto" onClick={() => setConfirmDelete(true)}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
+            <button type="button" className="btn btn-outline-danger btn-md ms-auto" onClick={() => setConfirmDelete(true)}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
           )}
         </div>
         {sessionId && owner && draft.hasVisa && (
-          <p className="text-muted mt-8 mb-0" role="note">{t('diary.session.visa.warning', { defaultValue: 'Un visa est posé sur cette séance : elle ne peut plus être supprimée.' })}</p>
+          <p className="text-gray-700 mt-8 mb-0" role="note">{t('diary.session.visa.warning', { defaultValue: 'Un visa est posé sur cette séance : elle ne peut plus être supprimée.' })}</p>
         )}
       </form>
 
@@ -470,8 +483,8 @@ export function SessionForm() {
             <p className="m-0">{t('diary.session.delete.confirm', { defaultValue: 'Supprimer cette séance et ses devoirs ?' })}</p>
           </Modal.Body>
           <Modal.Footer>
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>{t('diary.cancel', { defaultValue: 'Annuler' })}</button>
-            <button type="button" className="btn btn-danger" disabled={remove.isPending} onClick={() => remove.mutate()}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
+            <button type="button" className="btn btn-outline-tertiary btn-md" onClick={() => setConfirmDelete(false)}>{t('diary.cancel', { defaultValue: 'Annuler' })}</button>
+            <button type="button" className="btn btn-filled btn-danger btn-md" disabled={remove.isPending} onClick={() => remove.mutate()}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
           </Modal.Footer>
         </Modal>
       )}

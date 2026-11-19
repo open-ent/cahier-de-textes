@@ -1,10 +1,13 @@
+import { Alert, Badge, Button, Loading, Table } from '@open-ent/react';
+import { IconPlus } from '@open-ent/react/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { api } from '../api';
-import { isStudentOrRelative } from '../context';
+import { Empty } from '../components/Empty';
+import { canWrite, isStudentOrRelative } from '../context';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 import { formatDate, hhmm, sortKey, stripHtml } from '../utils';
 import { LoadError } from '../components/LoadError';
@@ -18,9 +21,10 @@ export function Sessions() {
   const { t } = useTranslation(['diary', 'common']);
   const ctx = useDiaryContext();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const structureId = ctx.structure?.id ?? '';
-  const canManage = ctx.has('manageSession');
-  const canPublish = ctx.has('publishSession');
+  const canManage = canWrite(ctx.has, ctx.profile, 'manageSession');
+  const canPublish = canWrite(ctx.has, ctx.profile, 'publishSession');
 
   // Période : l'année scolaire de l'établissement (ex. du 01/09/2026 au 04/07/2027) ; à défaut,
   // l'année scolaire calendaire en cours. Remplace une période figée qui masquait l'année en cours.
@@ -46,73 +50,80 @@ export function Sessions() {
   const unpublishMut = useMutation({ mutationFn: (id: number) => api.unpublishSession(id), onSuccess: invalidate });
 
   if (ctx.ready && !structureId) {
-    return (
-      <div>
-        <h1>{t('diary.title', { defaultValue: 'Cahier de textes' })}</h1>
-        <div className="alert alert-info" role="alert">{t('diary.no.structure', { defaultValue: 'Aucun établissement associé à votre compte.' })}</div>
-      </div>
-    );
+    return <Alert type="info">{t('diary.no.structure', { defaultValue: 'Aucun établissement associé à votre compte.' })}</Alert>;
   }
 
   return (
     <div>
-      <h1 className="mb-16">{t('diary.sessions.title', { defaultValue: 'Séances' })}</h1>
-
-      {/* Création : formulaire complet (droit de gestion des séances) */}
-      {canManage && (
-        <p>
-          <Link to="/seance/nouvelle" className="btn btn-primary">{t('diary.session.new', { defaultValue: 'Nouvelle séance' })}</Link>
+      <div className="d-flex gap-16 flex-wrap align-items-center justify-content-between mb-16">
+        <p className="m-0 text-gray-700">
+          {t('diary.sessions.count', { defaultValue: '[[count]] séance(s) sur l’année scolaire', count: sessions.length })}
         </p>
-      )}
+        {canManage && (
+          <Button type="button" color="primary" variant="filled" leftIcon={<IconPlus />} onClick={() => navigate('/seance/nouvelle')}>
+            {t('diary.session.new', { defaultValue: 'Nouvelle séance' })}
+          </Button>
+        )}
+      </div>
 
-      {/* Liste des séances */}
-      <h2 style={{ fontSize: 18 }} className="mb-12">{t('diary.sessions.list', { defaultValue: 'Mes séances' })} <span className="text-muted" style={{ fontSize: 14 }}>({sessions.length})</span></h2>
-      {sessionsQuery.isLoading && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
+      {sessionsQuery.isLoading && <Loading isLoading />}
       <LoadError failed={sessionsQuery.isError} />
-      {!sessionsQuery.isLoading && !sessionsQuery.isError && sessions.length === 0 && <p className="text-muted">{t('diary.sessions.empty', { defaultValue: 'Aucune séance.' })}</p>}
+      {!sessionsQuery.isLoading && !sessionsQuery.isError && sessions.length === 0 && (
+        <Empty
+          illustration="folder"
+          title={t('diary.sessions.empty', { defaultValue: 'Aucune séance.' })}
+          text={canManage ? t('diary.sessions.empty.hint', { defaultValue: 'Créez une séance, ou renseignez un cours depuis le calendrier.' }) : undefined}
+        />
+      )}
       {sessions.length > 0 && (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table table-bordered mb-0">
-            <thead>
-              <tr>
-                <th>{t('diary.date', { defaultValue: 'Date' })}</th>
-                <th>{t('diary.slot', { defaultValue: 'Créneau' })}</th>
-                <th>{t('diary.subject', { defaultValue: 'Matière' })}</th>
-                <th>{t('diary.class', { defaultValue: 'Classe' })}</th>
-                <th>{t('diary.session.label', { defaultValue: 'Titre' })}</th>
-                <th>{t('diary.content', { defaultValue: 'Contenu' })}</th>
-                <th className="text-center">{t('diary.status', { defaultValue: 'Statut' })}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map((s) => (
-                <tr key={s.id}>
-                  <td>{formatDate(s.date)}</td>
-                  <td>{hhmm(s.start_time)}{s.end_time ? ` – ${hhmm(s.end_time)}` : ''}</td>
-                  <td>{s.exceptional_label || subjectById.get(s.subject_id) || s.subject_id}</td>
-                  <td>{classById.get(s.audience_id) ?? s.audience_id}</td>
-                  <td>
-                    <Link to={`/seance/${s.id}`}>{s.title || t('diary.session', { defaultValue: 'Séance' })}</Link>
-                  </td>
-                  <td>{stripHtml(s.description)}</td>
-                  <td className="text-center">
-                    {!canPublish ? (
-                      s.is_published ? t('diary.published', { defaultValue: 'Publiée' }) : t('diary.unpublished', { defaultValue: 'Non publiée' })
-                    ) : s.is_published ? (
-                      <button type="button" className="btn btn-sm btn-success" disabled={unpublishMut.isPending} onClick={() => unpublishMut.mutate(s.id)}>
-                        {t('diary.published', { defaultValue: 'Publiée' })} ✓
-                      </button>
-                    ) : (
-                      <button type="button" className="btn btn-sm btn-secondary" disabled={publishMut.isPending} onClick={() => publishMut.mutate(s.id)}>
-                        {t('diary.publish', { defaultValue: 'Publier' })}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>{t('diary.date', { defaultValue: 'Date' })}</Table.Th>
+              <Table.Th>{t('diary.slot', { defaultValue: 'Créneau' })}</Table.Th>
+              <Table.Th>{t('diary.subject', { defaultValue: 'Matière' })}</Table.Th>
+              <Table.Th>{t('diary.class', { defaultValue: 'Classe' })}</Table.Th>
+              <Table.Th>{t('diary.session.label', { defaultValue: 'Titre' })}</Table.Th>
+              <Table.Th>{t('diary.content', { defaultValue: 'Contenu' })}</Table.Th>
+              <Table.Th className="text-center">{t('diary.status', { defaultValue: 'Statut' })}</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {sessions.map((s) => (
+              <Table.Tr key={s.id}>
+                <Table.Td className="text-nowrap">{formatDate(s.date)}</Table.Td>
+                <Table.Td className="text-nowrap">{hhmm(s.start_time)}{s.end_time ? ` – ${hhmm(s.end_time)}` : ''}</Table.Td>
+                <Table.Td>{s.exceptional_label || subjectById.get(s.subject_id) || s.subject_id}</Table.Td>
+                <Table.Td>{classById.get(s.audience_id) ?? s.audience_id}</Table.Td>
+                <Table.Td>
+                  <Link to={`/seance/${s.id}`}>{s.title || t('diary.session', { defaultValue: 'Séance' })}</Link>
+                </Table.Td>
+                <Table.Td>{stripHtml(s.description)}</Table.Td>
+                <Table.Td className="text-center">
+                  {/* L'état se lit d'un coup d'œil ; le bouton n'apparaît que si on peut le changer. */}
+                  {!canPublish ? (
+                    <Badge variant={{ type: 'content', level: s.is_published ? 'success' : 'warning', background: true }}>
+                      {s.is_published ? t('diary.published', { defaultValue: 'Publiée' }) : t('diary.unpublished', { defaultValue: 'Non publiée' })}
+                    </Badge>
+                  ) : s.is_published ? (
+                    <div className="d-flex align-items-center justify-content-center gap-8">
+                      <Badge variant={{ type: 'content', level: 'success', background: true }}>
+                        {t('diary.published', { defaultValue: 'Publiée' })}
+                      </Badge>
+                      <Button type="button" color="tertiary" variant="ghost" size="sm" isLoading={unpublishMut.isPending} onClick={() => unpublishMut.mutate(s.id)}>
+                        {t('diary.unpublish', { defaultValue: 'Dépublier' })}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button type="button" color="secondary" variant="outline" size="sm" isLoading={publishMut.isPending} onClick={() => publishMut.mutate(s.id)}>
+                      {t('diary.publish', { defaultValue: 'Publier' })}
+                    </Button>
+                  )}
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
       )}
     </div>
   );

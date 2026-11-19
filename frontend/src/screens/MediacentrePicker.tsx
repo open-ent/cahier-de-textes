@@ -51,14 +51,14 @@ export function MediacentrePicker({ attached, onAdd, onClose }: Props) {
               }
             }}
           />
-          <button type="button" className="btn btn-primary" disabled={!query.trim() || search.isPending} onClick={launch}>
+          <button type="button" className="btn btn-filled btn-primary btn-md" disabled={!query.trim() || search.isPending} onClick={launch}>
             {t('diary.resources.mediacentre.search', { defaultValue: 'Rechercher' })}
           </button>
         </div>
         {search.isPending && <p role="status">{t('diary.resources.mediacentre.loading', { defaultValue: 'Recherche en cours…' })}</p>}
-        {search.isIdle && <p className="text-muted">{t('diary.resources.mediacentre.empty', { defaultValue: 'Saisissez un mot pour chercher dans le médiacentre.' })}</p>}
+        {search.isIdle && <p className="text-gray-700">{t('diary.resources.mediacentre.empty', { defaultValue: 'Saisissez un mot pour chercher dans le médiacentre.' })}</p>}
         {search.isError && <p className="text-danger" role="alert">{t('diary.form.mediacentre.error', { defaultValue: 'La recherche dans le médiacentre a échoué.' })}</p>}
-        {search.isSuccess && search.data.length === 0 && <p className="text-muted">{t('diary.resources.mediacentre.noresult', { defaultValue: 'Aucune ressource trouvée.' })}</p>}
+        {search.isSuccess && search.data.length === 0 && <p className="text-gray-700">{t('diary.resources.mediacentre.noresult', { defaultValue: 'Aucune ressource trouvée.' })}</p>}
         {search.isSuccess && search.data.length > 0 && (
           <ul className="list-unstyled m-0 d-flex flex-column gap-8">
             {search.data.map((item, i) => {
@@ -69,7 +69,7 @@ export function MediacentrePicker({ attached, onAdd, onClose }: Props) {
                   <span className="flex-fill">{item.title || item.link}</span>
                   <button
                     type="button"
-                    className="btn btn-sm btn-secondary"
+                    className="btn btn-outline-tertiary btn-sm"
                     disabled={done}
                     onClick={() => {
                       const r = mediacentreResource(item);
@@ -85,7 +85,7 @@ export function MediacentrePicker({ attached, onAdd, onClose }: Props) {
         )}
       </Modal.Body>
       <Modal.Footer>
-        <button type="button" className="btn btn-secondary" onClick={onClose}>{t('diary.form.close', { defaultValue: 'Fermer' })}</button>
+        <button type="button" className="btn btn-outline-tertiary btn-md" onClick={onClose}>{t('diary.form.close', { defaultValue: 'Fermer' })}</button>
       </Modal.Footer>
     </Modal>
   );

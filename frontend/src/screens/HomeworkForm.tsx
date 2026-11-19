@@ -1,12 +1,13 @@
-import { MediaLibrary, Modal, useEdificeClient, useMediaLibrary } from '@open-ent/react';
+import { Alert, Badge, Button, Checkbox, MediaLibrary, Modal, Radio, useEdificeClient, useMediaLibrary } from '@open-ent/react';
 import { Editor, type EditorInstance } from '@open-ent/react/editor';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IconRafterLeft } from '@open-ent/react/icons';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { api } from '../api';
-import { isStudentOrRelative } from '../context';
+import { canWrite, isStudentOrRelative } from '../context';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 import {
   canEditHomework,
@@ -28,7 +29,8 @@ import { ymd } from '../utils';
 import { MediacentrePicker } from './MediacentrePicker';
 
 const editorContent = (html: string) => (html && html.trim() ? html : '<p></p>');
-const COLOR = { green: '#00ab6f', yellow: '#f5b700', red: '#e13a3a' } as const;
+/** Charge de travail du jour : niveaux de pastille du socle (vert / orange / rouge). */
+const WORKLOAD_LEVEL = { green: 'success', yellow: 'warning', red: 'danger' } as const;
 
 /**
  * Devoir, comme l'AngularJS (homework/homework-page.html, homework-form.html) : création
@@ -48,8 +50,8 @@ export function HomeworkForm() {
   const dialogId = useId();
   const structureId = ctx.structure?.id ?? '';
   const pupil = isStudentOrRelative(ctx.profile);
-  const canManage = ctx.has('manageHomework');
-  const canPublish = ctx.has('publishHomework');
+  const canManage = canWrite(ctx.has, ctx.profile, 'manageHomework');
+  const canPublish = canWrite(ctx.has, ctx.profile, 'publishHomework');
   const today = ymd(new Date());
 
   const [draft, setDraft] = useState<HomeworkPageDraft>(emptyHomeworkPage());
@@ -155,28 +157,41 @@ export function HomeworkForm() {
 
   return (
     <div>
-      <p>
-        <Link to="/devoirs">← {t('diary.back', { defaultValue: 'Retour' })}</Link>
-      </p>
-      <h1 className="mb-16">{title}</h1>
-      {notice && <div className="alert alert-warning" role="alert">{notice}</div>}
+      <div className="d-flex align-items-center justify-content-between gap-12 flex-wrap mb-16">
+        <Link to="/devoirs" className="btn btn-ghost-tertiary btn-sm px-0 d-inline-flex align-items-center gap-4">
+          <IconRafterLeft />
+          {t('diary.back', { defaultValue: 'Retour' })}
+        </Link>
+        <span className="visually-hidden">{title}</span>
+      </div>
+      {notice && (
+        <div className="mb-16">
+          <Alert type="warning">{notice}</Alert>
+        </div>
+      )}
       {homeworkId && !editable && canManage && isPastDue(draft, today) && (
-        <div className="alert alert-info" role="status">{t('diary.homework.past', { defaultValue: "L'échéance de ce devoir est passée : il n'est plus modifiable." })}</div>
+        <div className="mb-16">
+          <Alert type="info">{t('diary.homework.past', { defaultValue: "L'échéance de ce devoir est passée : il n'est plus modifiable." })}</Alert>
+        </div>
       )}
 
       {/* Élève : case « fait » (droit de suivi des devoirs, profil élève comme `isChild` de l'AngularJS) */}
       {homeworkId && ctx.has('setProgressHomework') && ctx.profile === 'student' && (
-        <label className="d-flex align-items-center gap-8 mb-16" data-done style={{ fontWeight: 700 }}>
-          <input type="checkbox" checked={!!draft.done} disabled={progress.isPending} onChange={(e) => progress.mutate(e.target.checked)} />
-          {draft.done ? t('diary.homework.done', { defaultValue: 'Fait' }) : t('diary.homework.todo', { defaultValue: 'À faire' })}
-        </label>
+        <div className="mb-16" data-done>
+          <Checkbox
+            label={draft.done ? t('diary.homework.done', { defaultValue: 'Fait' }) : t('diary.homework.todo', { defaultValue: 'À faire' })}
+            checked={!!draft.done}
+            disabled={progress.isPending}
+            onChange={(e) => progress.mutate(e.target.checked)}
+          />
+        </div>
       )}
 
       <form className="card p-16 mb-16" onSubmit={(e) => { e.preventDefault(); setSubmitted(true); if (editable && errors.length === 0) save.mutate(); }}>
         <fieldset disabled={!editable} className="border-0 p-0 m-0">
           <div className="d-flex gap-16 flex-wrap mb-12">
-            <div style={{ minWidth: 240 }}>
-              <label htmlFor="hp-subject" className="form-label" style={{ fontWeight: 700 }}>{t('diary.subject', { defaultValue: 'Matière' })} *</label>
+            <div style={{ flex: '1 1 22rem', minWidth: '20rem' }}>
+              <label htmlFor="hp-subject" className="form-label">{t('diary.subject', { defaultValue: 'Matière' })} *</label>
               <select id="hp-subject" className="form-select" value={draft.subjectKey} onChange={(e) => set('subjectKey', e.target.value)}>
                 <option value="">—</option>
                 {subjects.map((s) => (s.exceptional ? <option key={`x-${s.name}`} value={`exceptional:${s.name}`}>{s.name}</option> : <option key={s.id} value={s.id}>{s.name}</option>))}
@@ -185,15 +200,15 @@ export function HomeworkForm() {
                 )}
               </select>
             </div>
-            <div style={{ minWidth: 200 }}>
-              <label htmlFor="hp-class" className="form-label" style={{ fontWeight: 700 }}>{t('diary.class', { defaultValue: 'Classe' })} *</label>
+            <div style={{ flex: '1 1 22rem', minWidth: '20rem' }}>
+              <label htmlFor="hp-class" className="form-label">{t('diary.class', { defaultValue: 'Classe' })} *</label>
               <select id="hp-class" className="form-select" value={draft.audienceId} onChange={(e) => set('audienceId', e.target.value)}>
                 <option value="">—</option>
                 {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            <div style={{ minWidth: 200 }}>
-              <label htmlFor="hp-type" className="form-label" style={{ fontWeight: 700 }}>{t('diary.homework.type', { defaultValue: 'Type' })} *</label>
+            <div style={{ flex: '1 1 22rem', minWidth: '20rem' }}>
+              <label htmlFor="hp-type" className="form-label">{t('diary.homework.type', { defaultValue: 'Type' })} *</label>
               <select id="hp-type" className="form-select" value={draft.typeId} onChange={(e) => set('typeId', e.target.value)}>
                 <option value="">—</option>
                 {types.map((ty) => <option key={ty.id} value={ty.id}>{ty.label}</option>)}
@@ -203,21 +218,27 @@ export function HomeworkForm() {
 
           <div className="d-flex gap-16 flex-wrap mb-12">
             <fieldset>
-              <legend className="form-label" style={{ fontSize: 14, fontWeight: 700 }}>{t('diary.homework.due', { defaultValue: 'À rendre pour' })} *</legend>
-              <div className="d-flex gap-12">
-                <label className="d-flex gap-4 align-items-center m-0">
-                  <input type="radio" name="hp-due-mode" checked={draft.dueMode === 'session'} onChange={() => set('dueMode', 'session')} />
-                  {t('diary.homework.due.session', { defaultValue: 'Une séance' })}
-                </label>
-                <label className="d-flex gap-4 align-items-center m-0">
-                  <input type="radio" name="hp-due-mode" checked={draft.dueMode === 'date'} onChange={() => set('dueMode', 'date')} />
-                  {t('diary.homework.due.date', { defaultValue: 'Une date' })}
-                </label>
+              <legend className="form-label">{t('diary.homework.due', { defaultValue: 'À rendre pour' })} *</legend>
+              <div className="d-flex gap-16">
+                <Radio
+                  name="hp-due-mode"
+                  model="session"
+                  label={t('diary.homework.due.session', { defaultValue: 'Une séance' })}
+                  checked={draft.dueMode === 'session'}
+                  onChange={() => set('dueMode', 'session')}
+                />
+                <Radio
+                  name="hp-due-mode"
+                  model="date"
+                  label={t('diary.homework.due.date', { defaultValue: 'Une date' })}
+                  checked={draft.dueMode === 'date'}
+                  onChange={() => set('dueMode', 'date')}
+                />
               </div>
             </fieldset>
             {draft.dueMode === 'session' ? (
               <div style={{ minWidth: 240 }}>
-                <label htmlFor="hp-session" className="form-label" style={{ fontWeight: 700 }}>{t('diary.homework.due.session', { defaultValue: 'Séance' })}</label>
+                <label htmlFor="hp-session" className="form-label">{t('diary.homework.due.session', { defaultValue: 'Séance' })}</label>
                 <select id="hp-session" className="form-select" value={draft.dueSessionId} onChange={(e) => set('dueSessionId', e.target.value)}>
                   <option value="">—</option>
                   {draft.dueSessionId && !futureSessions.some((s) => String(s.id) === draft.dueSessionId) && <option value={draft.dueSessionId}>{t('diary.homework.due.session', { defaultValue: 'Séance' })} #{draft.dueSessionId}</option>}
@@ -226,30 +247,33 @@ export function HomeworkForm() {
               </div>
             ) : (
               <div>
-                <label htmlFor="hp-date" className="form-label" style={{ fontWeight: 700 }}>{t('diary.due', { defaultValue: 'À rendre le' })}</label>
+                <label htmlFor="hp-date" className="form-label">{t('diary.due', { defaultValue: 'À rendre le' })}</label>
                 <input id="hp-date" type="date" className="form-control" value={draft.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
               </div>
             )}
             <div style={{ maxWidth: 130 }}>
-              <label htmlFor="hp-time" className="form-label" style={{ fontWeight: 700 }}>{t('diary.homework.time', { defaultValue: 'Durée (min)' })}</label>
+              <label htmlFor="hp-time" className="form-label">{t('diary.homework.time', { defaultValue: 'Durée (min)' })}</label>
               <input id="hp-time" type="number" min={0} className="form-control" value={draft.estimatedTime} onChange={(e) => set('estimatedTime', Math.max(0, Number(e.target.value) || 0))} />
             </div>
             {canPublish && (
-              <label className="d-flex align-items-center gap-4 m-0 align-self-end">
-                <input type="checkbox" checked={draft.published} onChange={(e) => set('published', e.target.checked)} />
-                {t('diary.publish', { defaultValue: 'Publier' })}
-              </label>
+              <div className="align-self-end pb-8">
+                <Checkbox
+                  label={t('diary.publish', { defaultValue: 'Publier' })}
+                  checked={draft.published}
+                  onChange={(e) => set('published', e.target.checked)}
+                />
+              </div>
             )}
           </div>
           {editable && dueDay && load && (
             <p className="mb-12" data-workload role="status">
-              <span aria-hidden style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 6, background: COLOR[workloadColor(load.count)], marginRight: 6 }} />
+              <Badge variant={{ type: 'notification', level: WORKLOAD_LEVEL[workloadColor(load.count)] }} className="me-8" />
               {t('diary.homework.workload', { defaultValue: 'Charge de travail ce jour-là : [[count]] devoir(s), [[total]] min', count: load.count, total: load.total })}
             </p>
           )}
 
           <div className="mb-12">
-            <div className="form-label" style={{ fontSize: 15, fontWeight: 700 }}>{t('diary.description', { defaultValue: 'Contenu' })}</div>
+            <div className="form-label">{t('diary.description', { defaultValue: 'Contenu' })}</div>
             <Editor
               key={homeworkId ?? 'new'}
               content={editorContent(draft.description)}
@@ -262,22 +286,22 @@ export function HomeworkForm() {
           </div>
 
           <section className="mb-12" aria-labelledby="hp-resources">
-            <div id="hp-resources" className="form-label" style={{ fontSize: 15, fontWeight: 700 }}>{t('diary.session.resources', { defaultValue: 'Documents attachés' })}</div>
+            <div id="hp-resources" className="form-label">{t('diary.session.resources', { defaultValue: 'Documents attachés' })}</div>
             {editable && (
               <div className="d-flex gap-8 mb-8 flex-wrap">
-                <button type="button" className="btn btn-sm btn-secondary" onClick={() => mediaLibraryRef.current?.show('attachment')}>{t('diary.resources.add.workspace', { defaultValue: "Ajouter un document de l'espace documentaire" })}</button>
-                <button type="button" className="btn btn-sm btn-secondary" onClick={() => setMediacentre(true)}>{t('diary.resources.add.mediacentre', { defaultValue: 'Ajouter une ressource du médiacentre' })}</button>
+                <button type="button" className="btn btn-outline-tertiary btn-sm" onClick={() => mediaLibraryRef.current?.show('attachment')}>{t('diary.resources.add.workspace', { defaultValue: "Ajouter un document de l'espace documentaire" })}</button>
+                <button type="button" className="btn btn-outline-tertiary btn-sm" onClick={() => setMediacentre(true)}>{t('diary.resources.add.mediacentre', { defaultValue: 'Ajouter une ressource du médiacentre' })}</button>
               </div>
             )}
             {draft.resources.length === 0 ? (
-              <p className="text-muted mb-0">{t('diary.session.resources.none', { defaultValue: 'Aucun document attaché.' })}</p>
+              <p className="text-gray-700 mb-0">{t('diary.session.resources.none', { defaultValue: 'Aucun document attaché.' })}</p>
             ) : (
               <ul className="list-unstyled mb-0" data-resources>
                 {draft.resources.map((r) => (
                   <li key={`${r.type}-${r.id}`} className="d-flex align-items-center gap-8 py-4 border-bottom">
                     <a href={r.url} target="_blank" rel="noreferrer">{r.name}</a>
                     {editable && (
-                      <button type="button" className="btn btn-link p-0 text-danger ms-auto" onClick={() => set('resources', draft.resources.filter((x) => !(x.type === r.type && x.id === r.id)))}>
+                      <button type="button" className="btn btn-ghost-danger btn-sm px-0 ms-auto" onClick={() => set('resources', draft.resources.filter((x) => !(x.type === r.type && x.id === r.id)))}>
                         {t('diary.remove', { defaultValue: 'Retirer' })}
                       </button>
                     )}
@@ -289,19 +313,21 @@ export function HomeworkForm() {
         </fieldset>
 
         {submitted && errors.length > 0 && (
-          <div className="alert alert-warning" role="alert">
-            <ul className="m-0">{errors.map((e) => <li key={e}>{errorText[e]}</li>)}</ul>
+          <div className="mb-16">
+            <Alert type="warning">
+              <ul className="m-0">{errors.map((e) => <li key={e}>{errorText[e]}</li>)}</ul>
+            </Alert>
           </div>
         )}
         <div className="d-flex gap-8 flex-wrap">
           {editable && (
-            <button type="submit" className="btn btn-primary" disabled={save.isPending}>
+            <button type="submit" className="btn btn-filled btn-primary btn-md" disabled={save.isPending}>
               {homeworkId ? t('diary.save', { defaultValue: 'Enregistrer' }) : t('diary.homework.add', { defaultValue: 'Ajouter le devoir' })}
             </button>
           )}
-          <Link to="/devoirs" className="btn btn-secondary">{t('diary.cancel', { defaultValue: 'Annuler' })}</Link>
+          <Link to="/devoirs" className="btn btn-outline-tertiary btn-md">{t('diary.cancel', { defaultValue: 'Annuler' })}</Link>
           {homeworkId && canEditHomework(draft, ctx.userId, canManage) && (
-            <button type="button" className="btn btn-outline-danger ms-auto" onClick={() => setConfirmDelete(true)}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
+            <button type="button" className="btn btn-outline-danger btn-md ms-auto" onClick={() => setConfirmDelete(true)}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
           )}
         </div>
       </form>
@@ -313,8 +339,8 @@ export function HomeworkForm() {
           <Modal.Header onModalClose={() => setConfirmDelete(false)}>{t('diary.delete', { defaultValue: 'Supprimer' })}</Modal.Header>
           <Modal.Body><p className="m-0">{t('diary.homework.confirm.delete', { defaultValue: 'Supprimer ce devoir ?' })}</p></Modal.Body>
           <Modal.Footer>
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>{t('diary.cancel', { defaultValue: 'Annuler' })}</button>
-            <button type="button" className="btn btn-danger" disabled={remove.isPending} onClick={() => remove.mutate()}>{t('diary.delete', { defaultValue: 'Supprimer' })}</button>
+            <Button type="button" color="tertiary" variant="ghost" onClick={() => setConfirmDelete(false)}>{t('diary.cancel', { defaultValue: 'Annuler' })}</Button>
+            <Button type="button" color="danger" variant="filled" isLoading={remove.isPending} onClick={() => remove.mutate()}>{t('diary.delete', { defaultValue: 'Supprimer' })}</Button>
           </Modal.Footer>
         </Modal>
       )}

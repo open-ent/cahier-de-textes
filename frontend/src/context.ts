@@ -53,6 +53,21 @@ export function profileOf(type: string | undefined): Profile {
 /** Élève ou parent : liste seulement, éléments non publiés masqués (main.ts:249-250). */
 export const isStudentOrRelative = (p: Profile): boolean => p === 'student' || p === 'relative';
 
+/**
+ * Droit d'ÉCRIRE dans le cahier de textes (créer, modifier, publier, supprimer, paramétrer).
+ * Réservé à l'enseignant et au personnel : un élève ou un parent ne l'a jamais, même quand la
+ * session lui remonte le droit de workflow correspondant. Ce n'est pas une précaution
+ * théorique — sur un établissement où « Initialiser les accès » a été passé trop large, le
+ * profil Élève porte `HomeworkController|workflow2` et `workflow5` (constaté le 19/11/2026 sur
+ * le miroir local) : sans ce garde-fou, l'écran Devoirs proposait « Nouveau devoir », le
+ * paramétrage des types et la corbeille de chaque ligne à un élève.
+ * Le droit de marquer un devoir « fait » (`setProgressHomework`) n'est pas concerné : il est
+ * fait POUR l'élève.
+ */
+export function canWrite(has: (k: WorkflowKey) => boolean, profile: Profile, key: WorkflowKey): boolean {
+  return !isStudentOrRelative(profile) && has(key);
+}
+
 export interface StructureRef {
   id: string;
   name: string;

@@ -1,0 +1,161 @@
+/* Mise en page du cahier de textes — uniquement ce que les utilitaires du socle n'expriment pas.
+   Toute couleur vient des jetons `--openent-*` du bootstrap chargé au runtime : le module suit
+   ainsi le thème de l'établissement sans feuille de styles parallèle (même règle que l'agenda). */
+
+/* ── Grille horaire (vues Jour et Semaine) ──────────────────────────────────── */
+
+.diary-timegrid {
+  overflow-x: auto;
+}
+
+/* Les colonnes de jour sont séparées par un filet ; l'en-tête ferme la grille en haut. */
+.diary-timegrid-head {
+  border-bottom: 1px solid var(--openent-gray-300);
+}
+
+.diary-day-col {
+  border-inline-start: 1px solid var(--openent-gray-300);
+  min-width: 0;
+}
+
+.diary-hour-line {
+  border-top: 1px solid var(--openent-gray-200);
+  pointer-events: none;
+}
+
+/* Le jour courant se repère sans lire la date. */
+.diary-day--today {
+  box-shadow: inset 0 0.3rem 0 0 var(--openent-primary);
+}
+
+/* ── Grille mensuelle et quinzaine ──────────────────────────────────────────── */
+
+.diary-monthgrid {
+  border: 1px solid var(--openent-gray-300);
+  border-radius: var(--openent-border-radius);
+  overflow: hidden;
+}
+
+.diary-monthgrid > * {
+  border-inline-end: 1px solid var(--openent-gray-300);
+  border-bottom: 1px solid var(--openent-gray-300);
+  min-width: 0;
+}
+
+.diary-weekday {
+  background: var(--openent-gray-200);
+}
+
+.diary-month-day {
+  background: var(--openent-white);
+  min-height: 10rem;
+}
+
+.diary-month-day--outside {
+  background: var(--openent-gray-100);
+}
+
+/* ── Pastille d'élément (séance, cours, devoir) ─────────────────────────────── */
+
+/* Couleur portée par `--diary-color`, posée en ligne depuis la légende du module. */
+.diary-chip {
+  display: block;
+  width: 100%;
+  text-align: start;
+  border: 0;
+  border-radius: var(--openent-border-radius);
+  color: var(--openent-white);
+  background: var(--diary-color, var(--openent-primary));
+  overflow: hidden;
+}
+
+/* Un cours de l'emploi du temps non encore renseigné : fond clair, cadre pointillé — il appelle
+   une action plutôt qu'il n'affiche un contenu. */
+.diary-chip--todo {
+  color: var(--openent-gray-800);
+  border: 1px dashed var(--openent-gray-600);
+}
+
+.diary-chip:hover,
+.diary-chip:focus-visible {
+  filter: brightness(0.92);
+}
+
+/* ── Liste par jour ─────────────────────────────────────────────────────────── */
+
+/* La colonne des dates garde une largeur fixe : les contenus s'alignent d'un jour à l'autre. */
+.diary-day-label {
+  width: 18rem;
+  flex-shrink: 0;
+}
+
+/* Filet coloré rappelant la nature de l'élément. Le sélecteur porte aussi `.card` : le thème
+   pose `[data-product] .card { border-color }`, plus spécifique, qui effacerait le filet. */
+.card.diary-item-card {
+  border-inline-start: 0.4rem solid var(--diary-color, var(--openent-primary));
+}
+
+/* ── Progressions ───────────────────────────────────────────────────────────── */
+
+.diary-tree {
+  width: 28rem;
+  flex: 0 0 28rem;
+}
+
+/* Le dossier survolé pendant un glisser-déposer doit se voir. */
+.diary-tree-row:hover {
+  background: var(--openent-gray-200);
+  border-radius: var(--openent-border-radius);
+}
+
+.diary-draggable {
+  cursor: grab;
+}
+
+/* ── Recherche ──────────────────────────────────────────────────────────────── */
+
+.diary-search-field {
+  min-width: 24rem;
+  position: relative;
+}
+
+.diary-suggestions {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 10;
+  max-height: 24rem;
+  overflow-y: auto;
+  background: var(--openent-white);
+  border: 1px solid var(--openent-gray-300);
+  border-radius: var(--openent-border-radius);
+}
+
+/* ── Divers ─────────────────────────────────────────────────────────────────── */
+
+/* Le libellé de période garde une largeur stable : la navigation ne saute pas d'une semaine
+   à l'autre. */
+.diary-period {
+  min-width: 20rem;
+}
+
+/* Majuscule à la première lettre seulement : `text-capitalize` écrivait « Lundi 16 Novembre »
+   et « Du 16/11 Au 20/11 », alors qu'en français le mois et la préposition restent en bas de casse. */
+.diary-first-letter {
+  display: inline-block;
+}
+
+.diary-first-letter::first-letter {
+  text-transform: uppercase;
+}
+
+/* Bandeau de retour vers l'IHM AngularJS, pendant la cohabitation des deux interfaces.
+   Posé en bas de l'écran, hors du flux : il ne doit décaler aucune grille. */
+.diary-ui-switch {
+  position: fixed;
+  left: 50%;
+  bottom: 1.6rem;
+  transform: translateX(-50%);
+  z-index: 1030;
+  width: min(64rem, calc(100vw - 3.2rem));
+  background: var(--openent-white);
+}

@@ -1,3 +1,4 @@
+import { Alert } from '@open-ent/react';
 import { Editor, type EditorInstance } from '@open-ent/react/editor';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -82,18 +83,24 @@ export function ProgressionForm() {
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-12 mb-16">
-        <h1 className="m-0">{progressionId ? t('diary.progression.edit', { defaultValue: 'Modifier la progression' }) : t('diary.progression.new', { defaultValue: 'Nouvelle progression' })}</h1>
+        <span className="visually-hidden">{progressionId ? t('diary.progression.edit', { defaultValue: 'Modifier la progression' }) : t('diary.progression.new', { defaultValue: 'Nouvelle progression' })}</span>
         <div className="d-flex gap-8">
-          <Link className="btn btn-secondary" to="/progressions">{t('diary.cancel', { defaultValue: 'Annuler' })}</Link>
-          {!readOnly && <button type="button" className="btn btn-primary" disabled={save.isPending} onClick={submit}>{t('diary.save', { defaultValue: 'Enregistrer' })}</button>}
+          <Link className="btn btn-outline-tertiary btn-md" to="/progressions">{t('diary.cancel', { defaultValue: 'Annuler' })}</Link>
+          {!readOnly && <button type="button" className="btn btn-filled btn-primary btn-md" disabled={save.isPending} onClick={submit}>{t('diary.save', { defaultValue: 'Enregistrer' })}</button>}
         </div>
       </div>
-      {error && <div className="alert alert-danger" role="alert">{error}</div>}
+      {error && (
+        <div className="mb-16">
+          <Alert type="danger">{error}</Alert>
+        </div>
+      )}
       {submitted && !validation.ok && (
-        <div className="alert alert-warning" role="alert" data-errors>
-          {validation.missing.includes('title') && <div>{t('diary.progression.required', { defaultValue: 'Le titre est obligatoire.' })}</div>}
-          {validation.missing.includes('description') && <div>{t('diary.progression.description.required', { defaultValue: 'La description est obligatoire.' })}</div>}
-          {validation.missing.includes('homework') && <div>{t('diary.progression.homework.required', { defaultValue: 'Chaque devoir doit avoir une description.' })}</div>}
+        <div className="mb-16" data-errors>
+          <Alert type="warning">
+            {validation.missing.includes('title') && <div>{t('diary.progression.required', { defaultValue: 'Le titre est obligatoire.' })}</div>}
+            {validation.missing.includes('description') && <div>{t('diary.progression.description.required', { defaultValue: 'La description est obligatoire.' })}</div>}
+            {validation.missing.includes('homework') && <div>{t('diary.progression.homework.required', { defaultValue: 'Chaque devoir doit avoir une description.' })}</div>}
+          </Alert>
         </div>
       )}
 
@@ -118,7 +125,7 @@ export function ProgressionForm() {
             </select>
           </div>
         </div>
-        <div className="form-label" style={{ fontSize: 15, fontWeight: 700 }}>{t('diary.progression.description', { defaultValue: 'Description' })} *</div>
+        <div className="form-label">{t('diary.progression.description', { defaultValue: 'Description' })} *</div>
         <div className={missing('description') ? 'border border-danger rounded' : ''} data-description>
           <Editor
             key={progressionId ?? 'new'}
@@ -133,8 +140,8 @@ export function ProgressionForm() {
       </div>
 
       <section className="card p-16 mb-16" aria-labelledby="pg-homeworks" data-homeworks>
-        <h2 id="pg-homeworks" style={{ fontSize: 18, fontWeight: 700 }} className="mb-12">{t('diary.progression.homeworks', { defaultValue: 'Devoirs' })}</h2>
-        {draft.homeworks.length === 0 && <p className="text-muted">{t('diary.progression.homeworks.none', { defaultValue: 'Aucun devoir.' })}</p>}
+        <h2 id="pg-homeworks" className="mb-12">{t('diary.progression.homeworks', { defaultValue: 'Devoirs' })}</h2>
+        {draft.homeworks.length === 0 && <p className="text-gray-700">{t('diary.progression.homeworks.none', { defaultValue: 'Aucun devoir.' })}</p>}
         {draft.homeworks.map((h, i) => (
           <div key={h.id ?? `new-${i}`} className="border rounded p-12 mb-12" data-homework={i}>
             <div className="d-flex justify-content-between align-items-end gap-12 mb-8">
@@ -142,7 +149,7 @@ export function ProgressionForm() {
                 <label htmlFor={`pg-hw-time-${i}`} className="form-label">{t('diary.progression.homework.time', { defaultValue: 'Durée estimée (minutes)' })}</label>
                 <input id={`pg-hw-time-${i}`} type="number" min={0} className="form-control" style={{ width: 120 }} value={h.estimatedTime} disabled={readOnly} onChange={(e) => setHomework(i, { estimatedTime: Math.max(0, Number(e.target.value) || 0) })} />
               </div>
-              {!readOnly && <button type="button" className="btn btn-danger btn-sm" onClick={() => removeHomework(i)}>{t('diary.progression.homework.delete', { defaultValue: 'Supprimer le devoir' })}</button>}
+              {!readOnly && <button type="button" className="btn btn-filled btn-danger btn-sm" onClick={() => removeHomework(i)}>{t('diary.progression.homework.delete', { defaultValue: 'Supprimer le devoir' })}</button>}
             </div>
             <Editor
               key={h.id ?? `new-${i}`}
@@ -155,7 +162,7 @@ export function ProgressionForm() {
             />
           </div>
         ))}
-        {!readOnly && <button type="button" className="btn btn-secondary" onClick={() => set('homeworks', [...draft.homeworks, { id: null, description: '', estimatedTime: 0 }])}>{t('diary.progression.homework.add', { defaultValue: 'Ajouter un devoir' })}</button>}
+        {!readOnly && <button type="button" className="btn btn-outline-tertiary btn-md" onClick={() => set('homeworks', [...draft.homeworks, { id: null, description: '', estimatedTime: 0 }])}>{t('diary.progression.homework.add', { defaultValue: 'Ajouter un devoir' })}</button>}
       </section>
     </div>
   );

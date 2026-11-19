@@ -1,3 +1,4 @@
+import { Alert } from '@open-ent/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,18 +43,22 @@ export function PendingModifications({ sessionId, onDone }: { sessionId: number;
   if (pending.length === 0 && !notice) return null;
   return (
     <div data-modifications>
-      {notice && <div className={`alert ${notice.ok ? 'alert-success' : 'alert-warning'}`} role={notice.ok ? 'status' : 'alert'} data-modification-notice>{notice.text}</div>}
+      {notice && (
+        <div className="mb-16" data-modification-notice>
+          <Alert type={notice.ok ? 'success' : 'warning'}>{notice.text}</Alert>
+        </div>
+      )}
       {pending.map((m) => (
         <div key={m.id} className="card p-16 mb-16" data-modification={m.id}>
           <p>
             {t('diary.session.modification.pending.banner', { defaultValue: 'Une modification de cette séance vous a été proposée.' })}
-            {m.created && <span className="text-muted"> ({formatDate(m.created)})</span>}
+            {m.created && <span className="text-gray-700"> ({formatDate(m.created)})</span>}
           </p>
           <div className="d-flex gap-8 flex-wrap">
-            <button type="button" className="btn btn-primary" disabled={process.isPending} onClick={() => process.mutate({ id: m.id, accept: true })}>
+            <button type="button" className="btn btn-filled btn-primary btn-md" disabled={process.isPending} onClick={() => process.mutate({ id: m.id, accept: true })}>
               {t('diary.session.modification.accept', { defaultValue: 'Accepter' })}
             </button>
-            <button type="button" className="btn btn-secondary" disabled={process.isPending} onClick={() => setRefusing(refusing === m.id ? null : m.id)}>
+            <button type="button" className="btn btn-outline-tertiary btn-md" disabled={process.isPending} onClick={() => setRefusing(refusing === m.id ? null : m.id)}>
               {t('diary.session.modification.refuse', { defaultValue: 'Refuser' })}
             </button>
           </div>
@@ -61,7 +66,7 @@ export function PendingModifications({ sessionId, onDone }: { sessionId: number;
             <div className="mt-12">
               <label htmlFor={`pm-reason-${m.id}`} className="form-label">{t('diary.session.modification.refuse.reason.label', { defaultValue: 'Motif du refus (facultatif)' })}</label>
               <textarea id={`pm-reason-${m.id}`} className="form-control mb-8" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
-              <button type="button" className="btn btn-danger" disabled={process.isPending} onClick={() => process.mutate({ id: m.id, accept: false, reason })}>
+              <button type="button" className="btn btn-filled btn-danger btn-md" disabled={process.isPending} onClick={() => process.mutate({ id: m.id, accept: false, reason })}>
                 {t('diary.session.modification.refuse.confirm.title', { defaultValue: 'Refuser la proposition' })}
               </button>
             </div>

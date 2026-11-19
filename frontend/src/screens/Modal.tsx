@@ -1,47 +1,27 @@
-import { ReactNode } from 'react';
+import { Modal as SocleModal } from '@open-ent/react';
+import { ReactNode, useId } from 'react';
 
-/** Fenêtre modale simple (overlay + carte centrée), fermeture au clic hors carte / croix. */
+/**
+ * Fenêtre modale du module, posée sur celle du socle : même habillage, même fermeture au clavier
+ * et même piège de focus que partout ailleurs dans l'ENT. Auparavant le module peignait son
+ * propre calque gris et sa propre croix, qui ne suivaient aucun thème.
+ */
 export function Modal({
   title,
   onClose,
+  size = 'md',
   children,
 }: {
   title: string;
   onClose: () => void;
+  size?: 'sm' | 'md' | 'lg';
   children: ReactNode;
 }) {
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1050,
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded p-24"
-        style={{ width: 'min(560px, 92vw)', maxHeight: '86vh', overflow: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="d-flex justify-content-between align-items-center mb-16">
-          <h2 className="m-0" style={{ fontSize: 20 }}>
-            {title}
-          </h2>
-          <button type="button" className="btn btn-link p-0" aria-label="Fermer" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <SocleModal id={useId()} isOpen onModalClose={onClose} size={size}>
+      <SocleModal.Header onModalClose={onClose}>{title}</SocleModal.Header>
+      <SocleModal.Body>{children}</SocleModal.Body>
+    </SocleModal>
   );
 }
 

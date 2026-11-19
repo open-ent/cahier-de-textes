@@ -1,8 +1,11 @@
+import { Alert, Heading, Loading, Table } from '@open-ent/react';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { api } from '../api';
+import { Chips, Suggestions } from '../components/Chips';
+import { Empty } from '../components/Empty';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 import { buildTree, flatten } from '../progressions';
 import type { SearchTeacher } from '../searchScope';
@@ -28,61 +31,73 @@ export function ProgressionsConsult() {
 
   return (
     <div>
-      <h1 className="mb-16">{t('diary.progressions.title', { defaultValue: 'Progressions' })}</h1>
-      <div style={{ maxWidth: 460, position: 'relative' }} className="mb-16">
-        <label htmlFor="pc-teacher" className="form-label" style={{ fontWeight: 700 }}>{t('diary.consult.progression.select.teacher', { defaultValue: 'Enseignant' })}</label>
+      <div className="diary-search-field mb-16">
+        <label htmlFor="pc-teacher" className="form-label">{t('diary.consult.progression.select.teacher', { defaultValue: 'Enseignant' })}</label>
         {teacher ? (
-          <div className="d-flex align-items-center gap-8" data-chosen-teacher>
-            <span className="badge bg-secondary" style={{ color: "#fff" }}>{teacher.displayName}</span>
-            <button type="button" className="btn btn-link p-0" aria-label={t('diary.search.remove', { defaultValue: 'Retirer' })} onClick={() => { setTeacher(null); setQ(''); }}>×</button>
+          <div data-chosen-teacher>
+            <Chips items={[{ id: teacher.id, label: teacher.displayName }]} onRemove={() => { setTeacher(null); setQ(''); }} />
           </div>
         ) : (
           <>
             <input id="pc-teacher" className="form-control" placeholder={t('diary.consult.progression.search.teacher', { defaultValue: "Saisir le nom de l'enseignant dont consulter les progressions" })} value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" />
-            {q.trim().length >= 2 && (suggestions.data ?? []).length > 0 && (
-              <ul className="list-unstyled border rounded bg-white p-4 m-0" style={{ position: 'absolute', zIndex: 20, minWidth: 240 }} data-suggestions="teachers">
-                {(suggestions.data ?? []).map((x) => (
-                  <li key={x.id}><button type="button" className="btn btn-link p-0 text-start" onClick={() => { setTeacher(x); setQ(''); }}>{x.displayName}</button></li>
-                ))}
-              </ul>
+            {q.trim().length >= 2 && (
+              <Suggestions
+                attrs={{ 'data-suggestions': 'teachers' }}
+                items={(suggestions.data ?? []).map((x) => ({ id: x.id, label: x.displayName }))}
+                onPick={(id) => { const f = (suggestions.data ?? []).find((x) => x.id === id); if (f) setTeacher(f); setQ(''); }}
+              />
             )}
           </>
         )}
       </div>
 
-      {!teacher && <div className="alert alert-info" role="status">{t('diary.consult.progression.hint', { defaultValue: 'Sélectionnez un enseignant pour consulter ses progressions.' })}</div>}
-      {teacher && folders.isLoading && <p>{t('diary.consult.progression.loading', { defaultValue: 'Chargement des progressions…' })}</p>}
-      {teacher && folders.isError && <div className="alert alert-warning" role="alert">{t('diary.consult.progression.error', { defaultValue: 'Impossible de charger les progressions de cet enseignant (droits insuffisants ou service indisponible).' })}</div>}
-      {teacher && folders.isSuccess && shown.length === 0 && <div className="alert alert-info" role="status">{t('diary.consult.progression.empty', { defaultValue: 'Cet enseignant n’a aucune progression.' })}</div>}
+      {!teacher && (
+        <Empty
+          illustration="search"
+          title={t('diary.consult.progression.hint', { defaultValue: 'Sélectionnez un enseignant pour consulter ses progressions.' })}
+        />
+      )}
+      {teacher && folders.isLoading && <Loading isLoading />}
+      {teacher && folders.isError && (
+        <div className="mb-16">
+          <Alert type="warning">{t('diary.consult.progression.error', { defaultValue: 'Impossible de charger les progressions de cet enseignant (droits insuffisants ou service indisponible).' })}</Alert>
+        </div>
+      )}
+      {teacher && folders.isSuccess && shown.length === 0 && (
+        <Empty
+          illustration="folder"
+          title={t('diary.consult.progression.empty', { defaultValue: 'Cet enseignant n’a aucune progression.' })}
+        />
+      )}
       <div data-consult-folders>
         {shown.map((f) => (
-          <section key={f.id ?? 'root'} className="card p-16 mb-12" data-folder={f.id ?? 'root'}>
-            <h2 style={{ fontSize: 17, fontWeight: 700 }} className="mb-8">{f.id === null ? rootTitle : f.title}</h2>
+          <section key={f.id ?? 'root'} className="card bg-white p-16 mb-16" data-folder={f.id ?? 'root'}>
+            <Heading level="h2" headingStyle="h4" className="mb-12">{f.id === null ? rootTitle : f.title}</Heading>
             {f.sessions.length === 0 ? (
-              <p className="text-muted mb-0">{t('diary.consult.progression.folder.empty', { defaultValue: 'Aucune séance dans ce dossier.' })}</p>
+              <p className="text-gray-700 mb-0">{t('diary.consult.progression.folder.empty', { defaultValue: 'Aucune séance dans ce dossier.' })}</p>
             ) : (
-              <table className="table table-bordered mb-0">
-                <thead>
-                  <tr>
-                    <th>{t('diary.progression.label', { defaultValue: 'Titre' })}</th>
-                    <th>{t('diary.progression.level', { defaultValue: 'Niveau' })}</th>
-                    <th>{t('diary.subject', { defaultValue: 'Matière' })}</th>
-                    <th>{t('diary.progression.homeworks', { defaultValue: 'Devoirs' })}</th>
-                    <th>{t('diary.progression.description', { defaultValue: 'Description' })}</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t('diary.progression.label', { defaultValue: 'Titre' })}</Table.Th>
+                    <Table.Th>{t('diary.progression.level', { defaultValue: 'Niveau' })}</Table.Th>
+                    <Table.Th>{t('diary.subject', { defaultValue: 'Matière' })}</Table.Th>
+                    <Table.Th>{t('diary.progression.homeworks', { defaultValue: 'Devoirs' })}</Table.Th>
+                    <Table.Th>{t('diary.progression.description', { defaultValue: 'Description' })}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
                   {f.sessions.map((s) => (
-                    <tr key={s.id}>
-                      <td>{s.title}</td>
-                      <td>{s.className || '—'}</td>
-                      <td>{s.subjectLabel || '—'}</td>
-                      <td>{s.homeworks.length}</td>
-                      <td>{stripHtml(s.description)}</td>
-                    </tr>
+                    <Table.Tr key={s.id}>
+                      <Table.Td>{s.title}</Table.Td>
+                      <Table.Td>{s.className || '—'}</Table.Td>
+                      <Table.Td>{s.subjectLabel || '—'}</Table.Td>
+                      <Table.Td>{s.homeworks.length}</Table.Td>
+                      <Table.Td>{stripHtml(s.description)}</Table.Td>
+                    </Table.Tr>
                   ))}
-                </tbody>
-              </table>
+                </Table.Tbody>
+              </Table>
             )}
           </section>
         ))}

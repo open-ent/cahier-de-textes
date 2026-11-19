@@ -6,8 +6,13 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 
 import './i18n';
-import '@open-ent/bootstrap/dist/index.css';
-import './theme-fixes.css';
+import './index.css';
+
+// Le bootstrap openent n'est PAS bundlé : il est chargé au runtime via
+// <link href="/assets/themes/openent-bootstrap/index.css"> dans index.html et dans la vue
+// backend (view/diary-react.html), comme pour l'agenda, blog et wiki. C'est cette feuille
+// partagée qui porte les couleurs de marque par déploiement (data-product / data-theme) ;
+// le paquet npm, lui, reste figé sur la palette compilée au dernier build.
 
 const queryClient = new QueryClient({
   defaultOptions: {

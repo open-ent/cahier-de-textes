@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{#i18n}}diary.title{{/i18n}}</title>
     <link rel="icon" id="favicon" href="" />
+    <!-- Bootstrap openent partagé, chargé au runtime : le module suit le thème de
+         l'établissement sans recompilation, et porte les couleurs de marque par déploiement. -->
+    <link rel="stylesheet" href="/assets/themes/openent-bootstrap/index.css" />
     <script type="module" crossorigin src="/diary/public/index.js"></script>
     <link rel="stylesheet" crossorigin href="/diary/public/index.css">
   </head>
-  <body>
+  <body class="app-react" data-ode-app>
     <div id="root"></div>
     <div id="portal"></div>
     <!-- Bascule permanente ancienne / nouvelle interface (ui-fab.js générique) : le bouton ne dépend plus de la mise en page du socle -->

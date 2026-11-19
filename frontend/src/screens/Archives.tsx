@@ -1,9 +1,13 @@
+import { Alert, Button, Checkbox, Loading, Pagination, Table } from '@open-ent/react';
+import { IconDownload } from '@open-ent/react/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { api } from '../api';
 import { archivedOn, archivesQuery, effectiveTeachers, exportUrl, teacherLabel } from '../archives';
+import { Chips, Suggestions } from '../components/Chips';
+import { Empty } from '../components/Empty';
 import { useDiaryContext } from '../hooks/useDiaryContext';
 
 /**
@@ -40,13 +44,12 @@ export function Archives() {
   const reset = () => { setPage(0); setSelected(new Set()); };
 
   if (ctx.ready && !structureId) {
-    return <div className="alert alert-info" role="alert">{t('diary.no.structure', { defaultValue: 'Aucun établissement associé à votre compte.' })}</div>;
+    return <Alert type="info">{t('diary.no.structure', { defaultValue: 'Aucun établissement associé à votre compte.' })}</Alert>;
   }
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
 
   return (
     <div>
-      <h1 className="mb-16">{t('archives', { defaultValue: 'Archives' })}</h1>
       <div className="d-flex gap-16 flex-wrap align-items-start mb-16">
         {(years.data ?? []).length > 0 && (
           <div>
@@ -62,50 +65,80 @@ export function Archives() {
         <NameSearch id="ar-audience" label={t('diary.search.class', { defaultValue: 'Classe ou groupe' })} chosen={audiences} fetcher={(q) => api.searchArchiveAudiences(structureId, q)} onChange={(v) => { setAudiences(v); reset(); }} attr="data-chosen-audiences" suggest="data-suggestions-audiences" />
       </div>
 
+      {/* La barre d'actions n'apparaît qu'une fois quelque chose coché, et dit sur quoi elle porte. */}
       {selected.size > 0 && (
-        <div className="mb-12" role="toolbar" aria-label={t('diary.notebooks.actions', { defaultValue: 'Actions sur la sélection' })} data-toolbar>
-          <a className="btn btn-primary" href={exportUrl(structureId, [...selected])} data-download>{t('notebook.archive.download.pdf', { defaultValue: 'Télécharger PDF' })}</a>
+        <div className="d-flex align-items-center gap-16 mb-16" role="toolbar" aria-label={t('diary.notebooks.actions', { defaultValue: 'Actions sur la sélection' })} data-toolbar>
+          <span className="text-gray-700">
+            {t('diary.archives.selected', { defaultValue: '[[count]] cahier(s) sélectionné(s)', count: selected.size })}
+          </span>
+          {/* Un vrai lien : le téléchargement reste ouvrable dans un onglet, et le clic droit marche. */}
+          <a className="btn btn-filled btn-primary btn-md d-inline-flex align-items-center gap-8" href={exportUrl(structureId, [...selected])} data-download>
+            <IconDownload />
+            {t('notebook.archive.download.pdf', { defaultValue: 'Télécharger PDF' })}
+          </a>
         </div>
       )}
 
-      {(years.isLoading || list.isLoading) && <p>{t('diary.loading', { defaultValue: 'Chargement…' })}</p>}
-      {!years.isLoading && (years.data ?? []).length === 0 && <p className="text-muted" data-empty>{t('notebook.archive.notAvailable', { defaultValue: "Il n'y a pas de cahier de textes archivé disponible pour le moment" })}</p>}
-      {(years.data ?? []).length > 0 && !list.isLoading && rows.length === 0 && <p className="text-muted" data-empty>{t('notebook.archive.notAvailable', { defaultValue: "Il n'y a pas de cahier de textes archivé disponible pour le moment" })}</p>}
+      {(years.isLoading || list.isLoading) && <Loading isLoading />}
+      {!years.isLoading && !list.isLoading && ((years.data ?? []).length === 0 || rows.length === 0) && (
+        <Empty
+          illustration="folder"
+          title={t('notebook.archive.notAvailable', { defaultValue: "Il n'y a pas de cahier de textes archivé disponible pour le moment" })}
+          text={(years.data ?? []).length > 0 ? t('diary.archives.empty.hint', { defaultValue: 'Changez d’année scolaire ou retirez un filtre.' }) : undefined}
+        />
+      )}
       {rows.length > 0 && (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table table-bordered mb-0" data-archives>
-            <thead>
-              <tr>
-                <th style={{ width: 40 }}><input type="checkbox" aria-label={t('diary.progression.select.all', { defaultValue: 'Tout sélectionner' })} checked={allChecked} onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())} /></th>
-                <th>{t('notebook.archive.header.audience', { defaultValue: 'Classe' })}</th>
-                <th>{t('notebook.archive.header.teacher', { defaultValue: 'Enseignant' })}</th>
-                <th>{t('notebook.archive.header.subject', { defaultValue: 'Matière' })}</th>
-                <th>{t('notebook.archive.header.archived.period', { defaultValue: 'Période archivée' })}</th>
-                <th>{t('notebook.archive.header.archived.on', { defaultValue: 'Archivé le' })}</th>
-                <th>{t('notebook.archive.header.pdf', { defaultValue: 'PDF' })}</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div data-archives>
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th style={{ width: '4rem' }}>
+                  <Checkbox
+                    aria-label={t('diary.progression.select.all', { defaultValue: 'Tout sélectionner' })}
+                    checked={allChecked}
+                    onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())}
+                  />
+                </Table.Th>
+                <Table.Th>{t('notebook.archive.header.audience', { defaultValue: 'Classe' })}</Table.Th>
+                <Table.Th>{t('notebook.archive.header.teacher', { defaultValue: 'Enseignant' })}</Table.Th>
+                <Table.Th>{t('notebook.archive.header.subject', { defaultValue: 'Matière' })}</Table.Th>
+                <Table.Th>{t('notebook.archive.header.archived.period', { defaultValue: 'Période archivée' })}</Table.Th>
+                <Table.Th>{t('notebook.archive.header.archived.on', { defaultValue: 'Archivé le' })}</Table.Th>
+                <Table.Th className="text-end">{t('notebook.archive.header.pdf', { defaultValue: 'PDF' })}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {rows.map((r) => (
-                <tr key={r.id} data-archive={r.id}>
-                  <td><input type="checkbox" aria-label={`${t('diary.progression.select', { defaultValue: 'Sélectionner' })} ${r.audience_label} ${r.subject_label}`} checked={selected.has(r.id)} onChange={(e) => setSelected((s) => { const c = new Set(s); if (e.target.checked) c.add(r.id); else c.delete(r.id); return c; })} /></td>
-                  <td>{r.audience_label}</td>
-                  <td>{teacherLabel(r)}</td>
-                  <td>{(r.subject_label ?? '').toUpperCase()}</td>
-                  <td>{r.archive_school_year}</td>
-                  <td>{archivedOn(r.created_at)}</td>
-                  <td><a href={exportUrl(structureId, [r.id])} aria-label={`${t('notebook.archive.download.pdf', { defaultValue: 'Télécharger PDF' })} ${r.audience_label} ${r.subject_label}`}>PDF</a></td>
-                </tr>
+                <Table.Tr key={r.id} data-archive={r.id}>
+                  <Table.Td>
+                    <Checkbox
+                      aria-label={`${t('diary.progression.select', { defaultValue: 'Sélectionner' })} ${r.audience_label} ${r.subject_label}`}
+                      checked={selected.has(r.id)}
+                      onChange={(e) => setSelected((s) => { const c = new Set(s); if (e.target.checked) c.add(r.id); else c.delete(r.id); return c; })}
+                    />
+                  </Table.Td>
+                  <Table.Td>{r.audience_label}</Table.Td>
+                  <Table.Td>{teacherLabel(r)}</Table.Td>
+                  <Table.Td>{r.subject_label ?? ''}</Table.Td>
+                  <Table.Td className="text-nowrap">{r.archive_school_year}</Table.Td>
+                  <Table.Td className="text-nowrap">{archivedOn(r.created_at)}</Table.Td>
+                  <Table.Td className="text-end">
+                    <a href={exportUrl(structureId, [r.id])} aria-label={`${t('notebook.archive.download.pdf', { defaultValue: 'Télécharger PDF' })} ${r.audience_label} ${r.subject_label}`}>PDF</a>
+                  </Table.Td>
+                </Table.Tr>
               ))}
-            </tbody>
-          </table>
+            </Table.Tbody>
+          </Table>
         </div>
       )}
       {pageCount > 1 && (
-        <nav className="d-flex gap-8 align-items-center mt-12" aria-label={t('diary.notebooks.pagination', { defaultValue: 'Pagination' })} data-pagination>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={page === 0} onClick={() => { setPage(page - 1); setSelected(new Set()); }}>{t('diary.notebooks.previous', { defaultValue: 'Précédent' })}</button>
-          <span>{page + 1} / {pageCount}</span>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={page + 1 >= pageCount} onClick={() => { setPage(page + 1); setSelected(new Set()); }}>{t('diary.notebooks.next', { defaultValue: 'Suivant' })}</button>
+        <nav className="d-flex justify-content-center mt-16" aria-label={t('diary.notebooks.pagination', { defaultValue: 'Pagination' })} data-pagination>
+          <Pagination
+            current={page + 1}
+            total={pageCount}
+            pageSize={1}
+            onChange={(next) => { setPage(next - 1); setSelected(new Set()); }}
+          />
         </nav>
       )}
     </div>
@@ -114,29 +147,25 @@ export function Archives() {
 
 /** Recherche de noms (au moins 2 caractères) avec choix multiple, sous forme de pastilles. */
 function NameSearch({ id, label, chosen, fetcher, onChange, attr, suggest }: { id: string; label: string; chosen: string[]; fetcher: (q: string) => Promise<string[]>; onChange: (v: string[]) => void; attr: string; suggest: string }) {
-  const { t } = useTranslation(['diary', 'common']);
   const [q, setQ] = useState('');
   const found = useQuery({ queryKey: ['diary', 'archive-search', id, q], queryFn: () => fetcher(q), enabled: q.trim().length >= 2 });
   const options = (found.data ?? []).filter((n) => !chosen.includes(n));
   return (
-    <div style={{ minWidth: 240, position: 'relative' }}>
-      <label htmlFor={id} className="form-label" style={{ fontWeight: 700 }}>{label}</label>
+    <div className="diary-search-field">
+      <label htmlFor={id} className="form-label">{label}</label>
       <input id={id} className="form-control" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} />
-      {q.trim().length >= 2 && options.length > 0 && (
-        <ul className="list-unstyled border rounded bg-white p-4 m-0" style={{ position: 'absolute', zIndex: 20, minWidth: 240 }} {...{ [suggest]: true }}>
-          {options.map((n) => <li key={n}><button type="button" className="btn btn-link p-0 text-start" onClick={() => { onChange([...chosen, n]); setQ(''); }}>{n}</button></li>)}
-        </ul>
+      {q.trim().length >= 2 && (
+        <Suggestions
+          attrs={{ [suggest]: true }}
+          items={options.map((n) => ({ id: n, label: n }))}
+          onPick={(n) => { onChange([...chosen, n]); setQ(''); }}
+        />
       )}
-      {chosen.length > 0 && (
-        <ul className="list-inline mt-4 mb-0" {...{ [attr]: true }}>
-          {chosen.map((n) => (
-            <li key={n} className="d-inline-flex align-items-center gap-4 me-8 badge bg-secondary" style={{ color: '#fff' }}>
-              {n}
-              <button type="button" className="btn btn-link p-0 text-white" style={{ background: 'none', color: '#fff' }} aria-label={`${t('diary.search.remove', { defaultValue: 'Retirer' })} ${n}`} onClick={() => onChange(chosen.filter((x) => x !== n))}>×</button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <Chips
+        attrs={{ [attr]: true }}
+        items={chosen.map((n) => ({ id: n, label: n }))}
+        onRemove={(n) => onChange(chosen.filter((x) => x !== n))}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { initialStructureId, isStudentOrRelative, navTabs, profileOf, userStructures, WorkflowKey } from './context';
+import { canWrite, initialStructureId, isStudentOrRelative, navTabs, profileOf, userStructures, WorkflowKey } from './context';
 
 describe('contexte du cahier de textes', () => {
   it('profils d\'après le type de session', () => {
@@ -34,5 +34,25 @@ describe('contexte du cahier de textes', () => {
     expect(navTabs(has(['readNotebookArchives']), 'teacher')).toEqual(['archives']);
     expect(navTabs(has(['readNotebookArchives']), 'student')).toEqual([]);
     expect(navTabs(has([]), 'other')).toEqual([]);
+  });
+});
+
+describe('canWrite', () => {
+  const tout = () => true;
+
+  it("refuse l'écriture à l'élève et au parent même quand la session donne le droit", () => {
+    expect(canWrite(tout, 'student', 'manageHomework')).toBe(false);
+    expect(canWrite(tout, 'relative', 'manageHomework')).toBe(false);
+    expect(canWrite(tout, 'student', 'settingTypesManage')).toBe(false);
+    expect(canWrite(tout, 'student', 'manageSession')).toBe(false);
+  });
+
+  it("laisse écrire l'enseignant et le personnel qui ont le droit", () => {
+    expect(canWrite(tout, 'teacher', 'manageHomework')).toBe(true);
+    expect(canWrite(tout, 'personnel', 'manageSession')).toBe(true);
+  });
+
+  it('respecte toujours le droit de workflow', () => {
+    expect(canWrite(() => false, 'teacher', 'manageHomework')).toBe(false);
   });
 });
