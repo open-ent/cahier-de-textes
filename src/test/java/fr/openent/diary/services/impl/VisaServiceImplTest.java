@@ -101,4 +101,22 @@ public class VisaServiceImplTest {
                 .put("created", "created");
         ctx.assertEquals(this.visaService.getPDFName(visa), "teacher_id_structure_idowner_id_created.pdf");
     }
+
+    // Règle d'habilitation des inspecteurs : un inspecteur ne vise, dans un établissement où il est déclaré,
+    // que les enseignants pour lesquels il est habilité ; ailleurs, rien ne change (visa de chef d'établissement).
+    @Test
+    public void testRefusedTeacher(TestContext ctx) {
+        java.util.Map<String, java.util.Set<String>> habilitations = VisaServiceImpl.habilitationsByStructure(new JsonArray()
+                .add(new JsonObject().put("structure_id", "S").put("teacher_id", "T1")));
+        JsonArray habilite = new JsonArray().add(new JsonObject().put("structure_id", "S").put("teacher_id", "T1"));
+        JsonArray nonHabilite = new JsonArray()
+                .add(new JsonObject().put("structure_id", "S").put("teacher_id", "T1"))
+                .add(new JsonObject().put("structure_id", "S").put("teacher_id", "T2"));
+        JsonArray autreEtablissement = new JsonArray().add(new JsonObject().put("structure_id", "L").put("teacher_id", "T2"));
+
+        ctx.assertNull(VisaServiceImpl.refusedTeacher(habilite, habilitations));
+        ctx.assertEquals("T2", VisaServiceImpl.refusedTeacher(nonHabilite, habilitations));
+        ctx.assertNull(VisaServiceImpl.refusedTeacher(autreEtablissement, habilitations));
+        ctx.assertNull(VisaServiceImpl.refusedTeacher(nonHabilite, VisaServiceImpl.habilitationsByStructure(new JsonArray())));
+    }
 }

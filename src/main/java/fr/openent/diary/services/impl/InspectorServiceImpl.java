@@ -5,6 +5,7 @@ import fr.openent.diary.services.InspectorService;
 import fr.wseduc.webutils.Either;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
+import java.util.List;
 import io.vertx.core.json.JsonObject;
 import org.entcore.common.neo4j.Neo4j;
 import org.entcore.common.neo4j.Neo4jResult;
@@ -115,5 +116,18 @@ public class InspectorServiceImpl implements InspectorService {
             }
             handler.handle(new Either.Right<>(!result.right().getValue().isEmpty()));
         }));
+    }
+
+    @Override
+    public void getInspectorTeachers(String inspectorId, List<String> structureIds, Handler<Either<String, JsonArray>> handler) {
+        if (structureIds == null || structureIds.isEmpty()) {
+            handler.handle(new Either.Right<>(new JsonArray()));
+            return;
+        }
+        String query = "SELECT DISTINCT structure_id, teacher_id FROM " + Diary.DIARY_SCHEMA + ".inspector_habilitation " +
+                " WHERE inspector_id = ? AND structure_id IN " + Sql.listPrepared(structureIds);
+        JsonArray values = new JsonArray().add(inspectorId);
+        structureIds.forEach(values::add);
+        Sql.getInstance().prepared(query, values, SqlResult.validResultHandler(handler));
     }
 }

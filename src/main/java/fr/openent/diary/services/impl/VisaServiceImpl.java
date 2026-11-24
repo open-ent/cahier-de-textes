@@ -21,10 +21,15 @@ import org.entcore.common.user.UserInfos;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public class VisaServiceImpl implements VisaService {
@@ -58,6 +63,66 @@ public class VisaServiceImpl implements VisaService {
 
     @Override
     public void createVisas(final HttpServerRequest request, JsonArray visas, UserInfos user, Handler<Either<String, JsonArray>> handler) {
+        // Seul un PERSONNEL peut être déclaré inspecteur : pour les autres profils, aucun contrôle ni requête.
+        if (!"PERSONNEL".equals(user.getType()) || visas == null || visas.isEmpty()) {
+            createVisasAs(request, visas, user, Collections.emptyMap(), handler);
+            return;
+        }
+        List<String> structureIds = new ArrayList<>();
+        for (int i = 0; i < visas.size(); i++) {
+            String structureId = visas.getJsonObject(i).getString("structure_id");
+            if (structureId != null && !structureIds.contains(structureId)) structureIds.add(structureId);
+        }
+        inspectorService.getInspectorTeachers(user.getUserId(), structureIds, result -> {
+            if (result.isLeft()) {
+                handler.handle(new Either.Left<>(result.left().getValue()));
+                return;
+            }
+            Map<String, Set<String>> habilitations = habilitationsByStructure(result.right().getValue());
+            String refused = refusedTeacher(visas, habilitations);
+            if (refused != null) {
+                log.warn("[Diary@VisaServiceImpl::createVisas] visa refusé : inspecteur " + user.getUserId()
+                        + " non habilité pour l'enseignant " + refused);
+                handler.handle(new Either.Left<>("diary.visa.inspector.not.habilitated"));
+                return;
+            }
+            createVisasAs(request, visas, user, habilitations, handler);
+        });
+    }
+
+    /**
+     * Habilitations regroupées par établissement : {@code structure_id → {teacher_id…}}.
+     * Ex. : lignes [{S, T1}, {S, T2}] → {S: [T1, T2]}.
+     */
+    static Map<String, Set<String>> habilitationsByStructure(JsonArray rows) {
+        Map<String, Set<String>> map = new HashMap<>();
+        if (rows == null) return map;
+        for (int i = 0; i < rows.size(); i++) {
+            JsonObject row = rows.getJsonObject(i);
+            map.computeIfAbsent(row.getString("structure_id"), k -> new HashSet<>()).add(row.getString("teacher_id"));
+        }
+        return map;
+    }
+
+    /**
+     * Règle d'habilitation : dans un établissement où l'appelant est déclaré inspecteur (au moins une habilitation),
+     * il ne vise que les enseignants pour lesquels il est habilité. Ailleurs (chef d'établissement…), rien ne change.
+     * Ex. : habilité pour T1 au collège S, visa demandé sur T2 en S → renvoie T2 ; visa sur T2 au lycée L sans
+     * habilitation en L → null (autorisé, visa de chef d'établissement).
+     *
+     * @return l'identifiant du premier enseignant refusé, ou {@code null} si tous les visas sont autorisés
+     */
+    static String refusedTeacher(JsonArray visas, Map<String, Set<String>> habilitations) {
+        for (int i = 0; i < visas.size(); i++) {
+            JsonObject visa = visas.getJsonObject(i);
+            Set<String> teachers = habilitations.get(visa.getString("structure_id"));
+            if (teachers != null && !teachers.contains(visa.getString("teacher_id"))) return visa.getString("teacher_id");
+        }
+        return null;
+    }
+
+    private void createVisasAs(final HttpServerRequest request, JsonArray visas, UserInfos user,
+                               Map<String, Set<String>> habilitations, Handler<Either<String, JsonArray>> handler) {
         final JsonArray statements = new JsonArray();
         indexAsync = visas.size();
 
@@ -98,14 +163,10 @@ public class VisaServiceImpl implements VisaService {
                 });
             };
 
-            // Seul un PERSONNEL peut être habilité inspecteur : évite une requête SQL inutile
-            // pour les autres profils (toujours "headmaster" dans ce cas).
-            if ("PERSONNEL".equals(user.getType())) {
-                inspectorService.isInspectorHabilitated(user.getUserId(), visa.getString("teacher_id"), visa.getString("structure_id"),
-                        result -> proceedWithOwnerType.accept(result.isRight() && result.right().getValue()));
-            } else {
-                proceedWithOwnerType.accept(false);
-            }
+            // Visa d'inspecteur si l'appelant est habilité pour cet enseignant dans cet établissement
+            // (déjà vérifié par createVisas), sinon visa de chef d'établissement.
+            Set<String> teachers = habilitations.get(visa.getString("structure_id"));
+            proceedWithOwnerType.accept(teachers != null && teachers.contains(visa.getString("teacher_id")));
         }
     }
 

@@ -345,6 +345,7 @@
   "diary.resources.mediacentre.noresult": "No result for this search.",
   "diary.visa.by": "by",
   "diary.visa.inspector": "Inspector",
+  "diary.visa.inspector.not.habilitated": "You are not authorised to approve this teacher's notebook.",
   "diary.search.group.display": "Enter the group or class whose diary to display",
   "diary.consult.progression.select.teacher": "Teacher",
   "diary.consult.progression.search.teacher": "Enter the name of the teacher whose progressions to consult",

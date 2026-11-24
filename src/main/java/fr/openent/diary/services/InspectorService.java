@@ -3,6 +3,8 @@ package fr.openent.diary.services;
 import fr.wseduc.webutils.Either;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
+
+import java.util.List;
 import io.vertx.core.json.JsonObject;
 import org.entcore.common.user.UserInfos;
 
@@ -33,4 +35,11 @@ public interface InspectorService {
      * Utilisé au moment du visa pour distinguer un visa d'inspecteur d'un visa de chef d'établissement.
      */
     void isInspectorHabilitated(String inspectorId, String teacherId, String structureId, Handler<Either<String, Boolean>> handler);
+
+    /**
+     * Habilitations d'un inspecteur sur ces établissements, une ligne {@code {structure_id, teacher_id}} par couple.
+     * Ex. : l'inspecteur I habilité pour l'enseignant T au collège S → {@code [{structure_id: S, teacher_id: T}]}.
+     * Sert à refuser un visa sur un enseignant non habilité (voir VisaServiceImpl.createVisas).
+     */
+    void getInspectorTeachers(String inspectorId, List<String> structureIds, Handler<Either<String, JsonArray>> handler);
 }
