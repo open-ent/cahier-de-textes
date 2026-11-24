@@ -6,8 +6,11 @@ import fr.openent.diary.helper.FutureHelper;
 import fr.openent.diary.security.workflow.HomeworkRead;
 import fr.openent.diary.security.workflow.NotebookRead;
 import fr.openent.diary.security.workflow.SessionRead;
+import fr.openent.diary.services.InspectorService;
 import fr.openent.diary.services.NotebookService;
 import fr.openent.diary.services.impl.DefaultNotebookService;
+import fr.openent.diary.services.impl.InspectorServiceImpl;
+import fr.openent.diary.services.impl.VisaServiceImpl;
 import fr.wseduc.rs.ApiDoc;
 import fr.wseduc.rs.Get;
 
@@ -29,12 +32,19 @@ import org.entcore.common.storage.Storage;
 import org.entcore.common.user.UserInfos;
 import org.entcore.common.user.UserUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 
 public class NotebookController extends BaseController {
     private final NotebookService notebookService;
+    private final InspectorService inspectorService = new InspectorServiceImpl();
+
+    /** Identifiant qui ne désigne aucun enseignant : liste vide, même forme de réponse. */
+    static final String AUCUN_ENSEIGNANT = "__aucun-enseignant-habilite__";
 
     public NotebookController(EventBus eb, Vertx vertx, Storage storage, JsonObject config) {
         super();
@@ -62,8 +72,42 @@ public class NotebookController extends BaseController {
         Integer page = params.get(Field.PAGE) != null ? Integer.parseInt(params.get(Field.PAGE)) : null;
         String limit = params.get(Field.LIMIT);
         String offset = params.get(Field.OFFSET);
-        notebookService.get(structure_id, start_at, end_at, teacher_id, audience_id, isVisa, visaOrder, isPublished, page,
-                limit, offset, DefaultResponseHandler.defaultResponseHandler(request));
+        UserUtils.getUserInfos(eb, request, user -> {
+            // Un inspecteur ne voit que les cahiers des enseignants pour lesquels il est habilité dans cet
+            // établissement (mêmes règles que le visa, cf. VisaServiceImpl.refusedTeacher).
+            if (user == null || !"PERSONNEL".equals(user.getType()) || structure_id == null) {
+                notebookService.get(structure_id, start_at, end_at, teacher_id, audience_id, isVisa, visaOrder, isPublished, page,
+                        limit, offset, DefaultResponseHandler.defaultResponseHandler(request));
+                return;
+            }
+            inspectorService.getInspectorTeachers(user.getUserId(), Collections.singletonList(structure_id), result -> {
+                if (result.isLeft()) {
+                    DefaultResponseHandler.defaultResponseHandler(request).handle(new fr.wseduc.webutils.Either.Left<>(result.left().getValue()));
+                    return;
+                }
+                List<String> teachers = restrictTeachers(teacher_id,
+                        VisaServiceImpl.habilitationsByStructure(result.right().getValue()).get(structure_id));
+                notebookService.get(structure_id, start_at, end_at, teachers, audience_id, isVisa, visaOrder, isPublished, page,
+                        limit, offset, DefaultResponseHandler.defaultResponseHandler(request));
+            });
+        });
+    }
+
+    /**
+     * Enseignants à interroger pour un appelant donné.
+     * Ex. : inspecteur habilité pour T1 et T2 → aucun filtre demandé : [T1, T2] ; [T2, T3] demandés : [T2] ;
+     * [T3] demandé : [AUCUN_ENSEIGNANT] (liste vide) ; pas inspecteur ({@code habilitated} null) : filtre inchangé.
+     */
+    static List<String> restrictTeachers(List<String> requested, Set<String> habilitated) {
+        if (habilitated == null) return requested;
+        List<String> allowed = new ArrayList<>();
+        if (requested == null || requested.isEmpty()) {
+            allowed.addAll(habilitated);
+        } else {
+            for (String id : requested) if (habilitated.contains(id)) allowed.add(id);
+        }
+        Collections.sort(allowed);
+        return allowed.isEmpty() ? Collections.singletonList(AUCUN_ENSEIGNANT) : allowed;
     }
 
     @Get("/notebooks/sessions/homeworks")

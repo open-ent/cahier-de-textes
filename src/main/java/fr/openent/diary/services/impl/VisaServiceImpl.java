@@ -94,7 +94,7 @@ public class VisaServiceImpl implements VisaService {
      * Habilitations regroupées par établissement : {@code structure_id → {teacher_id…}}.
      * Ex. : lignes [{S, T1}, {S, T2}] → {S: [T1, T2]}.
      */
-    static Map<String, Set<String>> habilitationsByStructure(JsonArray rows) {
+    public static Map<String, Set<String>> habilitationsByStructure(JsonArray rows) {
         Map<String, Set<String>> map = new HashMap<>();
         if (rows == null) return map;
         for (int i = 0; i < rows.size(); i++) {
