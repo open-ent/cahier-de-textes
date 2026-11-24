@@ -8,9 +8,15 @@ import fr.wseduc.rs.Post;
 import fr.wseduc.security.ActionType;
 import fr.wseduc.security.SecuredAction;
 import fr.wseduc.webutils.request.RequestUtils;
+import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonObject;
 import org.entcore.common.controller.ControllerHelper;
 import org.entcore.common.http.response.DefaultResponseHandler;
+import org.entcore.common.neo4j.Neo4j;
+import org.entcore.common.neo4j.Neo4jResult;
+import org.entcore.common.user.DefaultFunctions;
+import org.entcore.common.user.UserInfos;
 import org.entcore.common.user.UserUtils;
 
 public class InspectorController extends ControllerHelper {
@@ -24,8 +30,14 @@ public class InspectorController extends ControllerHelper {
     @SecuredAction(value = "", type = ActionType.AUTHENTICATED)
     public void createInspectorHabilitation(final HttpServerRequest request) {
         UserUtils.getUserInfos(eb, request, user -> RequestUtils.bodyToJson(request, habilitation -> {
-            inspectorService.createInspectorHabilitation(habilitation,
-                    DefaultResponseHandler.arrayResponseHandler(request));
+            checkCanManageHabilitations(user, habilitation.getString("structureId"), allowed -> {
+                if (!allowed) {
+                    unauthorized(request);
+                    return;
+                }
+                inspectorService.createInspectorHabilitation(habilitation,
+                        DefaultResponseHandler.arrayResponseHandler(request));
+            });
         }));
     }
 
@@ -36,8 +48,16 @@ public class InspectorController extends ControllerHelper {
         String teacherId = request.params().get("teacherId");
         String structureId = request.params().get("structureId");
 
-        inspectorService.deleteInspectorHabilitation(inspectorId, teacherId, structureId,
-                DefaultResponseHandler.arrayResponseHandler(request));
+        UserUtils.getUserInfos(eb, request, user -> {
+            checkCanManageHabilitations(user, structureId, allowed -> {
+                if (!allowed) {
+                    unauthorized(request);
+                    return;
+                }
+                inspectorService.deleteInspectorHabilitation(inspectorId, teacherId, structureId,
+                        DefaultResponseHandler.arrayResponseHandler(request));
+            });
+        });
     }
 
     @Get("/inspector-habilitations/:inspectorId/:structureId")
@@ -72,6 +92,46 @@ public class InspectorController extends ControllerHelper {
     @SecuredAction(value = "", type = ActionType.AUTHENTICATED)
     public void deleteInspector(final HttpServerRequest request) {
         String inspectorId = request.params().get("id");
-        inspectorService.deleteInspector(inspectorId, DefaultResponseHandler.arrayResponseHandler(request));
+        UserUtils.getUserInfos(eb, request, user -> {
+            // Supprime les habilitations de l'inspecteur dans TOUS les établissements : réservé au super-administrateur.
+            if (user == null || !user.isADMC()) {
+                unauthorized(request);
+                return;
+            }
+            inspectorService.deleteInspector(inspectorId, DefaultResponseHandler.arrayResponseHandler(request));
+        });
+    }
+
+    /**
+     * Qui peut donner ou retirer une habilitation d'inspection dans un établissement : le super-administrateur,
+     * l'administrateur local (ADML) de CET établissement, ou un membre de son groupe Direction (chef
+     * d'établissement). Ex. : le chef du collège S peut habiliter un inspecteur sur un enseignant de S, pas sur un
+     * enseignant du lycée L ; un inspecteur ne peut pas s'habiliter lui-même.
+     */
+    private void checkCanManageHabilitations(UserInfos user, String structureId, Handler<Boolean> handler) {
+        if (canManageHabilitations(user, structureId)) {
+            handler.handle(true);
+            return;
+        }
+        if (user == null || structureId == null) {
+            handler.handle(false);
+            return;
+        }
+        // Chef d'établissement : membre du groupe Direction rattaché à la structure (sa fonction AAF « DIR »
+        // n'est pas portée par la session).
+        String query = "MATCH (u:User {id: $userId})-[:IN]->(g:DirectionGroup)-[:DEPENDS]->(s:Structure {id: $structureId}) " +
+                "RETURN count(g) AS n";
+        Neo4j.getInstance().execute(query, new JsonObject().put("userId", user.getUserId()).put("structureId", structureId),
+                Neo4jResult.validUniqueResultHandler(result -> handler.handle(result.isRight()
+                        && result.right().getValue().getInteger("n", 0) > 0)));
+    }
+
+    /** Partie immédiate de la règle (sans requête) : super-administrateur, ou ADML de l'établissement. */
+    static boolean canManageHabilitations(UserInfos user, String structureId) {
+        if (user == null) return false;
+        if (user.isADMC()) return true;
+        if (structureId == null || user.getFunctions() == null) return false;
+        UserInfos.Function adml = user.getFunctions().get(DefaultFunctions.ADMIN_LOCAL);
+        return adml != null && adml.getScope() != null && adml.getScope().contains(structureId);
     }
 }
